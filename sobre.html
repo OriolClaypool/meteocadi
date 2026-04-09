@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sobre el projecte — Meteocadí</title>
+  <meta name="description" content="Meteocadí és una xarxa meteorològica ciutadana centrada en el Parc Natural del Cadí-Moixeró i els Pirineus catalans." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<!-- ══ NAV ══ -->
+<nav>
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo">
+      <span class="nav-logo-icon" aria-hidden="true"></span>
+      <span class="nav-logo-text">
+        <span class="nav-logo-name">METEOCADÍ</span>
+        <span class="nav-logo-sub">Cadí-Moixeró · Pirineus</span>
+      </span>
+    </a>
+    <button class="nav-toggle" aria-label="Menú" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+    <ul class="nav-links">
+      <li><a href="estacions.html">Estacions</a></li>
+      <li><a href="mapa.html">Mapa</a></li>
+      <li><a href="webcams.html">Webcams</a></li>
+      <li><a href="sobre.html">Sobre el projecte</a></li>
+      <li><a href="contacte.html">Contacte</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- ══ AVÍS METEOCAT ══ -->
+<div id="aviso-banner" class="aviso-banner" role="alert">
+  <div class="aviso-inner">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    <span class="aviso-text" id="aviso-text"></span>
+    <a href="https://www.meteocat.gencat.cat/mediamb/observadors/avisosComarques/" target="_blank" rel="noopener" class="aviso-link">Més informació</a>
+    <button class="aviso-close" id="aviso-close" aria-label="Tancar avís">×</button>
+  </div>
+</div>
+
+<!-- ══ PAGE HEADER ══ -->
+<div class="page-header">
+  <div class="container">
+    <span class="eyebrow">Meteocadí · meteocadi.com</span>
+    <h1>Sobre el projecte</h1>
+  </div>
+</div>
+
+<!-- ══ QUI SOM — text esquerra, imatge dreta ══ -->
+<section class="about-section">
+  <div class="container">
+    <div class="about-row">
+      <div class="about-text">
+        <span class="eyebrow">Qui som</span>
+        <h2>Una xarxa de meteorologia ciutadana</h2>
+        <p>
+          Meteocadí és una iniciativa de meteorologia ciutadana dedicada a la monitorització
+          contínua de les condicions atmosfèriques al massís del Cadí-Moixeró i els seus
+          encontorns. El projecte neix de la voluntat de posar a l'abast de tothom dades
+          meteorològiques fiables d'alta muntanya, un territori on l'observació meteorològica
+          professional sovint té buits importants.
+        </p>
+        <p>
+          La xarxa es fonamenta en estacions automàtiques privades gestionades per col·laboradors
+          voluntaris del territori, integrades en plataformes com Weathercloud i Weather Underground,
+          i complementades amb webcams que ofereixen una visió directa de l'estat de la muntanya.
+        </p>
+        <p>
+          Totes les dades són públiques i de lliure accés, en coherència amb la filosofia
+          oberta que inspira el projecte.
+        </p>
+      </div>
+      <div class="about-img-placeholder">
+        <span>[ Fotografia ]</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ LA XARXA — imatge esquerra, text dreta ══ -->
+<section class="about-section">
+  <div class="container">
+    <div class="about-row about-row-reverse">
+      <div class="about-text">
+        <span class="eyebrow">La xarxa</span>
+        <h2>La xarxa d'estacions</h2>
+        <p>
+          La xarxa Meteocadí agrupa estacions meteorològiques automàtiques situades
+          a diverses altituds, des de les valls del Berguedà i la Cerdanya fins als
+          colls i cims del Prepirineu i el Pirineu axial. Cada estació registra
+          en temps real les variables principals:
+        </p>
+        <ul>
+          <li>Temperatura de l'aire (ºC)</li>
+          <li>Velocitat i direcció del vent (km/h)</li>
+          <li>Humitat relativa (%)</li>
+          <li>Pressió atmosfèrica (hPa)</li>
+          <li>Precipitació acumulada (mm)</li>
+        </ul>
+        <p>
+          La col·laboració amb el <strong>Parc Natural del Cadí-Moixeró</strong> permet
+          ubicar algunes estacions en punts estratègics de l'espai protegit, garantint
+          una cobertura espacial que difícilment s'assoliria a títol individual.
+        </p>
+        <p>
+          Les dades s'integren i es publiquen a través de les plataformes Weathercloud
+          i Weather Underground, on queden arxivades i accessibles per a qualsevol
+          persona interessada en l'anàlisi meteorològica de la zona.
+        </p>
+      </div>
+      <div class="about-img-placeholder">
+        <span>[ Fotografia ]</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ EL TERRITORI — text esquerra, imatge dreta ══ -->
+<section class="about-section">
+  <div class="container">
+    <div class="about-row">
+      <div class="about-text">
+        <span class="eyebrow">El territori</span>
+        <h2>El massís del Cadí-Moixeró</h2>
+        <p>
+          El massís del <strong>Cadí-Moixeró</strong> és una de les serralades prepirinèniques
+          més singulars de Catalunya. Amb una longitud d'uns 50 km en sentit est-oest i cims
+          que superen els 2.600 m, actua com una barrera climàtica natural entre les terres
+          de Lleida i la Catalunya central al sud, i la Cerdanya i el Berguedà nord al nord.
+        </p>
+        <p>
+          Aquesta posició fa que el massís sigui especialment sensible als fluxos atmosfèrics
+          del nord —la tramuntana i el vent del Pirineu— i als episodis de precipitació
+          associats als fronts atlàntics. La complexitat del relleu genera microclimes molt
+          marcats en pocs quilòmetres de distància, cosa que fa especialment valuosa la
+          presència d'estacions meteorològiques repartides per tot el territori.
+        </p>
+        <p>
+          El Parc Natural del Cadí-Moixeró, declarat el 1983, protegeix prop de 41.000 hectàrees
+          que inclouen boscos de pi negre, avetoses, prats alpins i penya-segats calcaris. En un
+          context de canvi climàtic, disposar d'una sèrie de dades llarga i fiable en aquest
+          territori és cada cop més rellevant per documentar les tendències i donar suport a la
+          recerca ambiental.
+        </p>
+      </div>
+      <div class="about-img-placeholder">
+        <span>[ Fotografia ]</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ FOOTER ══ -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-col-left">
+      <a href="index.html" class="nav-logo">
+        <span class="nav-logo-icon" aria-hidden="true"></span>
+        <span class="nav-logo-text">
+          <span class="nav-logo-name">METEOCADÍ</span>
+          <span class="nav-logo-sub">Cadí-Moixeró · Pirineus</span>
+        </span>
+      </a>
+      <span class="footer-copy">© 2026 Meteocadí</span>
+    </div>
+    <ul class="footer-nav">
+      <li><a href="estacions.html">Estacions</a></li>
+      <li><a href="mapa.html">Mapa</a></li>
+      <li><a href="webcams.html">Webcams</a></li>
+      <li><a href="sobre.html">Sobre el projecte</a></li>
+      <li><a href="contacte.html">Contacte</a></li>
+    </ul>
+    <div class="footer-col-right">
+      <p>meteocadi.com</p>
+      <p>Parc Natural del Cadí-Moixeró</p>
+    </div>
+  </div>
+</footer>
+
+<script src="js/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Meteocadí — Meteorologia d'alta muntanya en temps real</title>
+  <meta name="description" content="Xarxa meteorològica del Parc Natural del Cadí-Moixeró i els Pirineus catalans. Dades en temps real de temperatura, vent, humitat i precipitació." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<!-- ══ NAV ══ -->
+<nav>
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo">
+      <span class="nav-logo-icon" aria-hidden="true"></span>
+      <span class="nav-logo-text">
+        <span class="nav-logo-name">METEOCADÍ</span>
+        <span class="nav-logo-sub">Cadí-Moixeró · Pirineus</span>
+      </span>
+    </a>
+    <button class="nav-toggle" aria-label="Menú" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+    <ul class="nav-links">
+      <li><a href="estacions.html">Estacions</a></li>
+      <li><a href="mapa.html">Mapa</a></li>
+      <li><a href="webcams.html">Webcams</a></li>
+      <li><a href="sobre.html">Sobre el projecte</a></li>
+      <li><a href="contacte.html">Contacte</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- ══ AVÍS METEOCAT ══ -->
+<div id="aviso-banner" class="aviso-banner" role="alert">
+  <div class="aviso-inner">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    <span class="aviso-text" id="aviso-text"></span>
+    <a href="https://www.meteocat.gencat.cat/mediamb/observadors/avisosComarques/" target="_blank" rel="noopener" class="aviso-link">Més informació</a>
+    <button class="aviso-close" id="aviso-close" aria-label="Tancar avís">×</button>
+  </div>
+</div>
+
+<!-- ══ HERO ══ -->
+<section class="hero">
+  <div class="container">
+    <span class="hero-pill">Xarxa activa · 9 estacions</span>
+    <h1>Meteorologia <em>d'alta muntanya</em><br>en temps real</h1>
+    <p>Dades de temperatura, vent, humitat i precipitació des de les estacions de la xarxa Meteocadí. Cobertura contínua del massís del Cadí-Moixeró i els seus encontorns.</p>
+    <div class="hero-btns">
+      <a href="estacions.html" class="btn btn-primary">Veure estacions</a>
+      <a href="webcams.html"   class="btn btn-outline">Webcams en directe</a>
+    </div>
+  </div>
+</section>
+
+<!-- ══ STATS BAR ══ -->
+<div class="stats-bar" style="background:linear-gradient(135deg,#0e1a2e,#0a1f3a); border-top-color:rgba(13,159,255,0.18); border-bottom-color:rgba(13,159,255,0.18);">
+  <div class="stats-bar-inner">
+    <div class="stats-bar-item">
+      <span class="stats-bar-label">Altitud màxima</span>
+      <span class="stats-bar-value">2.445</span>
+      <span class="stats-bar-sub">m s.n.m.</span>
+    </div>
+    <div class="stats-bar-item">
+      <span class="stats-bar-label">Estacions actives</span>
+      <span class="stats-bar-value" data-stats-active>—</span>
+      <span class="stats-bar-sub" data-stats-active-sub>de 9 en línia</span>
+    </div>
+    <div class="stats-bar-item">
+      <span class="stats-bar-label">Temp. mínima</span>
+      <span class="stats-bar-value" data-stats-min-temp>—</span>
+      <span class="stats-bar-sub" data-stats-min-name>—</span>
+    </div>
+    <div class="stats-bar-item">
+      <span class="stats-bar-label">Temp. màxima</span>
+      <span class="stats-bar-value" data-stats-max-temp>—</span>
+      <span class="stats-bar-sub" data-stats-max-name>—</span>
+    </div>
+    <div class="stats-bar-item">
+      <span class="stats-bar-label">Precipitació total</span>
+      <span class="stats-bar-value">12,4</span>
+      <span class="stats-bar-sub">mm · últimes 24h</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ESTACIONS ══ -->
+<section class="section">
+  <div class="container">
+    <div class="section-header">
+      <span class="eyebrow">Xarxa d'observació</span>
+      <h2>Estacions meteorològiques</h2>
+      <p>Última actualització: <span data-last-update></span></p>
+    </div>
+
+    <div class="grid-4">
+
+      <!-- Estació: Puigllançada · Coll de Pal -->
+      <div class="station-card" data-station-id="IGUARD34">
+        <div class="station-card-header">
+          <div>
+            <div class="station-name">Coll de Pal - Puigllançada</div>
+            <div class="station-alt">2.008 m s.n.m.</div>
+          </div>
+          <span class="badge badge-warn">Sense senyal</span>
+        </div>
+        <div class="station-temp">—</div>
+        <div class="station-metrics">
+          <div class="metric-box"><label>Vent</label><span>—</span></div>
+          <div class="metric-box"><label>Humitat</label><span>—</span></div>
+          <div class="metric-box"><label>Precipitació</label><span>—</span></div>
+        </div>
+      </div>
+
+      <!-- Estació: Cadí Est-Tancalaporte PN -->
+      <div class="station-card" data-station-id="IGISCL6">
+        <div class="station-card-header">
+          <div>
+            <div class="station-name">Tancalaporta PN</div>
+            <div class="station-alt">1.920 m s.n.m.</div>
+          </div>
+          <span class="badge badge-warn">Sense senyal</span>
+        </div>
+        <div class="station-temp">—</div>
+        <div class="station-metrics">
+          <div class="metric-box"><label>Vent</label><span>—</span></div>
+          <div class="metric-box"><label>Humitat</label><span>—</span></div>
+          <div class="metric-box"><label>Precipitació</label><span>—</span></div>
+        </div>
+      </div>
+
+      <!-- Estació: Massís del Pedraforca -->
+      <div class="station-card" data-station-id="IGSOL7">
+        <div class="station-card-header">
+          <div>
+            <div class="station-name">Pedraforca</div>
+            <div class="station-alt">1.380 m s.n.m.</div>
+          </div>
+          <span class="badge badge-warn">Sense senyal</span>
+        </div>
+        <div class="station-temp">—</div>
+        <div class="station-metrics">
+          <div class="metric-box"><label>Vent</label><span>—</span></div>
+          <div class="metric-box"><label>Humitat</label><span>—</span></div>
+          <div class="metric-box"><label>Precipitació</label><span>—</span></div>
+        </div>
+      </div>
+
+      <!-- Estació: Bagà · Refugi PN Cadí -->
+      <div class="station-card" data-station-id="IBAG67">
+        <div class="station-card-header">
+          <div>
+            <div class="station-name">Bagà-Rebost</div>
+            <div class="station-alt">860 m s.n.m.</div>
+          </div>
+          <span class="badge badge-warn">Sense senyal</span>
+        </div>
+        <div class="station-temp">—</div>
+        <div class="station-metrics">
+          <div class="metric-box"><label>Vent</label><span>—</span></div>
+          <div class="metric-box"><label>Humitat</label><span>—</span></div>
+          <div class="metric-box"><label>Precipitació</label><span>—</span></div>
+        </div>
+      </div>
+
+    </div><!-- /grid-4 -->
+
+    <p style="margin-top:1.75rem;">
+      <a href="estacions.html" class="btn btn-outline" style="font-size:0.8rem;">Totes les estacions →</a>
+    </p>
+  </div>
+</section>
+
+<!-- ══ WEBCAMS ══ -->
+<section class="section" style="background:#080d18;">
+  <div class="container">
+    <div class="section-header">
+      <span class="eyebrow">Imatge en directe</span>
+      <h2>Webcams</h2>
+    </div>
+
+    <div class="grid-2">
+
+      <!-- TODO: substituir el div.webcam-placeholder per <img src="URL_REAL" alt="..."> -->
+
+      <div class="webcam-card">
+        <div class="webcam-placeholder">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+            <path d="M23 7l-7 5 7 5V7z"/>
+            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+          </svg>
+          <!-- TODO: substituir per <img src="https://exemple-webcam-1.com/snap.jpg" alt="La Molina"> -->
+          <span>Imatge no disponible</span>
+        </div>
+        <div class="webcam-info">
+          <span class="webcam-name">La Molina — Pistes</span>
+          <span class="badge badge-live">En directe</span>
+        </div>
+      </div>
+
+      <div class="webcam-card">
+        <div class="webcam-placeholder">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+            <path d="M23 7l-7 5 7 5V7z"/>
+            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+          </svg>
+          <!-- TODO: substituir per <img src="https://exemple-webcam-2.com/snap.jpg" alt="Coll de Pal"> -->
+          <span>Imatge no disponible</span>
+        </div>
+        <div class="webcam-info">
+          <span class="webcam-name">Coll de Pal — Cim</span>
+          <span class="badge badge-live">En directe</span>
+        </div>
+      </div>
+
+    </div><!-- /grid-2 -->
+
+    <p style="margin-top:1.75rem;">
+      <a href="webcams.html" class="btn btn-outline" style="font-size:0.8rem;">Totes les webcams →</a>
+    </p>
+  </div>
+</section>
+
+<!-- ══ RADAR ══ -->
+<section class="section">
+  <div class="container">
+    <div class="section-header">
+      <span class="eyebrow">Radar de precipitació</span>
+      <h2>Radar Meteocat</h2>
+    </div>
+
+    <!-- TODO: substituir per embed/iframe del radar del Meteocat quan estigui disponible -->
+    <div class="radar-placeholder">
+      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+        <circle cx="12" cy="12" r="10"/>
+        <circle cx="12" cy="12" r="6"/>
+        <circle cx="12" cy="12" r="2"/>
+        <line x1="12" y1="2" x2="12" y2="4"/>
+        <line x1="12" y1="20" x2="12" y2="22"/>
+      </svg>
+      <p>Radar del Meteocat — <strong>pròximament</strong></p>
+      <p style="font-size:0.75rem;">Cobertura radar de precipitació en temps real per a Catalunya</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- ══ PREVISIÓ / TWITTER ══ -->
+<section class="section" style="background:#0e1a2e;">
+  <div class="container">
+    <div class="section-header">
+      <span class="eyebrow">Previsió del dia</span>
+      <h2>Previsió del dia</h2>
+    </div>
+    <div style="max-width:540px; background:#0d1526; border:1px solid rgba(13,159,255,0.15); border-radius:12px; padding:20px; max-height:320px; overflow:hidden;">
+      <!-- TODO: substituir pel compte real de Twitter/X -->
+      <a class="twitter-timeline"
+         href="https://twitter.com/meteocadi"
+         data-tweet-limit="1"
+         data-theme="dark"
+         data-chrome="noheader nofooter noborders"
+         style="color:#f0f4ff;">
+        Tweets per @meteocadi
+      </a>
+    </div>
+  </div>
+</section>
+<script async src="https://platform.twitter.com/widgets.js" charset="utf-8"></script>
+
+<!-- ══ QUI SOM ══ -->
+<section class="section" style="background:#0e1a2e;">
+  <div class="container">
+    <div class="quisom-grid">
+      <div class="quisom-left">
+        <div class="section-header">
+          <span class="eyebrow">Qui som</span>
+          <h2>Una xarxa d'aficionats a la meteorologia de muntanya</h2>
+        </div>
+        <p>Meteocadí és una <strong>xarxa meteorològica ciutadana</strong> dedicada a l'observació i el seguiment del temps al Parc Natural del Cadí-Moixeró i les seves serralades adjacents. Nascuda de la passió d'un grup d'aficionats a la meteorologia d'alta muntanya, la xarxa cobreix un rang altitudinal excepcional, des de les valls del Berguedà fins als cims pirinencs per sobre dels 2.000 metres.</p>
+        <p>Les estacions s'instal·len en <strong>col·laboració amb el Parc Natural del Cadí-Moixeró</strong>, que facilita l'accés als indrets estratègics i comparteix la vocació de documentar el clima d'un territori d'una riquesa natural extraordinària. Les dades recollides contribueixen al coneixement del clima local i al seguiment dels efectes del canvi climàtic en els ecosistemes d'alta muntanya dels Pirineus catalans.</p>
+        <div class="quisom-figures">
+          <div class="quisom-figure">
+            <span class="figure-num" data-quisom-count>—</span>
+            <span class="figure-label">estacions actives</span>
+          </div>
+          <div class="quisom-figure">
+            <span class="figure-num" data-quisom-maxalt>—</span>
+            <span class="figure-label">m altitud màxima</span>
+          </div>
+          <div class="quisom-figure">
+            <span class="figure-num">24/7</span>
+            <span class="figure-label">cobertura contínua</span>
+          </div>
+        </div>
+      </div>
+      <div class="quisom-right">
+        <div data-photo-slot="projecte" style="background:#0d1526; border:1px solid rgba(13,159,255,0.15); border-radius:12px; height:280px; display:flex; align-items:center; justify-content:center;">
+          <span style="color:rgba(255,255,255,0.2); font-size:13px;">[ Fotografia del projecte ]</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ CONTACTE CTA ══ -->
+<section class="section">
+  <div class="container">
+    <div class="contact-cta-card">
+      <div>
+        <span class="eyebrow">Contacte</span>
+        <h2>Tens alguna pregunta?</h2>
+        <p>Si vols col·laborar amb la xarxa, proposar una nova ubicació d'estació o simplement saber més sobre el projecte, no dubtis a posar-te en contacte amb nosaltres.</p>
+      </div>
+      <a href="contacte.html" class="btn btn-primary btn-lg">Contacta'ns</a>
+    </div>
+  </div>
+</section>
+
+<!-- ══ FOOTER ══ -->
+<footer style="background:#040810;">
+  <div class="footer-inner">
+    <div class="footer-col-left">
+      <a href="index.html" class="nav-logo">
+        <span class="nav-logo-icon" aria-hidden="true"></span>
+        <span class="nav-logo-text">
+          <span class="nav-logo-name">METEOCADÍ</span>
+          <span class="nav-logo-sub">Cadí-Moixeró · Pirineus</span>
+        </span>
+      </a>
+      <span class="footer-copy">© 2026 Meteocadí</span>
+    </div>
+    <ul class="footer-nav">
+      <li><a href="estacions.html">Estacions</a></li>
+      <li><a href="mapa.html">Mapa</a></li>
+      <li><a href="webcams.html">Webcams</a></li>
+      <li><a href="sobre.html">Sobre el projecte</a></li>
+      <li><a href="contacte.html">Contacte</a></li>
+    </ul>
+    <div class="footer-col-right">
+      <p>meteocadi.com</p>
+      <p>Parc Natural del Cadí-Moixeró</p>
+    </div>
+  </div>
+</footer>
+
+<script src="js/main.js"></script>
+</body>
+</html>

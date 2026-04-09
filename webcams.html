@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Webcams — Meteocadí</title>
+  <meta name="description" content="Webcams en directe del Parc Natural del Cadí-Moixeró i els Pirineus catalans." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .webcam-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1.25rem; }
+    .webcam-card-full { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .webcam-img-wrap { position: relative; }
+    .webcam-img-wrap img { width: 100%; aspect-ratio: 16/9; object-fit: cover; display: block; }
+    .webcam-placeholder-full {
+      width: 100%; aspect-ratio: 16/9; background: rgba(255,255,255,0.02);
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 0.75rem; color: var(--text-sec);
+      border-bottom: 1px solid var(--border);
+    }
+    .webcam-placeholder-full svg { opacity: 0.2; }
+    .webcam-placeholder-full span { font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; }
+    .webcam-body { padding: 1rem 1.1rem; }
+    .webcam-title { font-size: 0.95rem; font-weight: 500; margin-bottom: 0.3rem; display: flex; justify-content: space-between; align-items: center; color: var(--text); }
+    .webcam-desc { font-size: 0.82rem; color: var(--text-sec); line-height: 1.55; }
+    .webcam-meta { font-size: 0.7rem; color: var(--text-sec); margin-top: 0.6rem; font-variant-numeric: tabular-nums; }
+    @media (max-width: 640px) { .webcam-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+
+<!-- ══ NAV ══ -->
+<nav>
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo">
+      <span class="nav-logo-icon" aria-hidden="true"></span>
+      <span class="nav-logo-text">
+        <span class="nav-logo-name">METEOCADÍ</span>
+        <span class="nav-logo-sub">Cadí-Moixeró · Pirineus</span>
+      </span>
+    </a>
+    <button class="nav-toggle" aria-label="Menú" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+    <ul class="nav-links">
+      <li><a href="estacions.html">Estacions</a></li>
+      <li><a href="mapa.html">Mapa</a></li>
+      <li><a href="webcams.html">Webcams</a></li>
+      <li><a href="sobre.html">Sobre el projecte</a></li>
+      <li><a href="contacte.html">Contacte</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- ══ AVÍS METEOCAT ══ -->
+<div id="aviso-banner" class="aviso-banner" role="alert">
+  <div class="aviso-inner">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    <span class="aviso-text" id="aviso-text"></span>
+    <a href="https://www.meteocat.gencat.cat/mediamb/observadors/avisosComarques/" target="_blank" rel="noopener" class="aviso-link">Més informació</a>
+    <button class="aviso-close" id="aviso-close" aria-label="Tancar avís">×</button>
+  </div>
+</div>
+
+<!-- ══ PAGE HEADER ══ -->
+<div class="page-header">
+  <div class="container">
+    <span class="eyebrow">Imatge en directe · Meteocadí</span>
+    <h1>Webcams</h1>
+    <p style="margin-top:0.5rem; font-size:0.875rem;">
+      Imatges actualitzades periòdicament des de les ubicacions de la xarxa.
+    </p>
+  </div>
+</div>
+
+<!-- ══ WEBCAMS ══ -->
+<section style="padding: 2.5rem 0 4rem;">
+  <div class="container">
+
+    <!-- TODO: substituir els blocs webcam-placeholder-full per <img src="URL_REAL" alt="...">
+         o per un <iframe> si la webcam ofereix embed en directe. -->
+
+    <div class="webcam-grid">
+
+      <!-- ── Webcam 1: La Molina ── -->
+      <div class="webcam-card-full">
+        <div class="webcam-img-wrap">
+          <!-- TODO: substituir per <img src="https://url-real-webcam-la-molina.jpg" alt="Webcam La Molina"> -->
+          <div class="webcam-placeholder-full">
+            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.1">
+              <path d="M23 7l-7 5 7 5V7z"/>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+            </svg>
+            <span>Imatge no disponible</span>
+          </div>
+        </div>
+        <div class="webcam-body">
+          <div class="webcam-title">
+            La Molina — Pistes
+            <span class="badge badge-live">En directe</span>
+          </div>
+          <p class="webcam-desc">Vista panoràmica de les pistes d'esquí de La Molina i el massís del Puigllançada.</p>
+          <div class="webcam-meta">42.3174° N · 1.9396° E · 1.700 m s.n.m.</div>
+        </div>
+      </div>
+
+      <!-- ── Webcam 2: Coll de Pal ── -->
+      <div class="webcam-card-full">
+        <div class="webcam-img-wrap">
+          <!-- TODO: substituir per <img src="https://url-real-webcam-coll-de-pal.jpg" alt="Webcam Coll de Pal"> -->
+          <div class="webcam-placeholder-full">
+            <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.1">
+              <path d="M23 7l-7 5 7 5V7z"/>
+              <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+            </svg>
+            <span>Imatge no disponible</span>
+          </div>
+        </div>
+        <div class="webcam-body">
+          <div class="webcam-title">
+            Coll de Pal — Cim
+            <span class="badge badge-live">En directe</span>
+          </div>
+          <p class="webcam-desc">Vista des del coll cap al Pedraforca i la Serra del Cadí. Altitud: 2.008 m.</p>
+          <div class="webcam-meta">42.2498° N · 1.8421° E · 2.008 m s.n.m.</div>
+        </div>
+      </div>
+
+    </div><!-- /webcam-grid -->
+
+    <!-- Avís integració -->
+    <div class="card" style="margin-top: 2rem;">
+      <p style="font-size: 0.82rem; color: var(--text-sec);">
+        <strong style="color:var(--accent);">TODO</strong> — Les imatges s'actualitzaran automàticament quan s'integrin les URLs reals de les webcams.
+        Format recomanat: <code style="font-size:0.78rem; color:var(--text-sec);">&lt;img src="URL" alt="..." style="width:100%;aspect-ratio:16/9;object-fit:cover;"&gt;</code>
+        o embed via iframe si la càmera ho permet.
+      </p>
+    </div>
+
+  </div>
+</section>
+
+<!-- ══ FOOTER ══ -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-col-left">
+      <a href="index.html" class="nav-logo">
+        <span class="nav-logo-icon" aria-hidden="true"></span>
+        <span class="nav-logo-text">
+          <span class="nav-logo-name">METEOCADÍ</span>
+          <span class="nav-logo-sub">Cadí-Moixeró · Pirineus</span>
+        </span>
+      </a>
+      <span class="footer-copy">© 2026 Meteocadí</span>
+    </div>
+    <ul class="footer-nav">
+      <li><a href="estacions.html">Estacions</a></li>
+      <li><a href="mapa.html">Mapa</a></li>
+      <li><a href="webcams.html">Webcams</a></li>
+      <li><a href="sobre.html">Sobre el projecte</a></li>
+      <li><a href="contacte.html">Contacte</a></li>
+    </ul>
+    <div class="footer-col-right">
+      <p>meteocadi.com</p>
+      <p>Parc Natural del Cadí-Moixeró</p>
+    </div>
+  </div>
+</footer>
+
+<script src="js/main.js"></script>
+</body>
+</html>

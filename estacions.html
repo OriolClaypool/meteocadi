@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Estacions — Meteocadí</title>
+  <meta name="description" content="Dades en temps real de les estacions meteorològiques de la xarxa Meteocadí al Cadí-Moixeró i els Pirineus catalans." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<!-- ══ NAV ══ -->
+<nav>
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo">
+      <span class="nav-logo-icon" aria-hidden="true"></span>
+      <span class="nav-logo-text">
+        <span class="nav-logo-name">METEOCADÍ</span>
+        <span class="nav-logo-sub">Cadí-Moixeró · Pirineus</span>
+      </span>
+    </a>
+    <button class="nav-toggle" aria-label="Menú" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+    <ul class="nav-links">
+      <li><a href="estacions.html">Estacions</a></li>
+      <li><a href="mapa.html">Mapa</a></li>
+      <li><a href="webcams.html">Webcams</a></li>
+      <li><a href="sobre.html">Sobre el projecte</a></li>
+      <li><a href="contacte.html">Contacte</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- ══ AVÍS METEOCAT ══ -->
+<div id="aviso-banner" class="aviso-banner" role="alert">
+  <div class="aviso-inner">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    <span class="aviso-text" id="aviso-text"></span>
+    <a href="https://www.meteocat.gencat.cat/mediamb/observadors/avisosComarques/" target="_blank" rel="noopener" class="aviso-link">Més informació</a>
+    <button class="aviso-close" id="aviso-close" aria-label="Tancar avís">×</button>
+  </div>
+</div>
+
+<!-- ══ PAGE HEADER ══ -->
+<div class="page-header">
+  <div class="container">
+    <span class="eyebrow">Xarxa d'observació · Meteocadí</span>
+    <h1>Estacions meteorològiques</h1>
+    <p style="margin-top:0.5rem; font-size:0.875rem;">
+      Última actualització: <span data-last-update></span>
+    </p>
+  </div>
+</div>
+
+<!-- ══ STATIONS ══ -->
+<section style="padding: 2.5rem 0 4rem;">
+  <div class="container">
+
+    <div class="stations-list">
+
+      <!-- ── IGISCL4 · Tancalaporta 2445m (offline) ── -->
+      <div class="station-full-card" data-station-id="IGISCL4">
+        <div class="sfc-header">
+          <div class="station-full-meta">
+            <div class="station-full-name">Tancalaporta 2445m</div>
+            <div class="station-full-coords">2.445 m s.n.m. · PN Cadí-Moixeró</div>
+          </div>
+          <span class="badge badge-warn">Sense senyal</span>
+        </div>
+        <div class="sfc-temp">
+          <div class="station-full-temp">—</div>
+        </div>
+        <div class="station-full-stats">
+          <div class="stat-item"><label>Vent mig</label><span>—</span></div>
+          <div class="stat-item"><label>Ratxa màx.</label><span>—</span></div>
+          <div class="stat-item"><label>Humitat</label><span>—</span></div>
+          <div class="stat-item"><label>Pressió</label><span>—</span></div>
+          <div class="stat-item"><label>Precipitació</label><span>—</span></div>
+          <div class="stat-item"><label>Actualitzat</label><span>—</span></div>
+        </div>
+      </div>
+
+      <!-- ── IGUARD34 · Coll de Pal - Puigllançada ── -->
+      <div class="station-full-card" data-station-id="IGUARD34">
+        <div class="sfc-header">
+          <div class="station-full-meta">
+            <div class="station-full-name">Coll de Pal - Puigllançada</div>
+            <div class="station-full-coords">2.008 m s.n.m. · Guardiola de Berguedà</div>
+          </div>
+          <span class="badge badge-warn">Sense senyal</span>
+        </div>
+        <div class="sfc-temp">
+          <div class="station-full-temp">—</div>
+        </div>
+        <div class="station-full-stats">
+          <div class="stat-item"><label>Vent mig</label><span>—</span></div>
+          <div class="stat-item"><label>Ratxa màx.</label><span>—</span></div>
+          <div class="stat-item"><label>Humitat</label><span>—</span></div>
+          <div class="stat-item"><label>Pressió</label><span>—</span></div>
+          <div class="stat-item"><label>Precipitació</label><span>—</span></div>
+          <div class="stat-item"><label>Actualitzat</label><span>—</span></div>
+        </div>
+      </div>
+
+      <!-- ── IGISCL1 · Tancalaporta (offline) ── -->
+      <div class="station-full-card" data-station-id="IGISCL1">
+        <div class="sfc-header">
+          <div class="station-full-meta">
+            <div class="station-full-name">Tancalaporta</div>
+            <div class="station-full-coords">~1.920 m s.n.m. · PN Cadí-Moixeró</div>
+          </div>
+          <span class="badge badge-warn">Sense senyal</span>
+        </div>
+        <div class="sfc-temp">
+          <div class="station-full-temp">—</div>
+        </div>
+        <div class="station-full-stats">
+          <div class="stat-item"><label>Vent mig</label><span>—</span></div>
+          <div class="stat-item"><label>Ratxa màx.</label><span>—</span></div>
+          <div class="stat-item"><label>Humitat</label><span>—</span></div>
+          <div class="stat-item"><label>Pressió</label><span>—</span></div>
+          <div class="stat-item"><label>Precipitació</label><span>—</span></div>
+          <div class="stat-item"><label>Actualitzat</label><span>—</span></div>
+        </div>
+      </div>
+
+      <!-- ── IGISCL6 · Tancalaporta PN ── -->
+      <div class="station-full-card" data-station-id="IGISCL6">
+        <div class="sfc-header">
+          <div class="station-full-meta">
+            <div class="station-full-name">Tancalaporta PN</div>
+            <div class="station-full-coords">~1.920 m s.n.m. · PN Cadí-Moixeró</div>
+          </div>
+          <span class="badge badge-warn">Sense senyal</span>
+        </div>
+        <div class="sfc-temp">
+          <div class="station-full-temp">—</div>
+        </div>
+        <div class="station-full-stats">
+          <div class="stat-item"><label>Vent mig</label><span>—</span></div>
+          <div class="stat-item"><label>Ratxa màx.</label><span>—</span></div>
+          <div class="stat-item"><label>Humitat</label><span>—</span></div>
+          <div class="stat-item"><label>Pressió</label><span>—</span></div>
+          <div class="stat-item"><label>Precipitació</label><span>—</span></div>
+          <div class="stat-item"><label>Actualitzat</label><span>—</span></div>
+        </div>
+      </div>
+
+      <!-- ── ISANTJ138 · Cerdanyola-Forcat ── -->
+      <div class="station-full-card" data-station-id="ISANTJ138">
+        <div class="sfc-header">
+          <div class="station-full-meta">
+            <div class="station-full-name">Cerdanyola-Forcat</div>
+            <div class="station-full-coords">~1.400 m s.n.m. · Sant Jaume de Frontanyà</div>
+          </div>
+          <span class="badge badge-warn">Sense senyal</span>
+        </div>
+        <div class="sfc-temp">
+          <div class="station-full-temp">—</div>
+        </div>
+        <div class="station-full-stats">
+          <div class="stat-item"><label>Vent mig</label><span>—</span></div>
+          <div class="stat-item"><label>Ratxa màx.</label><span>—</span></div>
+          <div class="stat-item"><label>Humitat</label><span>—</span></div>
+          <div class="stat-item"><label>Pressió</label><span>—</span></div>
+          <div class="stat-item"><label>Precipitació</label><span>—</span></div>
+          <div class="stat-item"><label>Actualitzat</label><span>—</span></div>
+        </div>
+      </div>
+
+      <!-- ── IGSOL7 · Pedraforca ── -->
+      <div class="station-full-card" data-station-id="IGSOL7">
+        <div class="sfc-header">
+          <div class="station-full-meta">
+            <div class="station-full-name">Pedraforca</div>
+            <div class="station-full-coords">~1.380 m s.n.m. · Gósol, Berguedà</div>
+          </div>
+          <span class="badge badge-warn">Sense senyal</span>
+        </div>
+        <div class="sfc-temp">
+          <div class="station-full-temp">—</div>
+        </div>
+        <div class="station-full-stats">
+          <div class="stat-item"><label>Vent mig</label><span>—</span></div>
+          <div class="stat-item"><label>Ratxa màx.</label><span>—</span></div>
+          <div class="stat-item"><label>Humitat</label><span>—</span></div>
+          <div class="stat-item"><label>Pressió</label><span>—</span></div>
+          <div class="stat-item"><label>Precipitació</label><span>—</span></div>
+          <div class="stat-item"><label>Actualitzat</label><span>—</span></div>
+        </div>
+      </div>
+
+      <!-- ── IBAG67 · Bagà-Rebost ── -->
+      <div class="station-full-card" data-station-id="IBAG67">
+        <div class="sfc-header">
+          <div class="station-full-meta">
+            <div class="station-full-name">Bagà-Rebost</div>
+            <div class="station-full-coords">~860 m s.n.m. · Bagà, Berguedà</div>
+          </div>
+          <span class="badge badge-warn">Sense senyal</span>
+        </div>
+        <div class="sfc-temp">
+          <div class="station-full-temp">—</div>
+        </div>
+        <div class="station-full-stats">
+          <div class="stat-item"><label>Vent mig</label><span>—</span></div>
+          <div class="stat-item"><label>Ratxa màx.</label><span>—</span></div>
+          <div class="stat-item"><label>Humitat</label><span>—</span></div>
+          <div class="stat-item"><label>Pressió</label><span>—</span></div>
+          <div class="stat-item"><label>Precipitació</label><span>—</span></div>
+          <div class="stat-item"><label>Actualitzat</label><span>—</span></div>
+        </div>
+      </div>
+
+      <!-- ── IBAG57 · Refugi de Rebost ── -->
+      <div class="station-full-card" data-station-id="IBAG57">
+        <div class="sfc-header">
+          <div class="station-full-meta">
+            <div class="station-full-name">Refugi de Rebost</div>
+            <div class="station-full-coords">~860 m s.n.m. · Bagà, Berguedà</div>
+          </div>
+          <span class="badge badge-warn">Sense senyal</span>
+        </div>
+        <div class="sfc-temp">
+          <div class="station-full-temp">—</div>
+        </div>
+        <div class="station-full-stats">
+          <div class="stat-item"><label>Vent mig</label><span>—</span></div>
+          <div class="stat-item"><label>Ratxa màx.</label><span>—</span></div>
+          <div class="stat-item"><label>Humitat</label><span>—</span></div>
+          <div class="stat-item"><label>Pressió</label><span>—</span></div>
+          <div class="stat-item"><label>Precipitació</label><span>—</span></div>
+          <div class="stat-item"><label>Actualitzat</label><span>—</span></div>
+        </div>
+      </div>
+
+      <!-- ── IBAG65 · Bagà Nord ── -->
+      <div class="station-full-card" data-station-id="IBAG65">
+        <div class="sfc-header">
+          <div class="station-full-meta">
+            <div class="station-full-name">Bagà Nord</div>
+            <div class="station-full-coords">~750 m s.n.m. · Bagà, Berguedà</div>
+          </div>
+          <span class="badge badge-warn">Sense senyal</span>
+        </div>
+        <div class="sfc-temp">
+          <div class="station-full-temp">—</div>
+        </div>
+        <div class="station-full-stats">
+          <div class="stat-item"><label>Vent mig</label><span>—</span></div>
+          <div class="stat-item"><label>Ratxa màx.</label><span>—</span></div>
+          <div class="stat-item"><label>Humitat</label><span>—</span></div>
+          <div class="stat-item"><label>Pressió</label><span>—</span></div>
+          <div class="stat-item"><label>Precipitació</label><span>—</span></div>
+          <div class="stat-item"><label>Actualitzat</label><span>—</span></div>
+        </div>
+      </div>
+
+    </div><!-- /stations-list -->
+  </div>
+</section>
+
+<!-- ══ FOOTER ══ -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-col-left">
+      <a href="index.html" class="nav-logo">
+        <span class="nav-logo-icon" aria-hidden="true"></span>
+        <span class="nav-logo-text">
+          <span class="nav-logo-name">METEOCADÍ</span>
+          <span class="nav-logo-sub">Cadí-Moixeró · Pirineus</span>
+        </span>
+      </a>
+      <span class="footer-copy">© 2026 Meteocadí</span>
+    </div>
+    <ul class="footer-nav">
+      <li><a href="estacions.html">Estacions</a></li>
+      <li><a href="mapa.html">Mapa</a></li>
+      <li><a href="webcams.html">Webcams</a></li>
+      <li><a href="sobre.html">Sobre el projecte</a></li>
+      <li><a href="contacte.html">Contacte</a></li>
+    </ul>
+    <div class="footer-col-right">
+      <p>meteocadi.com</p>
+      <p>Parc Natural del Cadí-Moixeró</p>
+    </div>
+  </div>
+</footer>
+
+<script src="js/main.js"></script>
+</body>
+</html>
