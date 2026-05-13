@@ -86,7 +86,7 @@
       <div class="detail-var-card"><div class="detail-var-label">Direcció del vent</div><div class="detail-var-value">—</div></div>
       <div class="detail-var-card"><div class="detail-var-label">Ratxa màxima</div><div class="detail-var-value">—</div></div>
       <div class="detail-var-card"><div class="detail-var-label">Pressió atmosfèrica</div><div class="detail-var-value">—</div></div>
-      <div class="detail-var-card"><div class="detail-var-label">Precipitació del dia</div><div class="detail-var-value">—</div></div>
+      <div class="detail-var-card"><div class="detail-var-label">Precip. avui</div><div class="detail-var-value">—</div></div>
     </div>
   </div>
 </section>
@@ -183,6 +183,8 @@
   var apiKey = window._meteocadiApiKey || 'b146442062ee4f8a86442062ee4f8acd';
   var url = 'https://api.weather.com/v2/pws/observations/current' +
     '?stationId=' + stationId + '&format=json&units=m&apiKey=' + apiKey;
+  var dailyUrl = 'https://api.weather.com/v2/pws/dailysummary/observations/current' +
+    '?stationId=' + stationId + '&format=json&units=m&apiKey=' + apiKey + '&numericPrecision=decimal';
 
   fetch(url)
     .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
@@ -190,8 +192,7 @@
       var obs = json.observations && json.observations[0];
       if (!obs) throw new Error('no data');
       var m = obs.metric || {};
-      console.log('[meteocadi] estacio.html precipTotal:', m.precipTotal);
-      render({
+      var data = {
         temp:        m.temp         ?? null,
         heatIndex:   m.heatIndex    ?? null,
         windChill:   m.windChill    ?? null,
@@ -201,9 +202,20 @@
         winddir:     obs.winddir    ?? null,
         humidity:    obs.humidity   ?? null,
         pressure:    m.pressure     ?? null,
-        precipTotal: m.precipTotal  ?? null,
+        precipTotal: null,
         obsTime:     obs.obsTimeLocal ?? null,
-      });
+      };
+      return fetch(dailyUrl)
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (dj) {
+          if (dj) {
+            var dObs = dj.observations && dj.observations[0];
+            if (dObs && dObs.metric) data.precipTotal = dObs.metric.precipTotal ?? null;
+          }
+          console.log('[meteocadi] estacio.html precipTotal (daily):', data.precipTotal);
+          render(data);
+        })
+        .catch(function () { render(data); });
     })
     .catch(function () { render(null); });
 
@@ -247,7 +259,7 @@
       { label: 'Direcció del vent',    value: d ? windLabel(d.winddir) : '—',                                 color: 'var(--text)',     sub: d && d.winddir != null ? d.winddir + '°' : '' },
       { label: 'Ratxa màxima',         value: fmt(d ? d.windGust : null, ' km/h'),                            color: '#fbbf24',         sub: '' },
       { label: 'Pressió atmosfèrica',  value: fmt(d ? d.pressure : null, ' hPa'),                             color: 'var(--text)',     sub: '' },
-      { label: 'Precipitació total',   value: d ? (d.precipTotal ?? 0).toFixed(1) + ' mm' : '0.0 mm',           color: '#a5b4fc',   sub: 'Des de mitjanit' },
+      { label: 'Precip. avui',          value: d && d.precipTotal != null ? d.precipTotal.toFixed(1) + ' mm' : '—', color: '#a5b4fc',   sub: 'Des de mitjanit' },
     ];
 
     document.getElementById('station-vars-grid').innerHTML = vars.map(function (v) {

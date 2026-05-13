@@ -123,7 +123,7 @@
 
   function fmtHum(h)  { return h    != null ? h + '%'                    : '—'; }
   function fmtPres(p) { return p    != null ? Math.round(p) + ' hPa'    : '—'; }
-  function fmtPrec(v) { return v    != null ? v.toFixed(1) + ' mm'      : '0.0 mm'; }
+  function fmtPrec(v) { return v    != null ? v.toFixed(1) + ' mm'      : '—'; }
   function fmtObsTime(t) {
     if (!t) return '—';
     const m = String(t).match(/(\d{2}:\d{2})/);
@@ -133,20 +133,34 @@
   async function fetchStation(id) {
     const url = 'https://api.weather.com/v2/pws/observations/current' +
       '?stationId=' + id + '&format=json&units=m&apiKey=' + API_KEY;
+    const dailyUrl = 'https://api.weather.com/v2/pws/dailysummary/observations/current' +
+      '?stationId=' + id + '&format=json&units=m&apiKey=' + API_KEY + '&numericPrecision=decimal';
+
     const res = await fetch(url);
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const json = await res.json();
     const obs  = json.observations && json.observations[0];
     if (!obs) throw new Error('no data');
     const m = obs.metric || {};
-    console.log('[meteocadi] fetchStation', id, 'precipTotal:', m.precipTotal);
+
+    let precipTotal = null;
+    try {
+      const dailyRes = await fetch(dailyUrl);
+      if (dailyRes.ok) {
+        const dailyJson = await dailyRes.json();
+        const dailyObs  = dailyJson.observations && dailyJson.observations[0];
+        if (dailyObs && dailyObs.metric) precipTotal = dailyObs.metric.precipTotal ?? null;
+      }
+    } catch (e) { /* fall back to null */ }
+    console.log('[meteocadi] fetchStation', id, 'precipTotal (daily):', precipTotal);
+
     return {
       temp:         m.temp            ?? null,
       humidity:     obs.humidity       ?? null,
       wind:         m.windSpeed        ?? null,
       windGust:     m.windGust         ?? null,
       winddir:      obs.winddir        ?? null,
-      precipTotal:  m.precipTotal       ?? null,
+      precipTotal,
       pressure:     m.pressure         ?? null,
       obsTimeLocal: obs.obsTimeLocal   ?? null,
     };

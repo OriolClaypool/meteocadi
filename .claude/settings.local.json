@@ -3,7 +3,10 @@
     "allow": [
       "Bash(find /Users/oriol/meteocadi -type f -name *.html -o -name *.css -o -name *.js -o -name *.json)",
       "Bash(grep -n \"\"\"Coll de Pal\"\"\" /Users/oriol/meteocadi/js/main.js)",
-      "Bash(ls /Users/oriol/meteocadi/*.png)"
+      "Bash(ls /Users/oriol/meteocadi/*.png)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)"
     ]
   }
 }
