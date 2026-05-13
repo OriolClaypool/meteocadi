@@ -123,7 +123,7 @@
 
   function fmtHum(h)  { return h    != null ? h + '%'                    : '—'; }
   function fmtPres(p) { return p    != null ? Math.round(p) + ' hPa'    : '—'; }
-  function fmtPrec(v) { return v    != null ? v.toFixed(1) + ' mm'      : '—'; }
+  function fmtPrec(v) { return v    != null ? v.toFixed(1) + ' mm'      : '0.0 mm'; }
   function fmtObsTime(t) {
     if (!t) return '—';
     const m = String(t).match(/(\d{2}:\d{2})/);
@@ -139,6 +139,7 @@
     const obs  = json.observations && json.observations[0];
     if (!obs) throw new Error('no data');
     const m = obs.metric || {};
+    console.log('[meteocadi] fetchStation', id, 'precipTotal:', m.precipTotal);
     return {
       temp:         m.temp            ?? null,
       humidity:     obs.humidity       ?? null,

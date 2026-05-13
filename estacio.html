@@ -190,6 +190,7 @@
       var obs = json.observations && json.observations[0];
       if (!obs) throw new Error('no data');
       var m = obs.metric || {};
+      console.log('[meteocadi] estacio.html precipTotal:', m.precipTotal);
       render({
         temp:        m.temp         ?? null,
         heatIndex:   m.heatIndex    ?? null,
@@ -246,7 +247,7 @@
       { label: 'Direcció del vent',    value: d ? windLabel(d.winddir) : '—',                                 color: 'var(--text)',     sub: d && d.winddir != null ? d.winddir + '°' : '' },
       { label: 'Ratxa màxima',         value: fmt(d ? d.windGust : null, ' km/h'),                            color: '#fbbf24',         sub: '' },
       { label: 'Pressió atmosfèrica',  value: fmt(d ? d.pressure : null, ' hPa'),                             color: 'var(--text)',     sub: '' },
-      { label: 'Precipitació del dia', value: d && d.precipTotal != null ? d.precipTotal.toFixed(1) + ' mm' : '—', color: '#a5b4fc',   sub: 'des de mitjanit' },
+      { label: 'Precipitació total',   value: d ? (d.precipTotal ?? 0).toFixed(1) + ' mm' : '0.0 mm',           color: '#a5b4fc',   sub: 'Des de mitjanit' },
     ];
 
     document.getElementById('station-vars-grid').innerHTML = vars.map(function (v) {
