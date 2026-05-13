@@ -275,6 +275,21 @@
     if (activeSub) activeSub.textContent = 'de ' + t + ' en línia';
   }
 
+  function sortCardsByAlt() {
+    document.querySelectorAll('.station-group').forEach(function (group) {
+      var list = group.querySelector('.stations-list, .grid-4');
+      if (!list) return;
+      var cards = Array.from(list.querySelectorAll('[data-station-id]'));
+      cards.sort(function (a, b) {
+        var altA = (STATIONS_META[a.dataset.stationId] || {}).alt || 0;
+        var altB = (STATIONS_META[b.dataset.stationId] || {}).alt || 0;
+        return altB - altA;
+      });
+      cards.forEach(function (c) { list.appendChild(c); });
+    });
+  }
+
+  sortCardsByAlt();
   refreshAll();
   setInterval(refreshAll, REFRESH_MS);
 

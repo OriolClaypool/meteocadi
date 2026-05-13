@@ -781,6 +781,20 @@ nav {
 .contact-cta-card h2 { margin-bottom: 0.5rem; }
 .contact-cta-card p { max-width: 480px; font-size: 0.95rem; line-height: 1.7; }
 
+/* ── STATION GROUPS ── */
+.station-group { margin-bottom: 2.75rem; }
+.station-group:last-child { margin-bottom: 0; }
+.station-group-heading {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
 /* ── STATION CARD TYPE B (estacions.html — dashboard) ── */
 .stations-list {
   display: grid;
