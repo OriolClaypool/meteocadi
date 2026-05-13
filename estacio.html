@@ -5,6 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Estació — Meteocadí</title>
   <meta name="description" content="Dades detallades en temps real d'una estació meteorològica de la xarxa Meteocadí." />
+  <link rel="icon" type="image/png" href="imatges/logo.png">
+  <link rel="apple-touch-icon" href="imatges/logo.png">
+  <meta property="og:title" content="Estació — Meteocadí" />
+  <meta property="og:description" content="Dades detallades en temps real d'una estació meteorològica de la xarxa Meteocadí." />
+  <meta property="og:image" content="https://meteocadi.cat/imatges/logo.png">
+  <meta property="og:image:width" content="1080">
+  <meta property="og:image:height" content="1080">
+  <meta property="twitter:image" content="https://meteocadi.cat/imatges/logo.png">
+  <meta property="og:url" content="https://meteocadi.cat/estacio.html" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="css/style.css" />
@@ -15,9 +26,9 @@
 <nav>
   <div class="nav-inner">
     <a href="index.html" class="nav-logo">
-      <span class="nav-logo-icon" aria-hidden="true"></span>
+      <img src="imatges/logo.png" alt="Meteocadí" class="nav-logo-img">
       <span class="nav-logo-text">
-        <span class="nav-logo-name">METEOCADÍ</span>
+        <span class="nav-logo-name">Meteocadí</span>
         <span class="nav-logo-sub">Cadí-Moixeró · Pirineus</span>
       </span>
     </a>
@@ -75,8 +86,7 @@
       <div class="detail-var-card"><div class="detail-var-label">Direcció del vent</div><div class="detail-var-value">—</div></div>
       <div class="detail-var-card"><div class="detail-var-label">Ratxa màxima</div><div class="detail-var-value">—</div></div>
       <div class="detail-var-card"><div class="detail-var-label">Pressió atmosfèrica</div><div class="detail-var-value">—</div></div>
-      <div class="detail-var-card"><div class="detail-var-label">Precipitació horària</div><div class="detail-var-value">—</div></div>
-      <div class="detail-var-card"><div class="detail-var-label">Precipitació total dia</div><div class="detail-var-value">—</div></div>
+      <div class="detail-var-card"><div class="detail-var-label">Precipitació del dia</div><div class="detail-var-value">—</div></div>
     </div>
   </div>
 </section>
@@ -99,9 +109,9 @@
   <div class="footer-inner">
     <div class="footer-col-left">
       <a href="index.html" class="nav-logo">
-        <span class="nav-logo-icon" aria-hidden="true"></span>
+        <img src="imatges/logo.png" alt="Meteocadí" class="nav-logo-img">
         <span class="nav-logo-text">
-          <span class="nav-logo-name">METEOCADÍ</span>
+          <span class="nav-logo-name">Meteocadí</span>
           <span class="nav-logo-sub">Cadí-Moixeró · Pirineus</span>
         </span>
       </a>
@@ -115,7 +125,7 @@
       <li><a href="contacte.html">Contacte</a></li>
     </ul>
     <div class="footer-col-right">
-      <p>meteocadi.com</p>
+      <p>meteocadi.cat</p>
       <p>Parc Natural del Cadí-Moixeró</p>
     </div>
   </div>
@@ -125,15 +135,14 @@
 <script>
 (function () {
   var STATION_META = {
-    IBAG57:    { name: 'Refugi de Rebost',           alt: 860,  loc: 'Bagà, Berguedà' },
-    IBAG65:    { name: 'Bagà Nord',                  alt: 750,  loc: 'Bagà, Berguedà' },
-    IBAG67:    { name: 'Bagà-Rebost',                alt: 860,  loc: 'Bagà, Berguedà' },
-    IGISCL1:   { name: 'Tancalaporta',               alt: 1920, loc: 'PN Cadí-Moixeró' },
-    IGISCL4:   { name: 'Tancalaporta 2445m',         alt: 2445, loc: 'PN Cadí-Moixeró' },
-    IGISCL6:   { name: 'Tancalaporta PN',            alt: 1920, loc: 'PN Cadí-Moixeró' },
-    IGSOL7:    { name: 'Pedraforca',                 alt: 1380, loc: 'Gósol, Berguedà' },
-    IGUARD34:  { name: 'Coll de Pal - Puigllançada', alt: 2008, loc: 'Guardiola de Berguedà' },
-    ISANTJ138: { name: 'Cerdanyola-Forcat',          alt: 1400, loc: 'Sant Jaume de Frontanyà' },
+    IBAG65:    { name: 'Bagà Nord',                  alt: 865,  loc: 'Bagà, Berguedà' },
+    IBAG67:    { name: 'Refugi de Rebost',           alt: 1650, loc: 'Bagà, Berguedà' },
+    IBAG72:    { name: 'Bagà Sud',                   alt: 770,  loc: 'Bagà, Berguedà' },
+    IBAG73:    { name: 'Bagà Centre',                alt: 798,  loc: 'Bagà, Berguedà' },
+    IGISCL6:   { name: 'Tancalaporta',               alt: 2440, loc: 'PN Cadí-Moixeró' },
+    IGSOL7:    { name: 'Pedraforca',                 alt: 2270, loc: 'Gósol, Berguedà' },
+    IGUARD34:  { name: 'Coll de Pal - Puigllançada', alt: 2090, loc: 'Guardiola de Berguedà' },
+    ISANTJ138: { name: 'Cerdanyola-Forcat',          alt: 1115, loc: 'Sant Julià de Cerdanyola' },
   };
 
   var WIND_DIRS = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
@@ -166,13 +175,11 @@
 
   var meta = STATION_META[stationId];
 
-  /* Actualitza capçalera */
   document.title = meta.name + ' — Meteocadí';
   document.getElementById('station-eyebrow').textContent = meta.loc + ' · Meteocadí';
   document.getElementById('station-name').textContent    = meta.name;
   document.getElementById('station-alt').textContent     = meta.alt.toLocaleString('ca-ES') + ' m s.n.m.';
 
-  /* Fetch de dades */
   var apiKey = window._meteocadiApiKey || 'b146442062ee4f8a86442062ee4f8acd';
   var url = 'https://api.weather.com/v2/pws/observations/current' +
     '?stationId=' + stationId + '&format=json&units=m&apiKey=' + apiKey;
@@ -193,7 +200,6 @@
         winddir:     obs.winddir    ?? null,
         humidity:    obs.humidity   ?? null,
         pressure:    m.pressure     ?? null,
-        precipRate:  m.precipRate   ?? null,
         precipTotal: m.precipTotal  ?? null,
         obsTime:     obs.obsTimeLocal ?? null,
       });
@@ -210,13 +216,11 @@
       badge.className   = 'badge badge-warn';
     }
 
-    /* Hora observació */
     if (d && d.obsTime) {
       var match = String(d.obsTime).match(/(\d{2}:\d{2})/);
       if (match) document.getElementById('station-update-time').textContent = 'Observació a les ' + match[1];
     }
 
-    /* Temperatura gran */
     var temp    = d ? d.temp : null;
     var sign    = temp != null && temp > 0 ? '+' : '';
     var tempStr = temp != null ? sign + Math.round(temp) + '°C' : '—';
@@ -224,7 +228,6 @@
       '<div class="detail-temp-value" style="color:' + tempColor(temp) + ';">' + tempStr + '</div>' +
       '<div class="detail-temp-label">Temperatura actual</div>';
 
-    /* Sensació tèrmica */
     var feels = null, feelsLabel = 'Sensació tèrmica';
     if (d) {
       if (temp != null && temp < 10 && d.windChill != null) {
@@ -236,15 +239,14 @@
     var feelsStr = feels != null ? (feels > 0 ? '+' : '') + Math.round(feels) + '°C' : '—';
 
     var vars = [
-      { label: feelsLabel,             value: feelsStr,                        color: tempColor(feels),  sub: '' },
-      { label: 'Punt de rosada',       value: fmt(d ? d.dewpt : null, '°C', 1), color: '#93c5fd',        sub: '' },
-      { label: 'Humitat relativa',     value: fmt(d ? d.humidity : null, '%'),  color: '#6ee7b7',        sub: '' },
-      { label: 'Vent mig',             value: fmt(d ? d.wind : null, ' km/h'),  color: 'var(--text)',    sub: d && d.winddir != null ? windLabel(d.winddir) : '' },
-      { label: 'Direcció del vent',    value: d ? windLabel(d.winddir) : '—',   color: 'var(--text)',    sub: d && d.winddir != null ? d.winddir + '°' : '' },
-      { label: 'Ratxa màxima',         value: fmt(d ? d.windGust : null, ' km/h'), color: '#fbbf24',    sub: '' },
-      { label: 'Pressió atmosfèrica',  value: fmt(d ? d.pressure : null, ' hPa'), color: 'var(--text)', sub: '' },
-      { label: 'Precipitació horària', value: d && d.precipRate != null ? d.precipRate.toFixed(1) + ' mm/h' : '—', color: '#a5b4fc', sub: '' },
-      { label: 'Precipitació total',   value: d && d.precipTotal != null ? d.precipTotal.toFixed(1) + ' mm' : '—', color: '#a5b4fc', sub: 'des de mitjanit' },
+      { label: feelsLabel,             value: feelsStr,                                                       color: tempColor(feels),  sub: '' },
+      { label: 'Punt de rosada',       value: fmt(d ? d.dewpt : null, '°C', 1),                               color: '#93c5fd',         sub: '' },
+      { label: 'Humitat relativa',     value: fmt(d ? d.humidity : null, '%'),                                color: '#6ee7b7',         sub: '' },
+      { label: 'Vent mig',             value: fmt(d ? d.wind : null, ' km/h'),                                color: 'var(--text)',     sub: d && d.winddir != null ? windLabel(d.winddir) : '' },
+      { label: 'Direcció del vent',    value: d ? windLabel(d.winddir) : '—',                                 color: 'var(--text)',     sub: d && d.winddir != null ? d.winddir + '°' : '' },
+      { label: 'Ratxa màxima',         value: fmt(d ? d.windGust : null, ' km/h'),                            color: '#fbbf24',         sub: '' },
+      { label: 'Pressió atmosfèrica',  value: fmt(d ? d.pressure : null, ' hPa'),                             color: 'var(--text)',     sub: '' },
+      { label: 'Precipitació del dia', value: d && d.precipTotal != null ? d.precipTotal.toFixed(1) + ' mm' : '—', color: '#a5b4fc',   sub: 'des de mitjanit' },
     ];
 
     document.getElementById('station-vars-grid').innerHTML = vars.map(function (v) {

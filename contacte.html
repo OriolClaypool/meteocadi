@@ -5,6 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Contacte — Meteocadí</title>
   <meta name="description" content="Contacta amb l'equip de Meteocadí per a col·laboracions, suggeriments o qualsevol consulta sobre la xarxa meteorològica." />
+  <link rel="icon" type="image/png" href="imatges/logo.png">
+  <link rel="apple-touch-icon" href="imatges/logo.png">
+  <meta property="og:title" content="Contacte — Meteocadí" />
+  <meta property="og:description" content="Contacta amb l'equip de Meteocadí per a col·laboracions, suggeriments o qualsevol consulta sobre la xarxa meteorològica." />
+  <meta property="og:image" content="https://meteocadi.cat/imatges/logo.png">
+  <meta property="og:image:width" content="1080">
+  <meta property="og:image:height" content="1080">
+  <meta property="twitter:image" content="https://meteocadi.cat/imatges/logo.png">
+  <meta property="og:url" content="https://meteocadi.cat/contacte.html" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="css/style.css" />
@@ -26,9 +37,9 @@
 <nav>
   <div class="nav-inner">
     <a href="index.html" class="nav-logo">
-      <span class="nav-logo-icon" aria-hidden="true"></span>
+      <img src="imatges/logo.png" alt="Meteocadí" class="nav-logo-img">
       <span class="nav-logo-text">
-        <span class="nav-logo-name">METEOCADÍ</span>
+        <span class="nav-logo-name">Meteocadí</span>
         <span class="nav-logo-sub">Cadí-Moixeró · Pirineus</span>
       </span>
     </a>
@@ -58,13 +69,13 @@
 <!-- ══ PAGE HEADER ══ -->
 <div class="page-header">
   <div class="container">
-    <span class="eyebrow">Meteocadí · meteocadi.com</span>
+    <span class="eyebrow">Meteocadí · meteocadi.cat</span>
     <h1>Contacte</h1>
   </div>
 </div>
 
 <!-- ══ CONTACT ══ -->
-<section style="padding: 2.5rem 0 4rem;">
+<section style="padding: 2.5rem 0 4rem; background: var(--bg-base);">
   <div class="container">
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: start;">
 
@@ -75,8 +86,7 @@
           per suggerir noves ubicacions o per qualsevol altra consulta relacionada amb el projecte.
         </p>
 
-        <!-- TODO: afegir action real al formulari (Formspree, backend propi, etc.)
-             Exemple Formspree: <form action="https://formspree.io/f/XXXX" method="POST"> -->
+        <!-- TODO: integrate with Formspree or backend -->
         <div id="form-feedback" class="form-feedback" role="alert"></div>
         <form id="contact-form" novalidate>
           <div class="form-group">
@@ -113,7 +123,7 @@
         </div>
         <div class="card">
           <h3 style="margin-bottom: 0.5rem; font-size: 0.75rem; color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase;">Domini</h3>
-          <p style="font-size: 0.85rem;">meteocadi.com</p>
+          <p style="font-size: 0.85rem;">meteocadi.cat</p>
         </div>
       </div>
 
@@ -126,9 +136,9 @@
   <div class="footer-inner">
     <div class="footer-col-left">
       <a href="index.html" class="nav-logo">
-        <span class="nav-logo-icon" aria-hidden="true"></span>
+        <img src="imatges/logo.png" alt="Meteocadí" class="nav-logo-img">
         <span class="nav-logo-text">
-          <span class="nav-logo-name">METEOCADÍ</span>
+          <span class="nav-logo-name">Meteocadí</span>
           <span class="nav-logo-sub">Cadí-Moixeró · Pirineus</span>
         </span>
       </a>
@@ -142,7 +152,7 @@
       <li><a href="contacte.html">Contacte</a></li>
     </ul>
     <div class="footer-col-right">
-      <p>meteocadi.com</p>
+      <p>meteocadi.cat</p>
       <p>Parc Natural del Cadí-Moixeró</p>
     </div>
   </div>

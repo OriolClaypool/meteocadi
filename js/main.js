@@ -80,15 +80,14 @@
   window._meteocadiApiKey = API_KEY;
 
   const STATIONS_META = {
-    IBAG57:    { name: 'Refugi de Rebost',          alt: 860,  loc: 'Bagà, Berguedà' },
-    IBAG65:    { name: 'Bagà Nord',                 alt: 750,  loc: 'Bagà, Berguedà' },
-    IBAG67:    { name: 'Bagà-Rebost',               alt: 860,  loc: 'Bagà, Berguedà' },
-    IGISCL1:   { name: 'Tancalaporta',              alt: 1920, loc: 'PN Cadí-Moixeró' },
-    IGISCL4:   { name: 'Tancalaporta 2445m',        alt: 2445, loc: 'PN Cadí-Moixeró' },
-    IGISCL6:   { name: 'Tancalaporta PN',           alt: 1920, loc: 'PN Cadí-Moixeró' },
-    IGSOL7:    { name: 'Pedraforca',                alt: 1380, loc: 'Gósol, Berguedà' },
-    IGUARD34:  { name: 'Coll de Pal - Puigllançada', alt: 2008, loc: 'Guardiola de Berguedà' },
-    ISANTJ138: { name: 'Cerdanyola-Forcat',         alt: 1400, loc: 'Sant Jaume de Frontanyà' },
+    IBAG65:    { name: 'Bagà Nord',                  alt: 865,  loc: 'Bagà, Berguedà' },
+    IBAG67:    { name: 'Refugi de Rebost',           alt: 1650, loc: 'Bagà, Berguedà' },
+    IBAG72:    { name: 'Bagà Sud',                   alt: 770,  loc: 'Bagà, Berguedà' },
+    IBAG73:    { name: 'Bagà Centre',                alt: 798,  loc: 'Bagà, Berguedà' },
+    IGISCL6:   { name: 'Tancalaporta',               alt: 2440, loc: 'PN Cadí-Moixeró' },
+    IGSOL7:    { name: 'Pedraforca',                 alt: 2270, loc: 'Gósol, Berguedà' },
+    IGUARD34:  { name: 'Coll de Pal - Puigllançada', alt: 2090, loc: 'Guardiola de Berguedà' },
+    ISANTJ138: { name: 'Cerdanyola-Forcat',          alt: 1115, loc: 'Sant Julià de Cerdanyola' },
   };
 
   const WIND_DIRS = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
@@ -124,7 +123,7 @@
 
   function fmtHum(h)  { return h    != null ? h + '%'                    : '—'; }
   function fmtPres(p) { return p    != null ? Math.round(p) + ' hPa'    : '—'; }
-  function fmtPrec(v) { return v    != null ? v.toFixed(1) + ' mm/h'    : '—'; }
+  function fmtPrec(v) { return v    != null ? v.toFixed(1) + ' mm'      : '—'; }
   function fmtObsTime(t) {
     if (!t) return '—';
     const m = String(t).match(/(\d{2}:\d{2})/);
@@ -146,7 +145,7 @@
       wind:         m.windSpeed        ?? null,
       windGust:     m.windGust         ?? null,
       winddir:      obs.winddir        ?? null,
-      precipRate:   m.precipRate       ?? null,
+      precipTotal:  m.precipTotal       ?? null,
       pressure:     m.pressure         ?? null,
       obsTimeLocal: obs.obsTimeLocal   ?? null,
     };
@@ -190,7 +189,7 @@
     }
     if (spans[0]) spans[0].textContent = data ? fmtWind(data.wind, data.winddir) : '—';
     if (spans[1]) spans[1].textContent = data ? fmtHum(data.humidity)            : '—';
-    if (spans[2]) spans[2].textContent = data ? fmtPrec(data.precipRate)         : '—';
+    if (spans[2]) spans[2].textContent = data ? fmtPrec(data.precipTotal)        : '—';
   }
 
   function renderFull(card, data) {
@@ -206,7 +205,7 @@
     if (spans[1]) spans[1].textContent = data ? fmtGust(data.windGust)            : '—';
     if (spans[2]) spans[2].textContent = data ? fmtHum(data.humidity)             : '—';
     if (spans[3]) spans[3].textContent = data ? fmtPres(data.pressure)            : '—';
-    if (spans[4]) spans[4].textContent = data ? fmtPrec(data.precipRate)          : '—';
+    if (spans[4]) spans[4].textContent = data ? fmtPrec(data.precipTotal)         : '—';
     if (spans[5]) spans[5].textContent = data ? fmtObsTime(data.obsTimeLocal)     : '—';
   }
 
@@ -272,6 +271,35 @@
     a.className = 'station-detail-link';
     a.textContent = 'Veure detall →';
     card.appendChild(a);
+  });
+})();
+
+/* ── Animació entrada (IntersectionObserver) ── */
+(function () {
+  if (!('IntersectionObserver' in window)) return;
+  var observer = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('reveal-visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.08 });
+
+  document.querySelectorAll('.station-card, .station-full-card').forEach(function (el, i) {
+    el.classList.add('reveal');
+    el.style.transitionDelay = (i * 80) + 'ms';
+    observer.observe(el);
+  });
+
+  document.querySelectorAll('.webcam-card, .webcam-card-full').forEach(function (el) {
+    el.classList.add('reveal');
+    observer.observe(el);
+  });
+
+  document.querySelectorAll('.section-header').forEach(function (el) {
+    el.classList.add('reveal');
+    observer.observe(el);
   });
 })();
 

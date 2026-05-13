@@ -5,6 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Mapa — Meteocadí</title>
   <meta name="description" content="Mapa interactiu de les estacions meteorològiques de la xarxa Meteocadí al Cadí-Moixeró i els Pirineus catalans." />
+  <link rel="icon" type="image/png" href="imatges/logo.png">
+  <link rel="apple-touch-icon" href="imatges/logo.png">
+  <meta property="og:title" content="Mapa d'estacions — Meteocadí" />
+  <meta property="og:description" content="Mapa interactiu de les estacions meteorològiques de la xarxa Meteocadí al Cadí-Moixeró i els Pirineus catalans." />
+  <meta property="og:image" content="https://meteocadi.cat/imatges/logo.png">
+  <meta property="og:image:width" content="1080">
+  <meta property="og:image:height" content="1080">
+  <meta property="twitter:image" content="https://meteocadi.cat/imatges/logo.png">
+  <meta property="og:url" content="https://meteocadi.cat/mapa.html" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="css/style.css" />
@@ -17,42 +28,40 @@
       border-radius: var(--radius);
       border: 1px solid var(--border);
     }
-    /* Popup */
     .leaflet-popup-content-wrapper {
-      background: #0d1526;
-      border: 1px solid rgba(13,159,255,0.2);
+      background: #1c2e4a;
+      border: 1px solid rgba(61,184,255,0.2);
       border-radius: 10px;
       box-shadow: 0 8px 24px rgba(0,0,0,0.6);
-      color: #f0f4ff;
+      color: #e8edf5;
     }
-    .leaflet-popup-tip { background: #0d1526; }
+    .leaflet-popup-tip { background: #1c2e4a; }
     .leaflet-popup-close-button { color: rgba(255,255,255,0.4) !important; }
-    .leaflet-popup-close-button:hover { color: #f0f4ff !important; }
-    .map-popup-name { font-size: 0.95rem; font-weight: 500; color: #f0f4ff; margin-bottom: 2px; }
+    .leaflet-popup-close-button:hover { color: #e8edf5 !important; }
+    .map-popup-name { font-size: 0.95rem; font-weight: 500; color: #e8edf5; margin-bottom: 2px; }
     .map-popup-alt  { font-size: 0.72rem; color: rgba(255,255,255,0.45); margin-bottom: 8px; }
-    .map-popup-temp { font-size: 1.5rem; font-weight: 300; letter-spacing: -0.03em; line-height: 1; margin-bottom: 6px; }
+    .map-popup-temp { font-size: 1.5rem; font-weight: 300; letter-spacing: -0.03em; line-height: 1; margin-bottom: 4px; }
+    .map-popup-precip { font-size: 0.72rem; color: rgba(255,255,255,0.45); margin-bottom: 6px; }
     .map-popup-status { font-size: 0.68rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; }
     .map-popup-status.online  { color: #34d399; }
     .map-popup-status.offline { color: #fbbf24; }
-    .map-popup-link { display:block; margin-top:8px; font-size:0.7rem; color:#0d9fff; text-align:right; }
-    .map-popup-link:hover { color:#2aabff; text-decoration:none; }
-    /* Tooltip permanent */
+    .map-popup-link { display:block; margin-top:8px; font-size:0.7rem; color:#3db8ff; text-align:right; }
+    .map-popup-link:hover { color:#5ec6ff; text-decoration:none; }
     .leaflet-tooltip.stt {
-      background: rgba(8,13,24,0.92);
-      border: 1px solid rgba(13,159,255,0.2);
+      background: rgba(10,16,25,0.92);
+      border: 1px solid rgba(61,184,255,0.2);
       border-radius: 6px;
       box-shadow: 0 2px 10px rgba(0,0,0,0.5);
       padding: 4px 9px;
-      color: #f0f4ff;
+      color: #e8edf5;
       font-family: Inter, system-ui, sans-serif;
       white-space: nowrap;
       pointer-events: none;
     }
-    .leaflet-tooltip.stt::before { border-top-color: rgba(13,159,255,0.2) !important; }
-    /* Llegenda */
+    .leaflet-tooltip.stt::before { border-top-color: rgba(61,184,255,0.2) !important; }
     .map-legend {
-      background: #0d1526;
-      border: 1px solid rgba(13,159,255,0.15);
+      background: #1c2e4a;
+      border: 1px solid rgba(99,179,255,0.12);
       border-radius: 8px;
       padding: 10px 12px;
       font-family: Inter, system-ui, sans-serif;
@@ -81,10 +90,10 @@
       transition: background 0.12s, color 0.12s, border-color 0.12s;
     }
     .legend-btn:last-child { margin-bottom: 0; }
-    .legend-btn.active { background: #0d9fff; border-color: #0d9fff; color: #fff; }
+    .legend-btn.active { background: #3db8ff; border-color: #3db8ff; color: #fff; }
     .legend-btn:hover:not(.active) {
       background: rgba(255,255,255,0.06);
-      color: #f0f4ff;
+      color: #e8edf5;
       border-color: rgba(255,255,255,0.15);
     }
   </style>
@@ -95,9 +104,9 @@
 <nav>
   <div class="nav-inner">
     <a href="index.html" class="nav-logo">
-      <span class="nav-logo-icon" aria-hidden="true"></span>
+      <img src="imatges/logo.png" alt="Meteocadí" class="nav-logo-img">
       <span class="nav-logo-text">
-        <span class="nav-logo-name">METEOCADÍ</span>
+        <span class="nav-logo-name">Meteocadí</span>
         <span class="nav-logo-sub">Cadí-Moixeró · Pirineus</span>
       </span>
     </a>
@@ -144,9 +153,9 @@
   <div class="footer-inner">
     <div class="footer-col-left">
       <a href="index.html" class="nav-logo">
-        <span class="nav-logo-icon" aria-hidden="true"></span>
+        <img src="imatges/logo.png" alt="Meteocadí" class="nav-logo-img">
         <span class="nav-logo-text">
-          <span class="nav-logo-name">METEOCADÍ</span>
+          <span class="nav-logo-name">Meteocadí</span>
           <span class="nav-logo-sub">Cadí-Moixeró · Pirineus</span>
         </span>
       </a>
@@ -160,7 +169,7 @@
       <li><a href="contacte.html">Contacte</a></li>
     </ul>
     <div class="footer-col-right">
-      <p>meteocadi.com</p>
+      <p>meteocadi.cat</p>
       <p>Parc Natural del Cadí-Moixeró</p>
     </div>
   </div>
@@ -171,15 +180,14 @@
 <script>
 (function () {
   var STATIONS_MAP = {
-    IBAG57:    { name: 'Refugi de Rebost',           alt: 860,  lat: 42.2001, lng: 1.8587 },
-    IBAG65:    { name: 'Bagà Nord',                  alt: 750,  lat: 42.2561, lng: 1.8637 },
-    IBAG67:    { name: 'Bagà-Rebost',                alt: 860,  lat: 42.2001, lng: 1.8587 },
-    IGISCL1:   { name: 'Tancalaporta',               alt: 1920, lat: 42.2650, lng: 1.7850 },
-    IGISCL4:   { name: 'Tancalaporta 2445m',         alt: 2445, lat: 42.2700, lng: 1.7800 },
-    IGISCL6:   { name: 'Tancalaporta PN',            alt: 1920, lat: 42.2667, lng: 1.7833 },
-    IGSOL7:    { name: 'Pedraforca',                 alt: 1380, lat: 42.2333, lng: 1.7167 },
-    IGUARD34:  { name: 'Coll de Pal - Puigllançada', alt: 2008, lat: 42.2333, lng: 1.8500 },
-    ISANTJ138: { name: 'Cerdanyola-Forcat',          alt: 1400, lat: 42.2833, lng: 2.0167 },
+    IBAG65:    { name: 'Bagà Nord',                  alt: 865,  lat: 42.2529, lng: 1.8619 },
+    IBAG67:    { name: 'Refugi de Rebost',           alt: 1650, lat: 42.2486, lng: 1.8481 },
+    IBAG72:    { name: 'Bagà Sud',                   alt: 770,  lat: 42.2490, lng: 1.8610 },
+    IBAG73:    { name: 'Bagà Centre',                alt: 798,  lat: 42.2510, lng: 1.8615 },
+    IGISCL6:   { name: 'Tancalaporta',               alt: 2440, lat: 42.2778, lng: 1.7361 },
+    IGSOL7:    { name: 'Pedraforca',                 alt: 2270, lat: 42.2397, lng: 1.7028 },
+    IGUARD34:  { name: 'Coll de Pal - Puigllançada', alt: 2090, lat: 42.2847, lng: 1.8889 },
+    ISANTJ138: { name: 'Cerdanyola-Forcat',          alt: 1115, lat: 42.2208, lng: 2.0056 },
   };
 
   var currentVar = 'temp';
@@ -194,7 +202,7 @@
 
   /* ── Helpers ── */
   function tempColor(t) {
-    if (t == null) return '#f0f4ff';
+    if (t == null) return '#e8edf5';
     if (t < -4) return '#a78bfa';
     if (t < 0)  return '#60a5fa';
     if (t < 6)  return '#6ee7b7';
@@ -205,20 +213,18 @@
     var r = Math.round(t);
     return (r > 0 ? '+' : '') + r + '°C';
   }
-  function fmtWind(w) { return w != null ? Math.round(w) + ' km/h' : '—'; }
-  function fmtHum(h)  { return h != null ? h + '%' : '—'; }
-  function fmtPrec(p) { return p != null ? p.toFixed(1) + ' mm/h' : '—'; }
+  function fmtWind(w)  { return w != null ? Math.round(w) + ' km/h' : '—'; }
+  function fmtHum(h)   { return h != null ? h + '%' : '—'; }
+  function fmtPrec(p)  { return p != null ? p.toFixed(1) + ' mm' : '—'; }
 
   /* ── Tooltip content per variable ── */
   function buildTooltipContent(id, meta, data) {
     var label = meta.name.length > 22 ? meta.name.slice(0, 20) + '…' : meta.name;
     var valHtml = '<span style="color:rgba(255,255,255,0.3);">—</span>';
     if (data) {
-      var c, v;
       switch (currentVar) {
         case 'temp':
-          c = tempColor(data.temp);
-          valHtml = '<span style="color:' + c + ';font-size:14px;font-weight:500;">' + fmtTemp(data.temp) + '</span>';
+          valHtml = '<span style="color:' + tempColor(data.temp) + ';font-size:14px;font-weight:500;">' + fmtTemp(data.temp) + '</span>';
           break;
         case 'wind':
           valHtml = '<span style="color:#93c5fd;font-size:14px;font-weight:500;">' + fmtWind(data.wind) + '</span>';
@@ -227,7 +233,7 @@
           valHtml = '<span style="color:#6ee7b7;font-size:14px;font-weight:500;">' + fmtHum(data.humidity) + '</span>';
           break;
         case 'precip':
-          valHtml = '<span style="color:#a5b4fc;font-size:14px;font-weight:500;">' + fmtPrec(data.precipRate) + '</span>';
+          valHtml = '<span style="color:#a5b4fc;font-size:14px;font-weight:500;">' + fmtPrec(data.precipTotal) + '</span>';
           break;
       }
     }
@@ -245,6 +251,7 @@
       '<div class="map-popup-name">' + meta.name + '</div>' +
       '<div class="map-popup-alt">' + meta.alt.toLocaleString('ca-ES') + ' m s.n.m.</div>' +
       '<div class="map-popup-temp" style="color:' + tempColor(temp) + ';">' + fmtTemp(temp) + '</div>' +
+      '<div class="map-popup-precip">Precip. 24h: ' + (data ? fmtPrec(data.precipTotal) : '—') + '</div>' +
       '<div class="map-popup-status ' + (online ? 'online' : 'offline') + '">' +
         (online ? '● Activa' : '○ Sense senyal') +
       '</div>' +
