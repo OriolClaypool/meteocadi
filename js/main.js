@@ -88,9 +88,9 @@
     IGSOL7:    { name: 'Pedraforca',                 alt: 2270, loc: 'Gósol, Berguedà' },
     IGUARD34:  { name: 'Coll de Pal - Puigllançada', alt: 2090, loc: 'Guardiola de Berguedà' },
     ISANTJ138: { name: 'Cerdanyola-Forcat',          alt: 1115, loc: 'Sant Julià de Cerdanyola' },
-    IGSOL4:    { name: 'MeteoGósol',                 alt: 1450, loc: 'Gósol, Berguedà' },
-    ILANOU4:   { name: 'El Pou',                     alt: 940,  loc: 'La Nou de Berguedà' },
-    ISANTJ53:  { name: 'Cal Solà',                   alt: 964,  loc: 'Sant Julià de Cerdanyola' },
+    IGSOL4:    { name: 'Gósol',                       alt: 1450, loc: 'Gósol, Berguedà' },
+    ILANOU4:   { name: 'La Nou de Berguedà',          alt: 940,  loc: 'La Nou de Berguedà' },
+    ISANTJ53:  { name: 'Cerdanyola-Poble',            alt: 964,  loc: 'Sant Julià de Cerdanyola' },
   };
 
   const WIND_DIRS = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
@@ -154,8 +154,9 @@
         const dailyObs  = dailyJson.observations && dailyJson.observations[0];
         if (dailyObs && dailyObs.metric) precipTotal = dailyObs.metric.precipTotal ?? null;
       }
-    } catch (e) { /* fall back to null */ }
-    console.log('[meteocadi] fetchStation', id, 'precipTotal (daily):', precipTotal);
+    } catch (e) { /* fall back below */ }
+    if (precipTotal == null) precipTotal = m.precipTotal ?? null;
+    console.log('[meteocadi] fetchStation', id, 'precipTotal:', precipTotal);
 
     return {
       temp:         m.temp            ?? null,
@@ -292,7 +293,22 @@
     });
   }
 
+  function applyLocHiding() {
+    document.querySelectorAll('[data-station-id]').forEach(function (card) {
+      var id   = card.dataset.stationId;
+      var meta = STATIONS_META[id];
+      if (!meta) return;
+      var hide = meta.loc.startsWith(meta.name) || meta.name.startsWith(meta.loc);
+      var coordsEl = card.querySelector('.station-full-coords');
+      if (coordsEl) {
+        var altFmt = meta.alt.toLocaleString('ca-ES') + ' m s.n.m.';
+        coordsEl.textContent = hide ? altFmt : (altFmt + ' · ' + meta.loc);
+      }
+    });
+  }
+
   sortCardsByAlt();
+  applyLocHiding();
   refreshAll();
   setInterval(refreshAll, REFRESH_MS);
 
