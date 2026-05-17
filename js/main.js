@@ -91,6 +91,7 @@
     IGSOL4:    { name: 'Gósol',                       alt: 1450, loc: 'Gósol, Berguedà' },
     ILANOU4:   { name: 'La Nou de Berguedà',          alt: 940,  loc: 'La Nou de Berguedà' },
     ISANTJ53:  { name: 'Cerdanyola-Poble',            alt: 964,  loc: 'Sant Julià de Cerdanyola' },
+    IBARCELO40: { name: 'La Pobla de Lillet',          alt: 843,  loc: 'La Pobla de Lillet, Berguedà' },
   };
 
   const WIND_DIRS = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];

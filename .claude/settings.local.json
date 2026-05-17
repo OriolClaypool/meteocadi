@@ -6,7 +6,12 @@
       "Bash(ls /Users/oriol/meteocadi/*.png)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(sudo npm:*)",
+      "Bash(curl -s \"https://api.weather.com/v2/pws/observations/current?stationId=IBAG65&format=json&units=m&apiKey=b146442062ee4f8a86442062ee4f8acd\")",
+      "Bash(python3 -m json.tool)",
+      "Bash(curl -s \"https://api.weather.com/v2/pws/dailysummary/observations/current?stationId=IBAG65&format=json&units=m&apiKey=b146442062ee4f8a86442062ee4f8acd&numericPrecision=decimal\")",
+      "Bash(curl *)"
     ]
   }
 }
