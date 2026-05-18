@@ -278,6 +278,21 @@
     const t = Object.keys(STATIONS_META).length;
     if (activeEl)  activeEl.textContent  = n;
     if (activeSub) activeSub.textContent = 'de ' + t + ' en línia';
+
+    const precipEl    = qs('[data-stats-max-precip]');
+    const precipName  = qs('[data-stats-max-precip-name]');
+    if (precipEl && precipName) {
+      const precipEntries = Object.entries(cache)
+        .filter(([, d]) => d && d.precipTotal != null)
+        .map(([id, d]) => ({ id, precip: d.precipTotal }));
+      if (precipEntries.length) {
+        const maxP = precipEntries.reduce((a, b) => b.precip > a.precip ? b : a);
+        precipEl.textContent = maxP.precip.toFixed(1) + ' mm';
+        precipName.textContent = maxP.precip === 0
+          ? 'sense precipitació'
+          : (STATIONS_META[maxP.id]?.name ?? maxP.id);
+      }
+    }
   }
 
   function sortCardsByAlt() {
