@@ -400,29 +400,16 @@
     <div class="section-header">
       <span class="eyebrow">Temps real</span>
       <h2>Radar de precipitació</h2>
-      <p>Radar oficial del Servei Meteorològic de Catalunya</p>
+      <p>Radar oficial del Servei Meteorològic de Catalunya, actualitzat cada 6 minuts.</p>
     </div>
 
-    <div class="radar-container">
+    <div class="radar-widget">
       <iframe
-        id="radar-iframe"
-        src="https://www.meteo.cat/observacions/radar"
+        src="https://static-m.meteo.cat/ginys/mapaRadar?language=ca&color=3db8ff"
         title="Radar Meteocat"
-        loading="lazy">
+        loading="lazy"
+        scrolling="no">
       </iframe>
-
-      <div id="radar-fallback" class="radar-fallback" style="display:none;">
-        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
-          <circle cx="12" cy="12" r="10"/>
-          <circle cx="12" cy="12" r="6"/>
-          <circle cx="12" cy="12" r="2"/>
-        </svg>
-        <h3>Radar Meteocat</h3>
-        <p>Consulta el radar de precipitació oficial del Servei Meteorològic de Catalunya en temps real.</p>
-        <a href="https://www.meteo.cat/observacions/radar" target="_blank" rel="noopener" class="btn btn-primary">
-          Obrir radar →
-        </a>
-      </div>
     </div>
 
   </div>
@@ -538,25 +525,5 @@ setTimeout(function () {
 </footer>
 
 <script src="js/main.js"></script>
-<script>
-(function() {
-  var iframe = document.getElementById('radar-iframe');
-  var fallback = document.getElementById('radar-fallback');
-  if (!iframe || !fallback) return;
-
-  setTimeout(function() {
-    try {
-      var doc = iframe.contentDocument || iframe.contentWindow.document;
-      if (!doc || !doc.body || doc.body.children.length === 0) {
-        iframe.style.display = 'none';
-        fallback.style.display = 'flex';
-      }
-    } catch (e) {
-      iframe.style.display = 'none';
-      fallback.style.display = 'flex';
-    }
-  }, 4000);
-})();
-</script>
 </body>
 </html>
