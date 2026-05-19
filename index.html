@@ -19,7 +19,6 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="css/style.css" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 </head>
 <body>
 
@@ -401,26 +400,28 @@
     <div class="section-header">
       <span class="eyebrow">Temps real</span>
       <h2>Radar de precipitació</h2>
+      <p>Radar oficial del Servei Meteorològic de Catalunya</p>
     </div>
 
-    <div id="radar-map"></div>
+    <div class="radar-container">
+      <iframe
+        id="radar-iframe"
+        src="https://www.meteo.cat/observacions/radar"
+        title="Radar Meteocat"
+        loading="lazy">
+      </iframe>
 
-    <div class="radar-panel">
-      <div class="radar-panel-top">
-        <button class="radar-play-btn" id="radar-playpause" aria-label="Reproduir">
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><polygon points="5,2 17,10 5,18"/></svg>
-        </button>
-        <span class="radar-time" id="radar-time">—</span>
-        <span class="radar-type" id="radar-type">—</span>
-      </div>
-      <input type="range" class="radar-slider" id="radar-slider" min="0" max="0" step="1" value="0">
-    </div>
-
-    <div class="radar-legend">
-      <div class="radar-legend-title">Intensitat de precipitació</div>
-      <div class="radar-legend-bar"></div>
-      <div class="radar-legend-labels">
-        <span>feble</span><span>moderada</span><span>forta</span><span>calamarsa</span>
+      <div id="radar-fallback" class="radar-fallback" style="display:none;">
+        <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+          <circle cx="12" cy="12" r="10"/>
+          <circle cx="12" cy="12" r="6"/>
+          <circle cx="12" cy="12" r="2"/>
+        </svg>
+        <h3>Radar Meteocat</h3>
+        <p>Consulta el radar de precipitació oficial del Servei Meteorològic de Catalunya en temps real.</p>
+        <a href="https://www.meteo.cat/observacions/radar" target="_blank" rel="noopener" class="btn btn-primary">
+          Obrir radar →
+        </a>
       </div>
     </div>
 
@@ -537,152 +538,24 @@ setTimeout(function () {
 </footer>
 
 <script src="js/main.js"></script>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-(function () {
-  var radarMap = L.map('radar-map', {
-    zoomControl: true,
-    scrollWheelZoom: false,
-    minZoom: 7,
-    maxZoom: 14,
-    maxBounds: [[40.5, -0.4], [43.0, 3.4]],
-    maxBoundsViscosity: 1.0,
-  }).setView([41.8, 1.7], 8);
+(function() {
+  var iframe = document.getElementById('radar-iframe');
+  var fallback = document.getElementById('radar-fallback');
+  if (!iframe || !fallback) return;
 
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/">CARTO</a>',
-    subdomains: 'abcd',
-    maxZoom: 14,
-  }).addTo(radarMap);
-
-  var rLayers    = [];
-  var rTimes     = [];
-  var rIsNowcast = [];
-  var rIdx       = 0;
-  var rPlaying   = false;
-  var rTimer     = null;
-  var rActive    = null;
-
-  var SVG_PLAY  = '<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><polygon points="5,2 17,10 5,18"/></svg>';
-  var SVG_PAUSE = '<svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor"><rect x="4" y="2" width="5" height="16" rx="1.5"/><rect x="11" y="2" width="5" height="16" rx="1.5"/></svg>';
-
-  var elBtn    = document.getElementById('radar-playpause');
-  var elTime   = document.getElementById('radar-time');
-  var elType   = document.getElementById('radar-type');
-  var elSlider = document.getElementById('radar-slider');
-
-  function tileUrl(path) {
-    return 'https://tilecache.rainviewer.com' + path + '/256/{z}/{x}/{y}/7/1_1.png';
-  }
-
-  function fmtTime(ts) {
-    var d = new Date(ts * 1000);
-    return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
-  }
-
-  function updateSliderTrack() {
-    if (!elSlider || rLayers.length < 2) return;
-    var pct = (rIdx / (rLayers.length - 1)) * 100;
-    elSlider.style.background = 'linear-gradient(to right, #3db8ff 0%, #3db8ff ' + pct + '%, rgba(255,255,255,0.1) ' + pct + '%, rgba(255,255,255,0.1) 100%)';
-  }
-
-  function updateUI() {
-    if (elTime) elTime.textContent = rTimes[rIdx] != null ? fmtTime(rTimes[rIdx]) : '—';
-    if (elType) {
-      var nc = rIsNowcast[rIdx];
-      elType.textContent  = nc ? 'Previsió' : 'Observat';
-      elType.className    = 'radar-type' + (nc ? ' nowcast' : '');
+  setTimeout(function() {
+    try {
+      var doc = iframe.contentDocument || iframe.contentWindow.document;
+      if (!doc || !doc.body || doc.body.children.length === 0) {
+        iframe.style.display = 'none';
+        fallback.style.display = 'flex';
+      }
+    } catch (e) {
+      iframe.style.display = 'none';
+      fallback.style.display = 'flex';
     }
-    if (elSlider) elSlider.value = rIdx;
-    updateSliderTrack();
-  }
-
-  function showFrame(idx) {
-    if (rActive && radarMap.hasLayer(rActive)) radarMap.removeLayer(rActive);
-    rIdx    = idx;
-    rActive = rLayers[idx];
-    if (rActive) {
-      rActive.addTo(radarMap);
-      var c = rActive.getContainer();
-      if (c) c.classList.add('radar-enhanced');
-    }
-    updateUI();
-  }
-
-  function play() {
-    if (rTimer) clearInterval(rTimer);
-    rPlaying = true;
-    if (elBtn) { elBtn.innerHTML = SVG_PAUSE; elBtn.setAttribute('aria-label', 'Pausa'); }
-    rTimer = setInterval(function () {
-      showFrame((rIdx + 1) % rLayers.length);
-    }, 600);
-  }
-
-  function pause() {
-    if (rTimer) { clearInterval(rTimer); rTimer = null; }
-    rPlaying = false;
-    if (elBtn) { elBtn.innerHTML = SVG_PLAY; elBtn.setAttribute('aria-label', 'Reproduir'); }
-  }
-
-  function initRadar(data) {
-    var isFirst = rLayers.length === 0;
-    var prevIdx = rIdx;
-    pause();
-    if (rActive && radarMap.hasLayer(rActive)) radarMap.removeLayer(rActive);
-    rActive    = null;
-    rLayers    = [];
-    rTimes     = [];
-    rIsNowcast = [];
-
-    var past    = (data.radar && data.radar.past)    ? data.radar.past    : [];
-    var nowcast = (data.radar && data.radar.nowcast) ? data.radar.nowcast : [];
-
-    past.forEach(function (f) {
-      rLayers.push(L.tileLayer(tileUrl(f.path), {
-        opacity: 0.8, zIndex: 10, maxNativeZoom: 10, maxZoom: 14,
-        attribution: '<a href="https://rainviewer.com">RainViewer</a>',
-      }));
-      rTimes.push(f.time);
-      rIsNowcast.push(false);
-    });
-    nowcast.forEach(function (f) {
-      rLayers.push(L.tileLayer(tileUrl(f.path), {
-        opacity: 0.8, zIndex: 10, maxNativeZoom: 10, maxZoom: 14,
-        attribution: '<a href="https://rainviewer.com">RainViewer</a>',
-      }));
-      rTimes.push(f.time);
-      rIsNowcast.push(true);
-    });
-
-    if (!rLayers.length) return;
-
-    if (elSlider) elSlider.max = rLayers.length - 1;
-    rIdx = isFirst ? (past.length - 1) : Math.min(prevIdx, rLayers.length - 1);
-    showFrame(rIdx);
-  }
-
-  if (elBtn) {
-    elBtn.addEventListener('click', function () {
-      if (rPlaying) pause(); else play();
-    });
-  }
-
-  if (elSlider) {
-    elSlider.addEventListener('input', function () {
-      if (rPlaying) pause();
-      showFrame(parseInt(this.value, 10));
-    });
-  }
-
-  function fetchRadar() {
-    fetch('https://api.rainviewer.com/public/weather-maps.json')
-      .then(function (r) { return r.json(); })
-      .then(function (data) { initRadar(data); })
-      .catch(function () { console.log('Radar not available'); });
-  }
-
-  fetchRadar();
-  setInterval(fetchRadar, 15 * 60 * 1000);
+  }, 4000);
 })();
 </script>
 </body>

@@ -104,6 +104,20 @@
   </div>
 </section>
 
+<!-- ══ PREVISIÓ 7 DIES ══ -->
+<section class="section">
+  <div class="container">
+    <div class="section-header">
+      <span class="eyebrow">Previsió</span>
+      <h2>Pròxims 7 dies</h2>
+      <p style="font-size:0.85rem;">Previsió per a la ubicació de l'estació · Open-Meteo</p>
+    </div>
+    <div id="forecast-grid" class="forecast-grid">
+      <!-- Filled by JS -->
+    </div>
+  </div>
+</section>
+
 <!-- ══ FOOTER ══ -->
 <footer>
   <div class="footer-inner">
@@ -135,18 +149,18 @@
 <script>
 (function () {
   var STATION_META = {
-    IBAG65:    { name: 'Bagà Nord',                  alt: 865,  loc: 'Bagà, Berguedà' },
-    IBAG67:    { name: 'Refugi de Rebost',           alt: 1650, loc: 'Bagà, Berguedà' },
-    IBAG72:    { name: 'Bagà Sud',                   alt: 770,  loc: 'Bagà, Berguedà' },
-    IBAG73:    { name: 'Bagà Centre',                alt: 798,  loc: 'Bagà, Berguedà' },
-    IGISCL6:   { name: 'Tancalaporta',               alt: 2440, loc: 'PN Cadí-Moixeró' },
-    IGSOL7:    { name: 'Pedraforca',                 alt: 2270, loc: 'Gósol, Berguedà' },
-    IGUARD34:  { name: 'Coll de Pal - Puigllançada', alt: 2090, loc: 'Guardiola de Berguedà' },
-    ISANTJ138: { name: 'Cerdanyola-Forcat',          alt: 1115, loc: 'Sant Julià de Cerdanyola' },
-    IGSOL4:    { name: 'Gósol',                       alt: 1450, loc: 'Gósol, Berguedà' },
-    ILANOU4:   { name: 'La Nou de Berguedà',          alt: 940,  loc: 'La Nou de Berguedà' },
-    ISANTJ53:  { name: 'Cerdanyola-Poble',            alt: 964,  loc: 'Sant Julià de Cerdanyola' },
-    IBARCELO40: { name: 'La Pobla de Lillet',          alt: 843,  loc: 'La Pobla de Lillet, Berguedà' },
+    IBAG65:    { name: 'Bagà Nord',                  alt: 865,  loc: 'Bagà, Berguedà',               lat: 42.2529, lng: 1.8619 },
+    IBAG67:    { name: 'Refugi de Rebost',           alt: 1650, loc: 'Bagà, Berguedà',               lat: 42.2486, lng: 1.8481 },
+    IBAG72:    { name: 'Bagà Sud',                   alt: 770,  loc: 'Bagà, Berguedà',               lat: 42.2490, lng: 1.8610 },
+    IBAG73:    { name: 'Bagà Centre',                alt: 798,  loc: 'Bagà, Berguedà',               lat: 42.2510, lng: 1.8615 },
+    IGISCL6:   { name: 'Tancalaporta',               alt: 2440, loc: 'PN Cadí-Moixeró',              lat: 42.2778, lng: 1.7361 },
+    IGSOL7:    { name: 'Pedraforca',                 alt: 2270, loc: 'Gósol, Berguedà',              lat: 42.2397, lng: 1.7028 },
+    IGUARD34:  { name: 'Coll de Pal - Puigllançada', alt: 2090, loc: 'Guardiola de Berguedà',        lat: 42.2847, lng: 1.8889 },
+    ISANTJ138: { name: 'Cerdanyola-Forcat',          alt: 1115, loc: 'Sant Julià de Cerdanyola',     lat: 42.2208, lng: 2.0056 },
+    IGSOL4:    { name: 'Gósol',                       alt: 1450, loc: 'Gósol, Berguedà',             lat: 42.2400, lng: 1.6622 },
+    ILANOU4:   { name: 'La Nou de Berguedà',          alt: 940,  loc: 'La Nou de Berguedà',          lat: 42.1922, lng: 1.8694 },
+    ISANTJ53:  { name: 'Cerdanyola-Poble',            alt: 964,  loc: 'Sant Julià de Cerdanyola',    lat: 42.2208, lng: 2.0056 },
+    IBARCELO40: { name: 'La Pobla de Lillet',          alt: 843,  loc: 'La Pobla de Lillet, Berguedà', lat: 42.2378, lng: 1.9750 },
   };
 
   var WIND_DIRS = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
@@ -274,6 +288,65 @@
         (v.sub ? '<div class="detail-var-sub">' + v.sub + '</div>' : '') +
       '</div>';
     }).join('');
+  }
+  // 7-day forecast from Open-Meteo
+  if (meta.lat && meta.lng) {
+    var forecastUrl = 'https://api.open-meteo.com/v1/forecast' +
+      '?latitude=' + meta.lat + '&longitude=' + meta.lng +
+      '&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,weathercode' +
+      '&timezone=Europe%2FMadrid&forecast_days=7';
+
+    fetch(forecastUrl)
+      .then(function(r) { return r.json(); })
+      .then(function(data) { renderForecast(data); })
+      .catch(function() {
+        document.getElementById('forecast-grid').innerHTML =
+          '<p style="color:rgba(255,255,255,0.3);font-size:12px;grid-column:1/-1;text-align:center;">Previsió no disponible</p>';
+      });
+  }
+
+  function weatherEmoji(code) {
+    if (code === 0) return '☀️';
+    if (code <= 2)  return '🌤️';
+    if (code === 3) return '☁️';
+    if (code <= 48) return '🌫️';
+    if (code <= 67) return '🌧️';
+    if (code <= 77) return '❄️';
+    if (code <= 82) return '🌧️';
+    if (code <= 86) return '🌨️';
+    return '⛈️';
+  }
+
+  function renderForecast(data) {
+    var days   = ['Dg', 'Dl', 'Dt', 'Dc', 'Dj', 'Dv', 'Ds'];
+    var months = ['gen', 'feb', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'oct', 'nov', 'des'];
+    var today  = new Date().toDateString();
+
+    var html = data.daily.time.map(function(dateStr, i) {
+      var d       = new Date(dateStr);
+      var isToday = d.toDateString() === today;
+      var dayLabel  = isToday ? 'Avui' : days[d.getDay()];
+      var dateLabel = d.getDate() + ' ' + months[d.getMonth()];
+      var tMax    = Math.round(data.daily.temperature_2m_max[i]);
+      var tMin    = Math.round(data.daily.temperature_2m_min[i]);
+      var precip  = data.daily.precipitation_sum[i];
+      var wind    = Math.round(data.daily.windspeed_10m_max[i]);
+      var code    = data.daily.weathercode[i];
+
+      return '<div class="forecast-day' + (isToday ? ' today' : '') + '">' +
+        '<div class="fd-day">' + dayLabel + '</div>' +
+        '<div class="fd-date">' + dateLabel + '</div>' +
+        '<div class="fd-icon">' + weatherEmoji(code) + '</div>' +
+        '<div class="fd-temps">' +
+          '<span class="fd-max">' + (tMax > 0 ? '+' : '') + tMax + '°</span>' +
+          '<span class="fd-min">' + (tMin > 0 ? '+' : '') + tMin + '°</span>' +
+        '</div>' +
+        '<div class="fd-precip">💧 ' + precip.toFixed(1) + ' mm</div>' +
+        '<div class="fd-wind">🌬️ ' + wind + ' km/h</div>' +
+      '</div>';
+    }).join('');
+
+    document.getElementById('forecast-grid').innerHTML = html;
   }
 })();
 </script>
