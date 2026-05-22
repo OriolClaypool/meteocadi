@@ -351,6 +351,48 @@
 
 <script src="js/main.js"></script>
 <script>
+// ── DEBUG: inspect full current-obs payload for one station ──
+// Logs every field in observations[0] so we can see if daily
+// aggregates (tempHigh, tempLow, windgustHigh, precipTotal…)
+// are already present in the live endpoint without needing dailysummary.
+(function () {
+  var debugId  = 'IGUARD34';
+  var debugKey = 'b146442062ee4f8a86442062ee4f8acd';
+  fetch('https://api.weather.com/v2/pws/observations/current?stationId=' + debugId +
+        '&format=json&units=m&apiKey=' + debugKey + '&numericPrecision=decimal')
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      var obs = d.observations && d.observations[0];
+      console.log('[obs-debug] Full observations[0] for', debugId, ':');
+      console.log(JSON.stringify(obs, null, 2));
+      if (obs && obs.metric) {
+        console.log('[obs-debug] metric keys:', Object.keys(obs.metric));
+        console.log('[obs-debug] metric values:', JSON.stringify(obs.metric, null, 2));
+      }
+      // Also check for any top-level daily fields outside metric
+      var topKeys = Object.keys(obs || {}).filter(function (k) { return k !== 'metric'; });
+      console.log('[obs-debug] non-metric top-level keys:', topKeys);
+    })
+    .catch(function (e) { console.warn('[obs-debug] failed:', e); });
+})();
+
+// ── DEBUG: inspect proxy error detail for one station ──
+fetch('/api/dailysummary?stationId=IGUARD34')
+  .then(function (r) { return r.json(); })
+  .then(function (d) {
+    if (d.error) {
+      console.warn('[proxy-debug] WU error for IGUARD34:',
+        '\n  currentStatus:', d.currentStatus,
+        '\n  currentBody:',   d.currentBody,
+        '\n  7dayStatus:',    d.sevendayStatus,
+        '\n  7dayBody:',      d.sevendayBody);
+    } else {
+      console.log('[proxy-debug] Proxy OK for IGUARD34. observations[0].metric:',
+        JSON.stringify(d.observations && d.observations[0] && d.observations[0].metric, null, 2));
+    }
+  })
+  .catch(function (e) { console.warn('[proxy-debug] fetch failed:', e); });
+
 (function () {
   'use strict';
 
