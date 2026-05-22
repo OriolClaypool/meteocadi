@@ -351,13 +351,6 @@
 
 <script src="js/main.js"></script>
 <script>
-// ── DEBUG PROBE (one-shot, remove after diagnosis) ──
-console.log('[ranking-debug] Testing daily summary endpoint for IGUARD34...');
-fetch('https://api.weather.com/v2/pws/dailysummary/observations/current?stationId=IGUARD34&format=json&units=m&apiKey=b146442062ee4f8a86442062ee4f8acd&numericPrecision=decimal')
-  .then(function(r) { console.log('[ranking-debug] Status:', r.status); return r.json(); })
-  .then(function(d) { console.log('[ranking-debug] Full response:\n', JSON.stringify(d, null, 2)); })
-  .catch(function(e) { console.log('[ranking-debug] Fetch error:', e); });
-
 (function () {
   'use strict';
 
@@ -457,10 +450,9 @@ fetch('https://api.weather.com/v2/pws/dailysummary/observations/current?stationI
       '<rect x="4" y="34" width="48" height="8" rx="4" fill="#fbbf24"/>' +
     '</svg>';
 
-  // ── Fetch: daily summary → fallback to current obs ──
+  // ── Fetch: proxy → fallback to current obs ────────
   function fetchStation(id) {
-    var dailyUrl   = 'https://api.weather.com/v2/pws/dailysummary/observations/current' +
-      '?stationId=' + id + '&format=json&units=m&apiKey=' + API_KEY + '&numericPrecision=decimal';
+    var dailyUrl   = '/api/dailysummary?stationId=' + id;
     var currentUrl = 'https://api.weather.com/v2/pws/observations/current' +
       '?stationId=' + id + '&format=json&units=m&apiKey=' + API_KEY;
 
