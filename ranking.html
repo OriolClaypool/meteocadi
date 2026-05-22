@@ -237,33 +237,47 @@
     /* ── ranking-body: flex wrapper for podium + list ── */
     .ranking-body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 
+    /* ── Vertical format (1080×1920) — spacing overrides ── */
+    .format-vertical .rc-content      { padding: 160px 90px 90px; }
+    .format-vertical .rc-podium       { margin-top: 50px; }
+    .format-vertical .rc-list         { margin-top: 30px; }
+    .format-vertical .rc-footer-left  { font-size: 28px; }
+    .format-vertical .rc-footer-right { font-size: 20px; color: rgba(255,255,255,0.35); }
+
     /* ── Horizontal format (1920×1080) ── */
     #ranking-card.format-horizontal { width: 1920px; height: 1080px; }
-    .format-horizontal .rc-content { padding: 60px 90px 50px; }
+    .format-horizontal .rc-content        { padding: 60px 90px 50px; }
     .format-horizontal .rc-subtitle-block { margin-top: 20px; }
-    .format-horizontal .rc-eyebrow { font-size: 17px; }
-    .format-horizontal .rc-var-title { font-size: 38px; margin-top: 2px; }
-    .format-horizontal .rc-brand img { height: 56px; }
-    .format-horizontal .rc-brand-name { font-size: 30px; }
-    .format-horizontal .rc-date { font-size: 18px; }
-    .format-horizontal .rc-loading { margin-top: 60px; }
+    .format-horizontal .rc-eyebrow        { font-size: 17px; }
+    .format-horizontal .rc-var-title      { font-size: 38px; margin-top: 2px; }
+    .format-horizontal .rc-brand img      { height: 56px; }
+    .format-horizontal .rc-brand-name     { font-size: 30px; }
+    .format-horizontal .rc-date           { font-size: 18px; }
+    .format-horizontal .rc-loading        { margin-top: 60px; }
     .format-horizontal .ranking-body {
       flex-direction: row;
       gap: 60px;
-      align-items: flex-end;
-      margin-top: 40px;
+      align-items: center;
+      margin-top: 30px;
     }
-    .format-horizontal .rc-podium { flex: 0 0 55%; margin-top: 0; }
-    .format-horizontal .rc-list   { flex: 1; margin-top: 0; align-self: flex-start; }
+    .format-horizontal .rc-podium {
+      flex: 0 0 52%;
+      margin-top: 0;
+      justify-content: center;
+    }
+    .format-horizontal .rc-list {
+      flex: 1;
+      margin-top: 0;
+    }
     .format-horizontal .podium-card.p1 { width: 290px; height: 400px; }
     .format-horizontal .podium-card.p2 { width: 255px; height: 330px; }
     .format-horizontal .podium-card.p3 { width: 240px; height: 270px; }
     .format-horizontal .p1 .podium-value { font-size: 68px; }
     .format-horizontal .p2 .podium-value { font-size: 50px; }
     .format-horizontal .p3 .podium-value { font-size: 44px; }
-    .format-horizontal .p1 .podium-name { font-size: 30px; }
-    .format-horizontal .p2 .podium-name { font-size: 24px; }
-    .format-horizontal .p3 .podium-name { font-size: 22px; }
+    .format-horizontal .p1 .podium-name  { font-size: 30px; }
+    .format-horizontal .p2 .podium-name  { font-size: 24px; }
+    .format-horizontal .p3 .podium-name  { font-size: 22px; }
   </style>
 </head>
 <body>
