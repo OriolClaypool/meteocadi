@@ -112,8 +112,8 @@
     if (t <   20) return '#a3e635';
     if (t <   25) return '#fbbf24';
     if (t <   30) return '#fb923c';
-    if (t <   35) return '#f87171';
-    return '#ef4444';
+    if (t <   35) return '#ef4444';
+    return '#dc2626';
   }
 
   function fmtTemp(t) {
@@ -144,8 +144,6 @@
   async function fetchStation(id) {
     const url = 'https://api.weather.com/v2/pws/observations/current' +
       '?stationId=' + id + '&format=json&units=m&apiKey=' + API_KEY;
-    const dailyUrl = 'https://api.weather.com/v2/pws/dailysummary/observations/current' +
-      '?stationId=' + id + '&format=json&units=m&apiKey=' + API_KEY + '&numericPrecision=decimal';
 
     const res = await fetch(url);
     if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -154,17 +152,7 @@
     if (!obs) throw new Error('no data');
     const m = obs.metric || {};
 
-    let precipTotal = null;
-    try {
-      const dailyRes = await fetch(dailyUrl);
-      if (dailyRes.ok) {
-        const dailyJson = await dailyRes.json();
-        const dailyObs  = dailyJson.observations && dailyJson.observations[0];
-        if (dailyObs && dailyObs.metric) precipTotal = dailyObs.metric.precipTotal ?? null;
-      }
-    } catch (e) { /* fall back below */ }
-    if (precipTotal == null) precipTotal = m.precipTotal ?? null;
-    console.log('[meteocadi] fetchStation', id, 'precipTotal:', precipTotal);
+    const precipTotal = m.precipTotal ?? null;
 
     return {
       temp:         m.temp            ?? null,
