@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rànquing del dia — Meteocadí</title>
+  <link rel="icon" type="image/png" href="imatges/logo.png">
+  <link rel="apple-touch-icon" href="imatges/logo.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <style>
+    .ranking-page-wrap {
+      padding: 2.5rem 0 4rem;
+      background: var(--bg-raised);
+      min-height: 60vh;
+    }
+    .ranking-controls {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 2rem;
+    }
+    .pill-btn {
+      padding: 8px 18px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.08);
+      color: rgba(255,255,255,0.5);
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+      font-family: inherit;
+    }
+    .pill-btn.active {
+      background: #3db8ff;
+      color: #fff;
+      border-color: #3db8ff;
+    }
+    .ranking-outer {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+    #ranking-card {
+      width: 1080px;
+      margin: 0 auto;
+      background: linear-gradient(160deg, #0a1019, #12203a, #0f1724);
+      padding: 60px;
+      border-radius: 0;
+      font-family: inherit;
+      box-sizing: border-box;
+    }
+    .rc-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+    .rc-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .rc-brand-name {
+      font-size: 24px;
+      font-weight: 600;
+      color: #f0f4ff;
+    }
+    .rc-date {
+      font-size: 16px;
+      color: rgba(255,255,255,0.5);
+    }
+    .rc-subtitle {
+      font-size: 14px;
+      letter-spacing: 0.1em;
+      color: #3db8ff;
+      text-transform: uppercase;
+      margin-bottom: 40px;
+      margin-top: 8px;
+    }
+    .rc-podium {
+      display: flex;
+      justify-content: center;
+      align-items: flex-end;
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .podium-card {
+      border-radius: 12px;
+      padding: 24px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-end;
+      box-sizing: border-box;
+    }
+    .podium-card.p1 {
+      width: 300px;
+      height: 280px;
+      border-top: 3px solid #fbbf24;
+      background: rgba(251,191,36,0.08);
+      border-left: 1px solid rgba(251,191,36,0.2);
+      border-right: 1px solid rgba(251,191,36,0.2);
+      border-bottom: 1px solid rgba(251,191,36,0.2);
+      box-shadow: 0 0 30px rgba(251,191,36,0.1);
+    }
+    .podium-card.p2 {
+      width: 280px;
+      height: 220px;
+      border-top: 3px solid #94a3b8;
+      background: rgba(148,163,184,0.08);
+      border-left: 1px solid rgba(148,163,184,0.2);
+      border-right: 1px solid rgba(148,163,184,0.2);
+      border-bottom: 1px solid rgba(148,163,184,0.2);
+    }
+    .podium-card.p3 {
+      width: 260px;
+      height: 180px;
+      border-top: 3px solid #cd7c2f;
+      background: rgba(205,124,47,0.08);
+      border-left: 1px solid rgba(205,124,47,0.2);
+      border-right: 1px solid rgba(205,124,47,0.2);
+      border-bottom: 1px solid rgba(205,124,47,0.2);
+    }
+    .podium-rank {
+      font-weight: 700;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+    .p1 .podium-rank { font-size: 48px; color: #fbbf24; }
+    .p2 .podium-rank { font-size: 40px; color: #94a3b8; }
+    .p3 .podium-rank { font-size: 36px; color: #cd7c2f; }
+    .podium-name {
+      font-weight: 700;
+      color: #f0f4ff;
+      margin-bottom: 4px;
+    }
+    .p1 .podium-name { font-size: 18px; }
+    .p2 .podium-name { font-size: 16px; }
+    .p3 .podium-name { font-size: 15px; }
+    .podium-alt {
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 10px;
+    }
+    .p1 .podium-alt { font-size: 13px; }
+    .p2 .podium-alt { font-size: 12px; }
+    .p3 .podium-alt { font-size: 12px; }
+    .podium-value {
+      font-weight: 700;
+      line-height: 1;
+    }
+    .p1 .podium-value { font-size: 40px; }
+    .p2 .podium-value { font-size: 32px; }
+    .p3 .podium-value { font-size: 28px; }
+    .rc-list {
+      margin-top: 8px;
+    }
+    .rc-row {
+      display: flex;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      gap: 12px;
+    }
+    .rc-row-pos {
+      font-size: 14px;
+      color: rgba(255,255,255,0.3);
+      width: 30px;
+      flex-shrink: 0;
+      text-align: right;
+    }
+    .rc-row-name {
+      font-size: 14px;
+      color: rgba(255,255,255,0.7);
+      flex: 1;
+    }
+    .rc-row-alt {
+      font-size: 12px;
+      color: rgba(255,255,255,0.3);
+    }
+    .rc-row-val {
+      font-size: 16px;
+      font-weight: 500;
+      margin-left: auto;
+    }
+    .rc-footer {
+      margin-top: 40px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding-top: 16px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .rc-footer span {
+      font-size: 12px;
+      color: rgba(255,255,255,0.3);
+    }
+    .ranking-spinner {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 60px 0;
+    }
+    .spinner-ring {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(255,255,255,0.1);
+      border-top-color: #3db8ff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+
+<!-- ══ NAV ══ -->
+<nav>
+  <div class="nav-inner">
+    <a href="index.html" class="nav-logo">
+      <img src="imatges/logo.png" alt="Meteocadí" class="nav-logo-img">
+      <span class="nav-logo-text">
+        <span class="nav-logo-name">Meteocadí</span>
+        <span class="nav-logo-sub">Cadí-Moixeró · Pirineus</span>
+      </span>
+    </a>
+    <button class="nav-toggle" aria-label="Menú" aria-expanded="false">
+      <span></span><span></span><span></span>
+    </button>
+    <ul class="nav-links">
+      <li><a href="estacions.html">Estacions</a></li>
+      <li><a href="mapa.html">Mapa</a></li>
+      <li><a href="webcams.html">Webcams</a></li>
+      <li><a href="sobre.html">Sobre el projecte</a></li>
+      <li><a href="contacte.html">Contacte</a></li>
+    </ul>
+  </div>
+</nav>
+
+<!-- ══ PAGE HEADER ══ -->
+<div class="page-header">
+  <div class="container">
+    <span class="eyebrow">Eina interna</span>
+    <h1>Rànquing del dia</h1>
+  </div>
+</div>
+
+<!-- ══ RANKING ══ -->
+<div class="ranking-page-wrap">
+  <div class="container">
+
+    <!-- Variable selector -->
+    <div class="ranking-controls">
+      <button class="pill-btn active" data-var="tempHigh">Temp. màxima</button>
+      <button class="pill-btn" data-var="tempLow">Temp. mínima</button>
+      <button class="pill-btn" data-var="windgustHigh">Vent màxim</button>
+      <button class="pill-btn" data-var="precipTotal">Precipitació</button>
+    </div>
+
+    <!-- Ranking card (captured by html2canvas) -->
+    <div class="ranking-outer">
+      <div id="ranking-card">
+        <div class="rc-top">
+          <div class="rc-brand">
+            <img src="imatges/logo.png" alt="Meteocadí" style="height:48px;">
+            <span class="rc-brand-name">Meteocadí</span>
+          </div>
+          <span class="rc-date" id="rc-date"></span>
+        </div>
+        <div class="rc-subtitle" id="rc-subtitle">TEMP. MÀXIMA</div>
+
+        <!-- Loading spinner -->
+        <div class="ranking-spinner" id="ranking-spinner">
+          <div class="spinner-ring"></div>
+        </div>
+
+        <!-- Podium -->
+        <div class="rc-podium" id="rc-podium" style="display:none;">
+          <!-- filled by JS -->
+        </div>
+
+        <!-- List 4th+ -->
+        <div class="rc-list" id="rc-list"></div>
+
+        <!-- Card footer -->
+        <div class="rc-footer">
+          <span>meteocadi.cat</span>
+          <span>Dades de la xarxa Meteocadí</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Download button (outside ranking-card) -->
+    <div style="text-align:center; margin:24px 0 48px;">
+      <button id="download-ranking" class="btn btn-primary" style="font-size:14px; padding:12px 28px;">
+        Descarregar imatge
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══ FOOTER ══ -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-col-left">
+      <a href="index.html" class="nav-logo">
+        <img src="imatges/logo.png" alt="Meteocadí" class="nav-logo-img">
+        <span class="nav-logo-text">
+          <span class="nav-logo-name">Meteocadí</span>
+          <span class="nav-logo-sub">Cadí-Moixeró · Pirineus</span>
+        </span>
+      </a>
+      <span class="footer-copy">© 2026 Meteocadí</span>
+    </div>
+    <ul class="footer-nav">
+      <li><a href="estacions.html">Estacions</a></li>
+      <li><a href="mapa.html">Mapa</a></li>
+      <li><a href="webcams.html">Webcams</a></li>
+      <li><a href="sobre.html">Sobre el projecte</a></li>
+      <li><a href="contacte.html">Contacte</a></li>
+    </ul>
+    <div class="footer-col-right">
+      <p>meteocadi.cat</p>
+      <p>Parc Natural del Cadí-Moixeró</p>
+    </div>
+  </div>
+</footer>
+
+<script src="js/main.js"></script>
+<script>
+(function () {
+  var API_KEY = 'b146442062ee4f8a86442062ee4f8acd';
+
+  var STATIONS_META = {
+    IBAG65:      { name: 'Bagà Nord',                  alt: 865  },
+    IBAG67:      { name: 'Refugi de Rebost',           alt: 1650 },
+    IBAG72:      { name: 'Bagà Sud',                   alt: 770  },
+    IBAG73:      { name: 'Bagà Centre',                alt: 798  },
+    IGISCL6:     { name: 'Tancalaporta',               alt: 2440 },
+    IGSOL7:      { name: 'Pedraforca',                 alt: 2270 },
+    IGUARD34:    { name: 'Coll de Pal - Puigllançada', alt: 2090 },
+    ISANTJ138:   { name: 'Cerdanyola-Forcat',          alt: 1115 },
+    IGSOL4:      { name: 'Gósol',                      alt: 1450 },
+    ILANOU4:     { name: 'La Nou de Berguedà',         alt: 940  },
+    ISANTJ53:    { name: 'Cerdanyola-Poble',           alt: 964  },
+    IBARCELO40:  { name: 'La Pobla de Lillet',         alt: 843  },
+  };
+
+  var VAR_LABELS = {
+    tempHigh:     'Temp. màxima',
+    tempLow:      'Temp. mínima',
+    windgustHigh: 'Vent màxim',
+    precipTotal:  'Precipitació',
+  };
+
+  var months = ['gener','febrer','març','abril','maig','juny','juliol','agost','setembre','octubre','novembre','desembre'];
+  var d = new Date();
+  document.getElementById('rc-date').textContent =
+    d.getDate() + ' de ' + months[d.getMonth()] + ' de ' + d.getFullYear();
+
+  var activeVar = 'tempHigh';
+  var cache = null; // fetched once, object keyed by stationId
+
+  function tempColor(v) {
+    if (v == null) return '#e8edf5';
+    if (v < -4)  return '#c4b5fd';
+    if (v < 0)   return '#93c5fd';
+    if (v < 10)  return '#6ee7b7';
+    if (v < 25)  return '#34d399';
+    if (v < 35)  return '#fbbf24';
+    return '#f87171';
+  }
+
+  function valueColor(varKey, val) {
+    if (varKey === 'windgustHigh') return '#e8edf5';
+    if (varKey === 'precipTotal')  return '#7dd3fc';
+    return tempColor(val);
+  }
+
+  function formatValue(varKey, val) {
+    if (val == null) return '—';
+    if (varKey === 'tempHigh' || varKey === 'tempLow') {
+      var r = Math.round(val);
+      return (r > 0 ? '+' : '') + r + '°C';
+    }
+    if (varKey === 'windgustHigh') return Math.round(val) + ' km/h';
+    if (varKey === 'precipTotal')  return val.toFixed(1) + ' mm';
+    return val;
+  }
+
+  function setLoading(on) {
+    document.getElementById('ranking-spinner').style.display = on ? 'flex' : 'none';
+    document.getElementById('rc-podium').style.display = on ? 'none' : 'flex';
+    document.getElementById('rc-list').style.display = on ? 'none' : 'block';
+  }
+
+  async function fetchAllStations() {
+    var ids = Object.keys(STATIONS_META);
+    var results = await Promise.allSettled(
+      ids.map(function (id) {
+        var url = 'https://api.weather.com/v2/pws/dailysummary/observations/current' +
+          '?stationId=' + id + '&format=json&units=m&apiKey=' + API_KEY + '&numericPrecision=decimal';
+        return fetch(url).then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        }).then(function (json) {
+          var obs = json.observations && json.observations[0];
+          var m = (obs && obs.metric) || {};
+          return {
+            id: id,
+            tempHigh:     m.tempHigh     != null ? m.tempHigh     : null,
+            tempLow:      m.tempLow      != null ? m.tempLow      : null,
+            windgustHigh: m.windgustHigh != null ? m.windgustHigh : null,
+            precipTotal:  m.precipTotal  != null ? m.precipTotal  : null,
+          };
+        });
+      })
+    );
+    var data = {};
+    results.forEach(function (r) {
+      if (r.status === 'fulfilled') data[r.value.id] = r.value;
+    });
+    return data;
+  }
+
+  function buildRanking(data, varKey) {
+    var entries = Object.keys(STATIONS_META)
+      .filter(function (id) { return data[id] && data[id][varKey] != null; })
+      .map(function (id) {
+        return {
+          id: id,
+          name: STATIONS_META[id].name,
+          alt: STATIONS_META[id].alt,
+          value: data[id][varKey],
+        };
+      });
+
+    entries.sort(function (a, b) {
+      return varKey === 'tempLow' ? a.value - b.value : b.value - a.value;
+    });
+    return entries;
+  }
+
+  function renderRanking(varKey) {
+    document.getElementById('rc-subtitle').textContent = VAR_LABELS[varKey].toUpperCase();
+
+    if (!cache) return;
+
+    var entries = buildRanking(cache, varKey);
+
+    var podiumEl = document.getElementById('rc-podium');
+    var listEl   = document.getElementById('rc-list');
+    podiumEl.innerHTML = '';
+    listEl.innerHTML   = '';
+
+    var top3 = entries.slice(0, 3);
+    var rest  = entries.slice(3);
+
+    // Podium order: 2nd, 1st, 3rd
+    var order = [top3[1], top3[0], top3[2]];
+    var classes = ['p2', 'p1', 'p3'];
+    var positions = [2, 1, 3];
+
+    order.forEach(function (entry, i) {
+      if (!entry) return;
+      var cls = classes[i];
+      var pos = positions[i];
+      var color = valueColor(varKey, entry.value);
+      var card = document.createElement('div');
+      card.className = 'podium-card ' + cls;
+      card.innerHTML =
+        '<div class="podium-rank">' + pos + '</div>' +
+        '<div class="podium-name">' + entry.name + '</div>' +
+        '<div class="podium-alt">' + entry.alt + ' m</div>' +
+        '<div class="podium-value" style="color:' + color + '">' + formatValue(varKey, entry.value) + '</div>';
+      podiumEl.appendChild(card);
+    });
+
+    rest.forEach(function (entry, i) {
+      var color = valueColor(varKey, entry.value);
+      var row = document.createElement('div');
+      row.className = 'rc-row';
+      row.innerHTML =
+        '<span class="rc-row-pos">' + (i + 4) + '</span>' +
+        '<span class="rc-row-name">' + entry.name + '</span>' +
+        '<span class="rc-row-alt">' + entry.alt + ' m</span>' +
+        '<span class="rc-row-val" style="color:' + color + '">' + formatValue(varKey, entry.value) + '</span>';
+      listEl.appendChild(row);
+    });
+
+    setLoading(false);
+  }
+
+  async function loadAndRender() {
+    setLoading(true);
+    if (!cache) {
+      cache = await fetchAllStations();
+    }
+    renderRanking(activeVar);
+  }
+
+  // Pill buttons
+  document.querySelectorAll('.pill-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.pill-btn').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      activeVar = btn.dataset.var;
+      renderRanking(activeVar);
+    });
+  });
+
+  // Download
+  document.getElementById('download-ranking').addEventListener('click', function () {
+    html2canvas(document.getElementById('ranking-card'), {
+      scale: 2,
+      backgroundColor: null,
+      useCORS: true,
+      logging: false,
+    }).then(function (canvas) {
+      var link = document.createElement('a');
+      var today = new Date().toISOString().split('T')[0];
+      link.download = 'meteocadi-ranking-' + today + '.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    });
+  });
+
+  // Nav toggle (reuse pattern from other pages)
+  var toggle = document.querySelector('.nav-toggle');
+  var navLinks = document.querySelector('.nav-links');
+  if (toggle && navLinks) {
+    toggle.addEventListener('click', function () {
+      var open = navLinks.classList.toggle('open');
+      toggle.setAttribute('aria-expanded', open);
+    });
+  }
+
+  loadAndRender();
+})();
+</script>
+</body>
+</html>
