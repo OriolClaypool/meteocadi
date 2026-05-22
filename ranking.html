@@ -400,6 +400,7 @@
   // ── Colours ───────────────────────────────────
   function tempColor(t) {
     if (t == null || isNaN(t)) return '#e8edf5';
+    t = Math.round(t);
     if (t <= -10) return '#a78bfa';
     if (t <   -5) return '#818cf8';
     if (t <    0) return '#60a5fa';
