@@ -475,8 +475,11 @@
           throw new Error('no summaries');
         }
 
-        // Match today's date (YYYY-MM-DD); if not found use last (most recent) entry
-        var today = new Date().toISOString().slice(0, 10);
+        // Only accept an entry whose date matches today (local date, YYYY-MM-DD)
+        var _n = new Date();
+        var today = _n.getFullYear() + '-' +
+          String(_n.getMonth() + 1).padStart(2, '0') + '-' +
+          String(_n.getDate()).padStart(2, '0');
         var entry = null;
         for (var i = 0; i < summaries.length; i++) {
           if (summaries[i].obsTimeLocal && summaries[i].obsTimeLocal.slice(0, 10) === today) {
@@ -484,7 +487,11 @@
             break;
           }
         }
-        if (!entry) entry = summaries[summaries.length - 1];
+        if (!entry) {
+          var lastDate = (summaries[summaries.length - 1] || {}).obsTimeLocal || '?';
+          console.log('[ranking] excluded:', id, '— no data for today (' + today + '), last entry:', lastDate);
+          return { id: id, excluded: true };
+        }
 
         var m = (entry && entry.metric) || {};
         console.log('[ranking]', id, 'summary', entry.obsTimeLocal, 'metric:', JSON.stringify(m));
@@ -529,15 +536,24 @@
       .then(function (results) {
         var data = {};
         var fallbackCount = 0;
+        var excluded = [];
         results.forEach(function (r) {
           if (r.status === 'fulfilled') {
-            data[r.value.id] = r.value;
-            if (r.value.fallback) fallbackCount++;
+            if (r.value.excluded) {
+              excluded.push(r.value.id);
+            } else {
+              data[r.value.id] = r.value;
+              if (r.value.fallback) fallbackCount++;
+            }
           } else {
             console.warn('[ranking] FAILED:', r.reason);
           }
         });
-        console.log('[ranking] Done. Stations OK:', Object.keys(data).length, '/ fallback used:', fallbackCount);
+        if (excluded.length) {
+          console.log('[ranking] Excluded (no today data):', excluded.join(', '));
+        }
+        console.log('[ranking] Done. Stations with today data:', Object.keys(data).length,
+          '/ excluded:', excluded.length, '/ fallback (live):', fallbackCount);
         if (fallbackCount > 0) {
           var footerRight = document.querySelector('.rc-footer-right');
           if (footerRight) footerRight.textContent = 'Dades en temps real · Xarxa Meteocadí';
