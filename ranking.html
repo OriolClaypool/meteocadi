@@ -463,6 +463,13 @@
         return r.json();
       })
       .then(function (json) {
+        // Proxy returns an error object when WU responds with a non-2xx status
+        if (json.error) {
+          console.warn('[ranking]', id, 'proxy error:', json.error,
+            '| current:', json.currentStatus, json.currentBody,
+            '| 7day:', json.sevendayStatus, json.sevendayBody);
+          throw new Error('proxy error: ' + json.error);
+        }
         var obs = json.observations && json.observations[0];
         var m   = (obs && obs.metric) || {};
         // Log the full metric object so we can see every field name
