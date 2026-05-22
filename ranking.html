@@ -199,10 +199,11 @@
     .p1 .podium-alt { font-size: 18px; }
     .p2 .podium-alt { font-size: 15px; }
     .p3 .podium-alt { font-size: 15px; }
-    .podium-value { font-weight: 700; line-height: 1; }
+    .podium-value { font-weight: 700; line-height: 1; white-space: nowrap; }
     .p1 .podium-value { font-size: 64px; }
     .p2 .podium-value { font-size: 46px; }
     .p3 .podium-value { font-size: 40px; }
+    .val-unit { font-size: 0.42em; font-weight: 500; opacity: 0.75; }
 
     /* Rest of ranking list */
     .rc-list { margin-top: 50px; }
@@ -419,16 +420,16 @@
   }
 
   // ── Formatting ────────────────────────────────
+  var U = '<span class="val-unit">';
   function formatValue(varKey, val) {
     if (val == null) return '—';
     if (varKey === 'tempHigh' || varKey === 'tempLow') {
       var r = Math.round(val);
-      if (r > 0) return '+' + r + '°C';
-      if (r < 0) return '−' + Math.abs(r) + '°C';
-      return '0°C';
+      var sign = r > 0 ? '+' : r < 0 ? '−' : '';
+      return sign + Math.abs(r) + U + '°C</span>';
     }
-    if (varKey === 'windgustHigh') return Math.round(val) + ' km/h';
-    if (varKey === 'precipTotal')  return val.toFixed(1) + ' mm';
+    if (varKey === 'windgustHigh') return Math.round(val) + U + ' km/h</span>';
+    if (varKey === 'precipTotal')  return val.toFixed(1) + U + ' mm</span>';
     return String(val);
   }
 
@@ -680,18 +681,36 @@
 
   // ── Download ──────────────────────────────────
   document.getElementById('download-ranking').addEventListener('click', function () {
-    html2canvas(document.getElementById('ranking-card'), {
-      scale: 1,
+    var card = document.getElementById('ranking-card');
+    html2canvas(card, {
       width: 1080,
       height: 1920,
-      backgroundColor: null,
+      scale: 2,
+      backgroundColor: '#0a1019',
       useCORS: true,
       logging: false,
+      onclone: function (clonedDoc) {
+        var clonedCard = clonedDoc.getElementById('ranking-card');
+        if (clonedCard) {
+          clonedCard.style.transform = 'none';
+          clonedCard.style.margin    = '0';
+          clonedCard.style.position  = 'static';
+        }
+        var wrapper = clonedCard ? clonedCard.parentElement : null;
+        if (wrapper) {
+          wrapper.style.transform = 'none';
+          wrapper.style.width     = '1080px';
+          wrapper.style.height    = '1920px';
+          wrapper.style.overflow  = 'visible';
+        }
+      },
     }).then(function (canvas) {
       var link = document.createElement('a');
       link.download = 'meteocadi-ranking-' + new Date().toISOString().split('T')[0] + '.png';
       link.href = canvas.toDataURL('image/png');
       link.click();
+    }).catch(function (err) {
+      console.error('Download error:', err);
     });
   });
 
