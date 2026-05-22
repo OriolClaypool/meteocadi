@@ -233,6 +233,37 @@
     .rc-footer-right { font-size: 15px; color: rgba(255,255,255,0.3); }
 
     .download-wrap { text-align: center; margin: 24px 0 48px; }
+
+    /* ── ranking-body: flex wrapper for podium + list ── */
+    .ranking-body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+    /* ── Horizontal format (1920×1080) ── */
+    #ranking-card.format-horizontal { width: 1920px; height: 1080px; }
+    .format-horizontal .rc-content { padding: 60px 90px 50px; }
+    .format-horizontal .rc-subtitle-block { margin-top: 20px; }
+    .format-horizontal .rc-eyebrow { font-size: 17px; }
+    .format-horizontal .rc-var-title { font-size: 38px; margin-top: 2px; }
+    .format-horizontal .rc-brand img { height: 56px; }
+    .format-horizontal .rc-brand-name { font-size: 30px; }
+    .format-horizontal .rc-date { font-size: 18px; }
+    .format-horizontal .rc-loading { margin-top: 60px; }
+    .format-horizontal .ranking-body {
+      flex-direction: row;
+      gap: 60px;
+      align-items: flex-end;
+      margin-top: 40px;
+    }
+    .format-horizontal .rc-podium { flex: 0 0 55%; margin-top: 0; }
+    .format-horizontal .rc-list   { flex: 1; margin-top: 0; align-self: flex-start; }
+    .format-horizontal .podium-card.p1 { width: 290px; height: 400px; }
+    .format-horizontal .podium-card.p2 { width: 255px; height: 330px; }
+    .format-horizontal .podium-card.p3 { width: 240px; height: 270px; }
+    .format-horizontal .p1 .podium-value { font-size: 68px; }
+    .format-horizontal .p2 .podium-value { font-size: 50px; }
+    .format-horizontal .p3 .podium-value { font-size: 44px; }
+    .format-horizontal .p1 .podium-name { font-size: 30px; }
+    .format-horizontal .p2 .podium-name { font-size: 24px; }
+    .format-horizontal .p3 .podium-name { font-size: 22px; }
   </style>
 </head>
 <body>
@@ -273,15 +304,19 @@
   <div class="container">
 
     <div class="ranking-controls">
-      <button class="pill-btn active" data-var="tempHigh">Temp. màxima</button>
-      <button class="pill-btn" data-var="tempLow">Temp. mínima</button>
-      <button class="pill-btn" data-var="windgustHigh">Vent màxim</button>
-      <button class="pill-btn" data-var="precipTotal">Precipitació</button>
+      <button class="pill-btn var-btn active" data-var="tempHigh">Temp. màxima</button>
+      <button class="pill-btn var-btn" data-var="tempLow">Temp. mínima</button>
+      <button class="pill-btn var-btn" data-var="windgustHigh">Vent màxim</button>
+      <button class="pill-btn var-btn" data-var="precipTotal">Precipitació</button>
+    </div>
+    <div class="ranking-controls" style="margin-top:-8px; margin-bottom:1.5rem;">
+      <button class="pill-btn fmt-btn active" data-fmt="vertical">Vertical (Stories)</button>
+      <button class="pill-btn fmt-btn" data-fmt="horizontal">Horitzontal (Twitter/X)</button>
     </div>
 
     <div class="card-outer" id="card-outer">
       <div class="card-scaler" id="card-scaler">
-        <div id="ranking-card">
+        <div id="ranking-card" class="format-vertical">
           <div class="rc-glow"></div>
           <div class="rc-content">
 
@@ -300,9 +335,10 @@
 
             <div id="rc-loading" class="rc-loading">Carregant dades...</div>
 
-            <div id="rc-podium" class="rc-podium" style="display:none;"></div>
-
-            <div id="rc-list" class="rc-list" style="display:none;"></div>
+            <div class="ranking-body">
+              <div id="rc-podium" class="rc-podium" style="display:none;"></div>
+              <div id="rc-list" class="rc-list" style="display:none;"></div>
+            </div>
 
             <div class="rc-card-footer">
               <span class="rc-footer-left">meteocadi.cat</span>
@@ -384,16 +420,22 @@
   document.getElementById('rc-date').textContent =
     _d.getDate() + ' de ' + months[_d.getMonth()] + ' de ' + _d.getFullYear();
 
-  var activeVar = 'tempHigh';
+  var activeVar    = 'tempHigh';
+  var activeFormat = 'vertical';
   var cache = null;
 
   // ── Card scaling ──────────────────────────────
   function scaleCard() {
     var outer  = document.getElementById('card-outer');
     var scaler = document.getElementById('card-scaler');
-    var scale  = outer.offsetWidth / 1080;
+    var isH    = activeFormat === 'horizontal';
+    var cardW  = isH ? 1920 : 1080;
+    var cardH  = isH ? 1080 : 1920;
+    var scale  = outer.offsetWidth / cardW;
+    scaler.style.width  = cardW + 'px';
+    scaler.style.height = cardH + 'px';
     scaler.style.transform = 'scale(' + scale + ')';
-    outer.style.height     = Math.round(1920 * scale) + 'px';
+    outer.style.height = Math.round(cardH * scale) + 'px';
   }
   window.addEventListener('resize', scaleCard);
 
@@ -670,22 +712,39 @@
     });
   }
 
-  // ── Pill buttons ──────────────────────────────
-  document.querySelectorAll('.pill-btn').forEach(function (btn) {
+  // ── Variable pill buttons ─────────────────────
+  document.querySelectorAll('.var-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
-      document.querySelectorAll('.pill-btn').forEach(function (b) { b.classList.remove('active'); });
+      document.querySelectorAll('.var-btn').forEach(function (b) { b.classList.remove('active'); });
       btn.classList.add('active');
       activeVar = btn.dataset.var;
       renderRanking(activeVar);
     });
   });
 
+  // ── Format pill buttons ───────────────────────
+  document.querySelectorAll('.fmt-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.querySelectorAll('.fmt-btn').forEach(function (b) { b.classList.remove('active'); });
+      btn.classList.add('active');
+      activeFormat = btn.dataset.fmt;
+      var card = document.getElementById('ranking-card');
+      card.classList.remove('format-vertical', 'format-horizontal');
+      card.classList.add('format-' + activeFormat);
+      scaleCard();
+    });
+  });
+
   // ── Download ──────────────────────────────────
   document.getElementById('download-ranking').addEventListener('click', function () {
-    var card = document.getElementById('ranking-card');
+    var card  = document.getElementById('ranking-card');
+    var isH   = activeFormat === 'horizontal';
+    var w     = isH ? 1920 : 1080;
+    var h     = isH ? 1080 : 1920;
+    var fmtName = isH ? 'horitzontal' : 'vertical';
     html2canvas(card, {
-      width: 1080,
-      height: 1920,
+      width: w,
+      height: h,
       scale: 2,
       backgroundColor: '#0a1019',
       useCORS: true,
@@ -700,14 +759,14 @@
         var wrapper = clonedCard ? clonedCard.parentElement : null;
         if (wrapper) {
           wrapper.style.transform = 'none';
-          wrapper.style.width     = '1080px';
-          wrapper.style.height    = '1920px';
+          wrapper.style.width     = w + 'px';
+          wrapper.style.height    = h + 'px';
           wrapper.style.overflow  = 'visible';
         }
       },
     }).then(function (canvas) {
       var link = document.createElement('a');
-      link.download = 'meteocadi-ranking-' + new Date().toISOString().split('T')[0] + '.png';
+      link.download = 'meteocadi-ranking-' + fmtName + '-' + new Date().toISOString().split('T')[0] + '.png';
       link.href = canvas.toDataURL('image/png');
       link.click();
     }).catch(function (err) {
