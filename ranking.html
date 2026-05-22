@@ -12,7 +12,7 @@
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <style>
     .ranking-page-wrap {
-      padding: 2.5rem 0 4rem;
+      padding: 2rem 0 4rem;
       background: var(--bg-raised);
       min-height: 60vh;
     }
@@ -24,194 +24,214 @@
       margin-bottom: 2rem;
     }
     .pill-btn {
-      padding: 8px 18px;
+      padding: 8px 20px;
       border-radius: 999px;
       border: 1px solid rgba(255,255,255,0.1);
       background: rgba(255,255,255,0.08);
       color: rgba(255,255,255,0.5);
       font-size: 14px;
       cursor: pointer;
-      transition: background 0.15s, color 0.15s;
       font-family: inherit;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
     }
     .pill-btn.active {
       background: #3db8ff;
       color: #fff;
       border-color: #3db8ff;
     }
-    .ranking-outer {
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
+
+    /* Card scaling wrapper */
+    .card-outer {
+      position: relative;
+      width: 100%;
+      max-width: 460px;
+      margin: 0 auto;
+      overflow: hidden;
     }
+    .card-scaler {
+      position: absolute;
+      top: 0; left: 0;
+      width: 1080px;
+      height: 1920px;
+      transform-origin: top left;
+    }
+
+    /* The exported card — always 1080×1920 */
     #ranking-card {
       width: 1080px;
-      margin: 0 auto;
-      background: linear-gradient(160deg, #0a1019, #12203a, #0f1724);
-      padding: 60px;
-      border-radius: 0;
+      height: 1920px;
+      position: relative;
+      background: linear-gradient(165deg, #0a1019 0%, #13233f 45%, #0d1828 100%);
+      overflow: hidden;
       font-family: inherit;
       box-sizing: border-box;
     }
-    .rc-top {
+    .rc-glow {
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse at top right, rgba(13,159,255,0.12), transparent 70%);
+      pointer-events: none;
+    }
+    .rc-content {
+      position: relative;
+      z-index: 1;
+      padding: 90px 70px 70px;
+      height: 100%;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Header */
+    .rc-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 6px;
     }
     .rc-brand {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 16px;
     }
     .rc-brand-name {
-      font-size: 24px;
+      font-size: 36px;
       font-weight: 600;
       color: #f0f4ff;
+      line-height: 1;
     }
     .rc-date {
-      font-size: 16px;
-      color: rgba(255,255,255,0.5);
+      font-size: 22px;
+      color: rgba(255,255,255,0.4);
+      text-align: right;
     }
-    .rc-subtitle {
-      font-size: 14px;
-      letter-spacing: 0.1em;
+
+    /* Subtitle */
+    .rc-subtitle-block { margin-top: 40px; }
+    .rc-eyebrow {
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
       color: #3db8ff;
       text-transform: uppercase;
-      margin-bottom: 40px;
-      margin-top: 8px;
     }
+    .rc-var-title {
+      font-size: 44px;
+      font-weight: 600;
+      color: #f0f4ff;
+      line-height: 1.15;
+      margin-top: 4px;
+    }
+
+    /* Loading */
+    .rc-loading {
+      margin-top: 120px;
+      text-align: center;
+      font-size: 22px;
+      color: rgba(255,255,255,0.35);
+    }
+
+    /* Podium */
     .rc-podium {
       display: flex;
       justify-content: center;
       align-items: flex-end;
       gap: 16px;
-      margin-bottom: 32px;
+      margin-top: 70px;
     }
     .podium-card {
-      border-radius: 12px;
-      padding: 24px;
+      border-radius: 20px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
       text-align: center;
+      box-sizing: border-box;
+      flex-shrink: 0;
+    }
+    .podium-card.p1 {
+      width: 260px; height: 360px;
+      background: linear-gradient(180deg, rgba(251,191,36,0.14), rgba(251,191,36,0.03));
+      border: 1px solid rgba(251,191,36,0.3);
+      box-shadow: 0 0 50px rgba(251,191,36,0.12);
+    }
+    .podium-card.p2 {
+      width: 220px; height: 290px;
+      background: linear-gradient(180deg, rgba(203,213,225,0.12), rgba(203,213,225,0.02));
+      border: 1px solid rgba(148,163,184,0.3);
+    }
+    .podium-card.p3 {
+      width: 220px; height: 240px;
+      background: linear-gradient(180deg, rgba(205,124,47,0.12), rgba(205,124,47,0.02));
+      border: 1px solid rgba(205,124,47,0.3);
+    }
+    .podium-accent {
+      height: 5px;
+      flex-shrink: 0;
+    }
+    .p1 .podium-accent { background: linear-gradient(90deg, #f59e0b, #fbbf24, #f59e0b); }
+    .p2 .podium-accent { background: linear-gradient(90deg, #94a3b8, #cbd5e1, #94a3b8); }
+    .p3 .podium-accent { background: linear-gradient(90deg, #b45309, #cd7c2f, #b45309); }
+    .podium-body {
+      padding: 16px 20px 28px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: flex-end;
-      box-sizing: border-box;
+      flex: 1;
     }
-    .podium-card.p1 {
-      width: 300px;
-      height: 280px;
-      border-top: 3px solid #fbbf24;
-      background: rgba(251,191,36,0.08);
-      border-left: 1px solid rgba(251,191,36,0.2);
-      border-right: 1px solid rgba(251,191,36,0.2);
-      border-bottom: 1px solid rgba(251,191,36,0.2);
-      box-shadow: 0 0 30px rgba(251,191,36,0.1);
-    }
-    .podium-card.p2 {
-      width: 280px;
-      height: 220px;
-      border-top: 3px solid #94a3b8;
-      background: rgba(148,163,184,0.08);
-      border-left: 1px solid rgba(148,163,184,0.2);
-      border-right: 1px solid rgba(148,163,184,0.2);
-      border-bottom: 1px solid rgba(148,163,184,0.2);
-    }
-    .podium-card.p3 {
-      width: 260px;
-      height: 180px;
-      border-top: 3px solid #cd7c2f;
-      background: rgba(205,124,47,0.08);
-      border-left: 1px solid rgba(205,124,47,0.2);
-      border-right: 1px solid rgba(205,124,47,0.2);
-      border-bottom: 1px solid rgba(205,124,47,0.2);
-    }
-    .podium-rank {
-      font-weight: 700;
-      line-height: 1;
-      margin-bottom: 8px;
-    }
-    .p1 .podium-rank { font-size: 48px; color: #fbbf24; }
-    .p2 .podium-rank { font-size: 40px; color: #94a3b8; }
-    .p3 .podium-rank { font-size: 36px; color: #cd7c2f; }
-    .podium-name {
-      font-weight: 700;
-      color: #f0f4ff;
-      margin-bottom: 4px;
-    }
-    .p1 .podium-name { font-size: 18px; }
-    .p2 .podium-name { font-size: 16px; }
-    .p3 .podium-name { font-size: 15px; }
-    .podium-alt {
-      color: rgba(255,255,255,0.35);
+    .podium-crown { margin-bottom: 10px; line-height: 0; }
+    .podium-medal {
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      flex-shrink: 0;
       margin-bottom: 10px;
     }
-    .p1 .podium-alt { font-size: 13px; }
-    .p2 .podium-alt { font-size: 12px; }
-    .p3 .podium-alt { font-size: 12px; }
-    .podium-value {
-      font-weight: 700;
-      line-height: 1;
-    }
-    .p1 .podium-value { font-size: 40px; }
-    .p2 .podium-value { font-size: 32px; }
-    .p3 .podium-value { font-size: 28px; }
-    .rc-list {
-      margin-top: 8px;
-    }
+    .p1 .podium-medal { width: 56px; height: 56px; background: rgba(251,191,36,0.15); border: 2px solid rgba(251,191,36,0.4); color: #fbbf24; font-size: 28px; }
+    .p2 .podium-medal { width: 48px; height: 48px; background: rgba(148,163,184,0.15); border: 2px solid rgba(148,163,184,0.4); color: #94a3b8; font-size: 22px; }
+    .p3 .podium-medal { width: 44px; height: 44px; background: rgba(205,124,47,0.15); border: 2px solid rgba(205,124,47,0.4); color: #cd7c2f; font-size: 20px; }
+    .podium-name { font-weight: 700; color: #f0f4ff; margin-bottom: 4px; line-height: 1.2; }
+    .p1 .podium-name { font-size: 28px; }
+    .p2 .podium-name { font-size: 22px; }
+    .p3 .podium-name { font-size: 22px; }
+    .podium-alt { color: rgba(255,255,255,0.35); margin-bottom: 10px; }
+    .p1 .podium-alt { font-size: 18px; }
+    .p2 .podium-alt { font-size: 15px; }
+    .p3 .podium-alt { font-size: 15px; }
+    .podium-value { font-weight: 700; line-height: 1; }
+    .p1 .podium-value { font-size: 64px; }
+    .p2 .podium-value { font-size: 46px; }
+    .p3 .podium-value { font-size: 40px; }
+
+    /* Rest of ranking list */
+    .rc-list { margin-top: 50px; }
     .rc-row {
       display: flex;
       align-items: center;
-      padding: 10px 0;
-      border-bottom: 1px solid rgba(255,255,255,0.05);
-      gap: 12px;
+      padding: 16px 14px;
+      border-radius: 10px;
+      gap: 16px;
     }
-    .rc-row-pos {
-      font-size: 14px;
-      color: rgba(255,255,255,0.3);
-      width: 30px;
-      flex-shrink: 0;
-      text-align: right;
-    }
-    .rc-row-name {
-      font-size: 14px;
-      color: rgba(255,255,255,0.7);
-      flex: 1;
-    }
-    .rc-row-alt {
-      font-size: 12px;
-      color: rgba(255,255,255,0.3);
-    }
-    .rc-row-val {
-      font-size: 16px;
-      font-weight: 500;
-      margin-left: auto;
-    }
-    .rc-footer {
-      margin-top: 40px;
-      border-top: 1px solid rgba(255,255,255,0.08);
-      padding-top: 16px;
+    .rc-row:nth-child(even) { background: rgba(255,255,255,0.025); }
+    .rc-row-pos { font-size: 24px; color: rgba(255,255,255,0.3); width: 40px; flex-shrink: 0; text-align: center; }
+    .rc-row-name { font-size: 24px; font-weight: 500; color: rgba(255,255,255,0.75); flex: 1; }
+    .rc-row-alt { font-size: 18px; color: rgba(255,255,255,0.3); flex-shrink: 0; }
+    .rc-row-val { font-size: 28px; font-weight: 600; flex-shrink: 0; }
+
+    /* Card footer — pushed to bottom */
+    .rc-card-footer {
+      margin-top: auto;
+      padding-top: 24px;
+      border-top: 1px solid rgba(255,255,255,0.07);
       display: flex;
       justify-content: space-between;
-    }
-    .rc-footer span {
-      font-size: 12px;
-      color: rgba(255,255,255,0.3);
-    }
-    .ranking-spinner {
-      display: flex;
-      justify-content: center;
       align-items: center;
-      padding: 60px 0;
     }
-    .spinner-ring {
-      width: 40px;
-      height: 40px;
-      border: 3px solid rgba(255,255,255,0.1);
-      border-top-color: #3db8ff;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    .rc-footer-left { font-size: 20px; font-weight: 600; color: #3db8ff; }
+    .rc-footer-right { font-size: 15px; color: rgba(255,255,255,0.3); }
+
+    .download-wrap { text-align: center; margin: 24px 0 48px; }
   </style>
 </head>
 <body>
@@ -251,7 +271,6 @@
 <div class="ranking-page-wrap">
   <div class="container">
 
-    <!-- Variable selector -->
     <div class="ranking-controls">
       <button class="pill-btn active" data-var="tempHigh">Temp. màxima</button>
       <button class="pill-btn" data-var="tempLow">Temp. mínima</button>
@@ -259,41 +278,42 @@
       <button class="pill-btn" data-var="precipTotal">Precipitació</button>
     </div>
 
-    <!-- Ranking card (captured by html2canvas) -->
-    <div class="ranking-outer">
-      <div id="ranking-card">
-        <div class="rc-top">
-          <div class="rc-brand">
-            <img src="imatges/logo.png" alt="Meteocadí" style="height:48px;">
-            <span class="rc-brand-name">Meteocadí</span>
+    <div class="card-outer" id="card-outer">
+      <div class="card-scaler" id="card-scaler">
+        <div id="ranking-card">
+          <div class="rc-glow"></div>
+          <div class="rc-content">
+
+            <div class="rc-header">
+              <div class="rc-brand">
+                <img src="imatges/logo.png" alt="Meteocadí" height="72" style="display:block;">
+                <span class="rc-brand-name">Meteocadí</span>
+              </div>
+              <span class="rc-date" id="rc-date"></span>
+            </div>
+
+            <div class="rc-subtitle-block">
+              <div class="rc-eyebrow">RÀNQUING DEL DIA</div>
+              <div class="rc-var-title" id="rc-var-title">Temperatura màxima</div>
+            </div>
+
+            <div id="rc-loading" class="rc-loading">Carregant dades...</div>
+
+            <div id="rc-podium" class="rc-podium" style="display:none;"></div>
+
+            <div id="rc-list" class="rc-list" style="display:none;"></div>
+
+            <div class="rc-card-footer">
+              <span class="rc-footer-left">meteocadi.cat</span>
+              <span class="rc-footer-right">Dades de la xarxa d'estacions Meteocadí</span>
+            </div>
+
           </div>
-          <span class="rc-date" id="rc-date"></span>
-        </div>
-        <div class="rc-subtitle" id="rc-subtitle">TEMP. MÀXIMA</div>
-
-        <!-- Loading spinner -->
-        <div class="ranking-spinner" id="ranking-spinner">
-          <div class="spinner-ring"></div>
-        </div>
-
-        <!-- Podium -->
-        <div class="rc-podium" id="rc-podium" style="display:none;">
-          <!-- filled by JS -->
-        </div>
-
-        <!-- List 4th+ -->
-        <div class="rc-list" id="rc-list"></div>
-
-        <!-- Card footer -->
-        <div class="rc-footer">
-          <span>meteocadi.cat</span>
-          <span>Dades de la xarxa Meteocadí</span>
         </div>
       </div>
     </div>
 
-    <!-- Download button (outside ranking-card) -->
-    <div style="text-align:center; margin:24px 0 48px;">
+    <div class="download-wrap">
       <button id="download-ranking" class="btn btn-primary" style="font-size:14px; padding:12px 28px;">
         Descarregar imatge
       </button>
@@ -332,38 +352,51 @@
 <script src="js/main.js"></script>
 <script>
 (function () {
+  'use strict';
+
   var API_KEY = 'b146442062ee4f8a86442062ee4f8acd';
 
   var STATIONS_META = {
-    IBAG65:      { name: 'Bagà Nord',                  alt: 865  },
-    IBAG67:      { name: 'Refugi de Rebost',           alt: 1650 },
-    IBAG72:      { name: 'Bagà Sud',                   alt: 770  },
-    IBAG73:      { name: 'Bagà Centre',                alt: 798  },
-    IGISCL6:     { name: 'Tancalaporta',               alt: 2440 },
-    IGSOL7:      { name: 'Pedraforca',                 alt: 2270 },
-    IGUARD34:    { name: 'Coll de Pal - Puigllançada', alt: 2090 },
-    ISANTJ138:   { name: 'Cerdanyola-Forcat',          alt: 1115 },
-    IGSOL4:      { name: 'Gósol',                      alt: 1450 },
-    ILANOU4:     { name: 'La Nou de Berguedà',         alt: 940  },
-    ISANTJ53:    { name: 'Cerdanyola-Poble',           alt: 964  },
-    IBARCELO40:  { name: 'La Pobla de Lillet',         alt: 843  },
+    IBAG65:     { name: 'Bagà Nord',                  alt: 865  },
+    IBAG67:     { name: 'Refugi de Rebost',           alt: 1650 },
+    IBAG72:     { name: 'Bagà Sud',                   alt: 770  },
+    IBAG73:     { name: 'Bagà Centre',                alt: 798  },
+    IGISCL6:    { name: 'Tancalaporta',               alt: 2440 },
+    IGSOL7:     { name: 'Pedraforca',                 alt: 2270 },
+    IGUARD34:   { name: 'Coll de Pal - Puigllançada', alt: 2090 },
+    ISANTJ138:  { name: 'Cerdanyola-Forcat',          alt: 1115 },
+    IGSOL4:     { name: 'Gósol',                      alt: 1450 },
+    ILANOU4:    { name: 'La Nou de Berguedà',         alt: 940  },
+    ISANTJ53:   { name: 'Cerdanyola-Poble',           alt: 964  },
+    IBARCELO40: { name: 'La Pobla de Lillet',         alt: 843  },
   };
 
-  var VAR_LABELS = {
-    tempHigh:     'Temp. màxima',
-    tempLow:      'Temp. mínima',
+  var VAR_FULL_LABELS = {
+    tempHigh:     'Temperatura màxima',
+    tempLow:      'Temperatura mínima',
     windgustHigh: 'Vent màxim',
     precipTotal:  'Precipitació',
   };
 
   var months = ['gener','febrer','març','abril','maig','juny','juliol','agost','setembre','octubre','novembre','desembre'];
-  var d = new Date();
+  var _d = new Date();
   document.getElementById('rc-date').textContent =
-    d.getDate() + ' de ' + months[d.getMonth()] + ' de ' + d.getFullYear();
+    _d.getDate() + ' de ' + months[_d.getMonth()] + ' de ' + _d.getFullYear();
 
   var activeVar = 'tempHigh';
-  var cache = null; // fetched once, object keyed by stationId
+  var cache = null;
 
+  // ── Card scaling ──────────────────────────────
+  function scaleCard() {
+    var outer  = document.getElementById('card-outer');
+    var scaler = document.getElementById('card-scaler');
+    var scale  = outer.offsetWidth / 1080;
+    scaler.style.transform = 'scale(' + scale + ')';
+    outer.style.height     = Math.round(1920 * scale) + 'px';
+  }
+  window.addEventListener('resize', scaleCard);
+
+  // ── Colours ───────────────────────────────────
   function tempColor(v) {
     if (v == null) return '#e8edf5';
     if (v < -4)  return '#c4b5fd';
@@ -380,129 +413,196 @@
     return tempColor(val);
   }
 
+  // ── Formatting ────────────────────────────────
   function formatValue(varKey, val) {
     if (val == null) return '—';
     if (varKey === 'tempHigh' || varKey === 'tempLow') {
       var r = Math.round(val);
-      return (r > 0 ? '+' : '') + r + '°C';
+      if (r > 0) return '+' + r + '°C';
+      if (r < 0) return '−' + Math.abs(r) + '°C';
+      return '0°C';
     }
     if (varKey === 'windgustHigh') return Math.round(val) + ' km/h';
     if (varKey === 'precipTotal')  return val.toFixed(1) + ' mm';
-    return val;
+    return String(val);
   }
 
-  function setLoading(on) {
-    document.getElementById('ranking-spinner').style.display = on ? 'flex' : 'none';
-    document.getElementById('rc-podium').style.display = on ? 'none' : 'flex';
-    document.getElementById('rc-list').style.display = on ? 'none' : 'block';
+  // ── Loading state ─────────────────────────────
+  function showLoading() {
+    document.getElementById('rc-loading').style.display = 'block';
+    document.getElementById('rc-podium').style.display  = 'none';
+    document.getElementById('rc-list').style.display    = 'none';
   }
 
-  async function fetchAllStations() {
+  function hideLoading() {
+    document.getElementById('rc-loading').style.display = 'none';
+    document.getElementById('rc-podium').style.display  = 'flex';
+    document.getElementById('rc-list').style.display    = 'block';
+  }
+
+  // ── Crown SVG (1st place) ─────────────────────
+  var CROWN_SVG =
+    '<svg width="56" height="44" viewBox="0 0 56 44" xmlns="http://www.w3.org/2000/svg">' +
+      '<circle cx="4"  cy="14" r="5" fill="#fbbf24"/>' +
+      '<circle cx="52" cy="14" r="5" fill="#fbbf24"/>' +
+      '<circle cx="28" cy="5"  r="5" fill="#fbbf24"/>' +
+      '<path d="M4 14 L4 36 L52 36 L52 14 L38 26 L28 5 L18 26 Z" fill="#fbbf24"/>' +
+      '<rect x="4" y="34" width="48" height="8" rx="4" fill="#fbbf24"/>' +
+    '</svg>';
+
+  // ── Fetch ─────────────────────────────────────
+  function fetchAllStations() {
     var ids = Object.keys(STATIONS_META);
-    var results = await Promise.allSettled(
-      ids.map(function (id) {
-        var url = 'https://api.weather.com/v2/pws/dailysummary/observations/current' +
-          '?stationId=' + id + '&format=json&units=m&apiKey=' + API_KEY + '&numericPrecision=decimal';
-        return fetch(url).then(function (r) {
+    console.log('[ranking] Fetching', ids.length, 'stations via daily summary API');
+
+    var promises = ids.map(function (id) {
+      var url = 'https://api.weather.com/v2/pws/dailysummary/observations/current' +
+        '?stationId=' + id + '&format=json&units=m&apiKey=' + API_KEY + '&numericPrecision=decimal';
+      console.log('[ranking] GET', id, url);
+      return fetch(url)
+        .then(function (r) {
+          console.log('[ranking]', id, 'HTTP', r.status);
           if (!r.ok) throw new Error('HTTP ' + r.status);
           return r.json();
-        }).then(function (json) {
+        })
+        .then(function (json) {
+          console.log('[ranking]', id, 'raw:', JSON.stringify(json).slice(0, 400));
           var obs = json.observations && json.observations[0];
-          var m = (obs && obs.metric) || {};
-          return {
-            id: id,
-            tempHigh:     m.tempHigh     != null ? m.tempHigh     : null,
-            tempLow:      m.tempLow      != null ? m.tempLow      : null,
-            windgustHigh: m.windgustHigh != null ? m.windgustHigh : null,
-            precipTotal:  m.precipTotal  != null ? m.precipTotal  : null,
+          var m   = (obs && obs.metric) || {};
+          var parsed = {
+            id:           id,
+            tempHigh:     m.tempHigh     != null ? Number(m.tempHigh)     : null,
+            tempLow:      m.tempLow      != null ? Number(m.tempLow)      : null,
+            windgustHigh: m.windgustHigh != null ? Number(m.windgustHigh) : null,
+            precipTotal:  m.precipTotal  != null ? Number(m.precipTotal)  : null,
           };
+          console.log('[ranking]', id, 'parsed:', parsed);
+          return parsed;
         });
-      })
-    );
-    var data = {};
-    results.forEach(function (r) {
-      if (r.status === 'fulfilled') data[r.value.id] = r.value;
     });
-    return data;
-  }
 
-  function buildRanking(data, varKey) {
-    var entries = Object.keys(STATIONS_META)
-      .filter(function (id) { return data[id] && data[id][varKey] != null; })
-      .map(function (id) {
-        return {
-          id: id,
-          name: STATIONS_META[id].name,
-          alt: STATIONS_META[id].alt,
-          value: data[id][varKey],
-        };
+    return Promise.allSettled(promises).then(function (results) {
+      var data = {};
+      results.forEach(function (r) {
+        if (r.status === 'fulfilled') {
+          data[r.value.id] = r.value;
+          console.log('[ranking] OK:', r.value.id, r.value);
+        } else {
+          console.warn('[ranking] FAILED:', r.reason);
+        }
       });
-
-    entries.sort(function (a, b) {
-      return varKey === 'tempLow' ? a.value - b.value : b.value - a.value;
+      console.log('[ranking] Cache complete. Stations with data:', Object.keys(data).length);
+      return data;
     });
-    return entries;
   }
 
+  // ── Ranking sort ──────────────────────────────
+  function buildRanking(varKey) {
+    return Object.keys(STATIONS_META)
+      .filter(function (id) {
+        return cache[id] && cache[id][varKey] != null;
+      })
+      .map(function (id) {
+        return { id: id, name: STATIONS_META[id].name, alt: STATIONS_META[id].alt, value: cache[id][varKey] };
+      })
+      .sort(function (a, b) {
+        return varKey === 'tempLow' ? a.value - b.value : b.value - a.value;
+      });
+  }
+
+  // ── Render ────────────────────────────────────
   function renderRanking(varKey) {
-    document.getElementById('rc-subtitle').textContent = VAR_LABELS[varKey].toUpperCase();
+    console.log('[ranking] renderRanking()', varKey, 'cache keys:', cache ? Object.keys(cache) : 'NULL');
 
-    if (!cache) return;
+    document.getElementById('rc-var-title').textContent = VAR_FULL_LABELS[varKey];
 
-    var entries = buildRanking(cache, varKey);
+    if (!cache) {
+      console.warn('[ranking] cache is null — aborting render');
+      return;
+    }
+
+    var entries = buildRanking(varKey);
+    console.log('[ranking]', entries.length, 'entries for', varKey,
+      entries.map(function (e) { return e.name + '=' + e.value; }));
 
     var podiumEl = document.getElementById('rc-podium');
     var listEl   = document.getElementById('rc-list');
     podiumEl.innerHTML = '';
     listEl.innerHTML   = '';
 
-    var top3 = entries.slice(0, 3);
-    var rest  = entries.slice(3);
+    if (!entries.length) {
+      var loadEl = document.getElementById('rc-loading');
+      loadEl.textContent = 'No hi ha dades disponibles.';
+      loadEl.style.display = 'block';
+      podiumEl.style.display = 'none';
+      listEl.style.display   = 'none';
+      return;
+    }
 
-    // Podium order: 2nd, 1st, 3rd
-    var order = [top3[1], top3[0], top3[2]];
-    var classes = ['p2', 'p1', 'p3'];
-    var positions = [2, 1, 3];
+    // Podium: render [2nd | 1st | 3rd]
+    var top3 = [entries[0], entries[1], entries[2]];
+    var order   = [top3[1], top3[0], top3[2]]; // left=2nd, center=1st, right=3rd
+    var clsMap  = ['p2', 'p1', 'p3'];
+    var posMap  = [2, 1, 3];
 
     order.forEach(function (entry, i) {
       if (!entry) return;
-      var cls = classes[i];
-      var pos = positions[i];
+      var cls   = clsMap[i];
+      var pos   = posMap[i];
       var color = valueColor(varKey, entry.value);
+      var crown = (cls === 'p1')
+        ? '<div class="podium-crown">' + CROWN_SVG + '</div>'
+        : '';
+
       var card = document.createElement('div');
       card.className = 'podium-card ' + cls;
       card.innerHTML =
-        '<div class="podium-rank">' + pos + '</div>' +
-        '<div class="podium-name">' + entry.name + '</div>' +
-        '<div class="podium-alt">' + entry.alt + ' m</div>' +
-        '<div class="podium-value" style="color:' + color + '">' + formatValue(varKey, entry.value) + '</div>';
+        '<div class="podium-accent"></div>' +
+        '<div class="podium-body">' +
+          crown +
+          '<div class="podium-medal">' + pos + '</div>' +
+          '<div class="podium-name">' + entry.name + '</div>' +
+          '<div class="podium-alt">' + entry.alt.toLocaleString('ca-ES') + ' m</div>' +
+          '<div class="podium-value" style="color:' + color + '">' + formatValue(varKey, entry.value) + '</div>' +
+        '</div>';
       podiumEl.appendChild(card);
     });
 
-    rest.forEach(function (entry, i) {
+    // Rest of list (4th onwards)
+    entries.slice(3).forEach(function (entry, i) {
       var color = valueColor(varKey, entry.value);
       var row = document.createElement('div');
       row.className = 'rc-row';
       row.innerHTML =
         '<span class="rc-row-pos">' + (i + 4) + '</span>' +
         '<span class="rc-row-name">' + entry.name + '</span>' +
-        '<span class="rc-row-alt">' + entry.alt + ' m</span>' +
+        '<span class="rc-row-alt">' + entry.alt.toLocaleString('ca-ES') + ' m</span>' +
         '<span class="rc-row-val" style="color:' + color + '">' + formatValue(varKey, entry.value) + '</span>';
       listEl.appendChild(row);
     });
 
-    setLoading(false);
+    hideLoading();
+    scaleCard();
   }
 
-  async function loadAndRender() {
-    setLoading(true);
-    if (!cache) {
-      cache = await fetchAllStations();
+  // ── Load & render ─────────────────────────────
+  function loadAndRender() {
+    showLoading();
+    if (cache) {
+      renderRanking(activeVar);
+      return;
     }
-    renderRanking(activeVar);
+    fetchAllStations().then(function (data) {
+      cache = data;
+      renderRanking(activeVar);
+    }).catch(function (err) {
+      console.error('[ranking] fetchAllStations failed:', err);
+      var loadEl = document.getElementById('rc-loading');
+      loadEl.textContent = 'Error carregant les dades.';
+    });
   }
 
-  // Pill buttons
+  // ── Pill buttons ──────────────────────────────
   document.querySelectorAll('.pill-btn').forEach(function (btn) {
     btn.addEventListener('click', function () {
       document.querySelectorAll('.pill-btn').forEach(function (b) { b.classList.remove('active'); });
@@ -512,33 +612,27 @@
     });
   });
 
-  // Download
+  // ── Download ──────────────────────────────────
   document.getElementById('download-ranking').addEventListener('click', function () {
     html2canvas(document.getElementById('ranking-card'), {
-      scale: 2,
+      scale: 1,
+      width: 1080,
+      height: 1920,
       backgroundColor: null,
       useCORS: true,
       logging: false,
     }).then(function (canvas) {
       var link = document.createElement('a');
-      var today = new Date().toISOString().split('T')[0];
-      link.download = 'meteocadi-ranking-' + today + '.png';
+      link.download = 'meteocadi-ranking-' + new Date().toISOString().split('T')[0] + '.png';
       link.href = canvas.toDataURL('image/png');
       link.click();
     });
   });
 
-  // Nav toggle (reuse pattern from other pages)
-  var toggle = document.querySelector('.nav-toggle');
-  var navLinks = document.querySelector('.nav-links');
-  if (toggle && navLinks) {
-    toggle.addEventListener('click', function () {
-      var open = navLinks.classList.toggle('open');
-      toggle.setAttribute('aria-expanded', open);
-    });
-  }
-
+  // ── Init ──────────────────────────────────────
+  scaleCard();
   loadAndRender();
+
 })();
 </script>
 </body>
