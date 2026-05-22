@@ -351,6 +351,13 @@
 
 <script src="js/main.js"></script>
 <script>
+// ── DEBUG PROBE (one-shot, remove after diagnosis) ──
+console.log('[ranking-debug] Testing daily summary endpoint for IGUARD34...');
+fetch('https://api.weather.com/v2/pws/dailysummary/observations/current?stationId=IGUARD34&format=json&units=m&apiKey=b146442062ee4f8a86442062ee4f8acd&numericPrecision=decimal')
+  .then(function(r) { console.log('[ranking-debug] Status:', r.status); return r.json(); })
+  .then(function(d) { console.log('[ranking-debug] Full response:\n', JSON.stringify(d, null, 2)); })
+  .catch(function(e) { console.log('[ranking-debug] Fetch error:', e); });
+
 (function () {
   'use strict';
 
@@ -450,50 +457,85 @@
       '<rect x="4" y="34" width="48" height="8" rx="4" fill="#fbbf24"/>' +
     '</svg>';
 
-  // ── Fetch ─────────────────────────────────────
+  // ── Fetch: daily summary → fallback to current obs ──
+  function fetchStation(id) {
+    var dailyUrl   = 'https://api.weather.com/v2/pws/dailysummary/observations/current' +
+      '?stationId=' + id + '&format=json&units=m&apiKey=' + API_KEY + '&numericPrecision=decimal';
+    var currentUrl = 'https://api.weather.com/v2/pws/observations/current' +
+      '?stationId=' + id + '&format=json&units=m&apiKey=' + API_KEY;
+
+    return fetch(dailyUrl)
+      .then(function (r) {
+        console.log('[ranking]', id, 'daily HTTP', r.status);
+        if (!r.ok) throw new Error('daily HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function (json) {
+        var obs = json.observations && json.observations[0];
+        var m   = (obs && obs.metric) || {};
+        // Log the full metric object so we can see every field name
+        console.log('[ranking]', id, 'daily metric keys:', Object.keys(m));
+        console.log('[ranking]', id, 'daily metric:', JSON.stringify(m));
+
+        // Accept both windgustHigh and windGustHigh in case of API inconsistency
+        var tempHigh     = m.tempHigh     != null ? Number(m.tempHigh)     : null;
+        var tempLow      = m.tempLow      != null ? Number(m.tempLow)      : null;
+        var windgustHigh = m.windgustHigh != null ? Number(m.windgustHigh) :
+                           m.windGustHigh != null ? Number(m.windGustHigh) : null;
+        var precipTotal  = m.precipTotal  != null ? Number(m.precipTotal)  : null;
+
+        console.log('[ranking]', id, 'daily parsed →', { tempHigh: tempHigh, tempLow: tempLow, windgustHigh: windgustHigh, precipTotal: precipTotal });
+
+        // If daily summary gave us nothing, fall back to current observations
+        if (tempHigh == null && tempLow == null && windgustHigh == null) {
+          console.log('[ranking]', id, 'daily empty → falling back to current obs');
+          return fetch(currentUrl)
+            .then(function (r2) {
+              if (!r2.ok) throw new Error('current HTTP ' + r2.status);
+              return r2.json();
+            })
+            .then(function (json2) {
+              var obs2 = json2.observations && json2.observations[0];
+              var m2   = (obs2 && obs2.metric) || {};
+              console.log('[ranking]', id, 'current metric:', JSON.stringify(m2));
+              return {
+                id:           id,
+                tempHigh:     m2.temp        != null ? Number(m2.temp)        : null,
+                tempLow:      m2.temp        != null ? Number(m2.temp)        : null,
+                windgustHigh: m2.windGust    != null ? Number(m2.windGust)    : null,
+                precipTotal:  m2.precipTotal != null ? Number(m2.precipTotal) : null,
+                fallback:     true,
+              };
+            });
+        }
+
+        return { id: id, tempHigh: tempHigh, tempLow: tempLow, windgustHigh: windgustHigh, precipTotal: precipTotal, fallback: false };
+      });
+  }
+
   function fetchAllStations() {
     var ids = Object.keys(STATIONS_META);
-    console.log('[ranking] Fetching', ids.length, 'stations via daily summary API');
+    console.log('[ranking] Fetching', ids.length, 'stations (daily summary + current obs fallback)');
 
-    var promises = ids.map(function (id) {
-      var url = 'https://api.weather.com/v2/pws/dailysummary/observations/current' +
-        '?stationId=' + id + '&format=json&units=m&apiKey=' + API_KEY + '&numericPrecision=decimal';
-      console.log('[ranking] GET', id, url);
-      return fetch(url)
-        .then(function (r) {
-          console.log('[ranking]', id, 'HTTP', r.status);
-          if (!r.ok) throw new Error('HTTP ' + r.status);
-          return r.json();
-        })
-        .then(function (json) {
-          console.log('[ranking]', id, 'raw:', JSON.stringify(json).slice(0, 400));
-          var obs = json.observations && json.observations[0];
-          var m   = (obs && obs.metric) || {};
-          var parsed = {
-            id:           id,
-            tempHigh:     m.tempHigh     != null ? Number(m.tempHigh)     : null,
-            tempLow:      m.tempLow      != null ? Number(m.tempLow)      : null,
-            windgustHigh: m.windgustHigh != null ? Number(m.windgustHigh) : null,
-            precipTotal:  m.precipTotal  != null ? Number(m.precipTotal)  : null,
-          };
-          console.log('[ranking]', id, 'parsed:', parsed);
-          return parsed;
+    return Promise.allSettled(ids.map(fetchStation))
+      .then(function (results) {
+        var data = {};
+        var fallbackCount = 0;
+        results.forEach(function (r) {
+          if (r.status === 'fulfilled') {
+            data[r.value.id] = r.value;
+            if (r.value.fallback) fallbackCount++;
+          } else {
+            console.warn('[ranking] FAILED:', r.reason);
+          }
         });
-    });
-
-    return Promise.allSettled(promises).then(function (results) {
-      var data = {};
-      results.forEach(function (r) {
-        if (r.status === 'fulfilled') {
-          data[r.value.id] = r.value;
-          console.log('[ranking] OK:', r.value.id, r.value);
-        } else {
-          console.warn('[ranking] FAILED:', r.reason);
+        console.log('[ranking] Done. Stations OK:', Object.keys(data).length, '/ fallback used:', fallbackCount);
+        if (fallbackCount > 0) {
+          var footerRight = document.querySelector('.rc-footer-right');
+          if (footerRight) footerRight.textContent = 'Dades en temps real · Xarxa Meteocadí';
         }
+        return data;
       });
-      console.log('[ranking] Cache complete. Stations with data:', Object.keys(data).length);
-      return data;
-    });
   }
 
   // ── Ranking sort ──────────────────────────────
