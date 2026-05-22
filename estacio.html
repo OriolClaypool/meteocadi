@@ -170,11 +170,18 @@
   }
 
   function tempColor(t) {
-    if (t == null) return 'var(--text)';
-    if (t < -4) return '#a78bfa';
-    if (t < 0)  return '#60a5fa';
-    if (t < 6)  return '#6ee7b7';
-    return '#34d399';
+    if (t == null || isNaN(t)) return '#e8edf5';
+    if (t <= -10) return '#a78bfa';
+    if (t <   -5) return '#818cf8';
+    if (t <    0) return '#60a5fa';
+    if (t <    5) return '#38bdf8';
+    if (t <   10) return '#2dd4bf';
+    if (t <   15) return '#4ade80';
+    if (t <   20) return '#a3e635';
+    if (t <   25) return '#fbbf24';
+    if (t <   30) return '#fb923c';
+    if (t <   35) return '#f87171';
+    return '#ef4444';
   }
 
   function fmt(v, suffix, dec) {

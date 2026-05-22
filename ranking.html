@@ -351,48 +351,6 @@
 
 <script src="js/main.js"></script>
 <script>
-// ── DEBUG: inspect full current-obs payload for one station ──
-// Logs every field in observations[0] so we can see if daily
-// aggregates (tempHigh, tempLow, windgustHigh, precipTotal…)
-// are already present in the live endpoint without needing dailysummary.
-(function () {
-  var debugId  = 'IGUARD34';
-  var debugKey = 'b146442062ee4f8a86442062ee4f8acd';
-  fetch('https://api.weather.com/v2/pws/observations/current?stationId=' + debugId +
-        '&format=json&units=m&apiKey=' + debugKey + '&numericPrecision=decimal')
-    .then(function (r) { return r.json(); })
-    .then(function (d) {
-      var obs = d.observations && d.observations[0];
-      console.log('[obs-debug] Full observations[0] for', debugId, ':');
-      console.log(JSON.stringify(obs, null, 2));
-      if (obs && obs.metric) {
-        console.log('[obs-debug] metric keys:', Object.keys(obs.metric));
-        console.log('[obs-debug] metric values:', JSON.stringify(obs.metric, null, 2));
-      }
-      // Also check for any top-level daily fields outside metric
-      var topKeys = Object.keys(obs || {}).filter(function (k) { return k !== 'metric'; });
-      console.log('[obs-debug] non-metric top-level keys:', topKeys);
-    })
-    .catch(function (e) { console.warn('[obs-debug] failed:', e); });
-})();
-
-// ── DEBUG: inspect proxy error detail for one station ──
-fetch('/api/dailysummary?stationId=IGUARD34')
-  .then(function (r) { return r.json(); })
-  .then(function (d) {
-    if (d.error) {
-      console.warn('[proxy-debug] WU error for IGUARD34:',
-        '\n  currentStatus:', d.currentStatus,
-        '\n  currentBody:',   d.currentBody,
-        '\n  7dayStatus:',    d.sevendayStatus,
-        '\n  7dayBody:',      d.sevendayBody);
-    } else {
-      console.log('[proxy-debug] Proxy OK for IGUARD34. observations[0].metric:',
-        JSON.stringify(d.observations && d.observations[0] && d.observations[0].metric, null, 2));
-    }
-  })
-  .catch(function (e) { console.warn('[proxy-debug] fetch failed:', e); });
-
 (function () {
   'use strict';
 
@@ -439,14 +397,19 @@ fetch('/api/dailysummary?stationId=IGUARD34')
   window.addEventListener('resize', scaleCard);
 
   // ── Colours ───────────────────────────────────
-  function tempColor(v) {
-    if (v == null) return '#e8edf5';
-    if (v < -4)  return '#c4b5fd';
-    if (v < 0)   return '#93c5fd';
-    if (v < 10)  return '#6ee7b7';
-    if (v < 25)  return '#34d399';
-    if (v < 35)  return '#fbbf24';
-    return '#f87171';
+  function tempColor(t) {
+    if (t == null || isNaN(t)) return '#e8edf5';
+    if (t <= -10) return '#a78bfa';
+    if (t <   -5) return '#818cf8';
+    if (t <    0) return '#60a5fa';
+    if (t <    5) return '#38bdf8';
+    if (t <   10) return '#2dd4bf';
+    if (t <   15) return '#4ade80';
+    if (t <   20) return '#a3e635';
+    if (t <   25) return '#fbbf24';
+    if (t <   30) return '#fb923c';
+    if (t <   35) return '#f87171';
+    return '#ef4444';
   }
 
   function valueColor(varKey, val) {
@@ -492,65 +455,69 @@ fetch('/api/dailysummary?stationId=IGUARD34')
       '<rect x="4" y="34" width="48" height="8" rx="4" fill="#fbbf24"/>' +
     '</svg>';
 
-  // ── Fetch: proxy → fallback to current obs ────────
+  // ── Fetch: /api/dailysummary (7day) → fallback to current obs ──
   function fetchStation(id) {
     var dailyUrl   = '/api/dailysummary?stationId=' + id;
     var currentUrl = 'https://api.weather.com/v2/pws/observations/current' +
       '?stationId=' + id + '&format=json&units=m&apiKey=' + API_KEY;
 
     return fetch(dailyUrl)
-      .then(function (r) {
-        console.log('[ranking]', id, 'daily HTTP', r.status);
-        if (!r.ok) throw new Error('daily HTTP ' + r.status);
-        return r.json();
-      })
+      .then(function (r) { return r.json(); })
       .then(function (json) {
-        // Proxy returns an error object when WU responds with a non-2xx status
         if (json.error) {
-          console.warn('[ranking]', id, 'proxy error:', json.error,
-            '| current:', json.currentStatus, json.currentBody,
-            '| 7day:', json.sevendayStatus, json.sevendayBody);
-          throw new Error('proxy error: ' + json.error);
+          console.warn('[ranking]', id, 'WU error:', json.wuStatus, json.wuBody);
+          throw new Error('proxy error');
         }
-        var obs = json.observations && json.observations[0];
-        var m   = (obs && obs.metric) || {};
-        // Log the full metric object so we can see every field name
-        console.log('[ranking]', id, 'daily metric keys:', Object.keys(m));
-        console.log('[ranking]', id, 'daily metric:', JSON.stringify(m));
 
-        // Accept both windgustHigh and windGustHigh in case of API inconsistency
+        var summaries = json.summaries;
+        if (!summaries || !summaries.length) {
+          console.log('[ranking]', id, 'summaries empty → fallback');
+          throw new Error('no summaries');
+        }
+
+        // Match today's date (YYYY-MM-DD); if not found use last (most recent) entry
+        var today = new Date().toISOString().slice(0, 10);
+        var entry = null;
+        for (var i = 0; i < summaries.length; i++) {
+          if (summaries[i].obsTimeLocal && summaries[i].obsTimeLocal.slice(0, 10) === today) {
+            entry = summaries[i];
+            break;
+          }
+        }
+        if (!entry) entry = summaries[summaries.length - 1];
+
+        var m = (entry && entry.metric) || {};
+        console.log('[ranking]', id, 'summary', entry.obsTimeLocal, 'metric:', JSON.stringify(m));
+
         var tempHigh     = m.tempHigh     != null ? Number(m.tempHigh)     : null;
         var tempLow      = m.tempLow      != null ? Number(m.tempLow)      : null;
         var windgustHigh = m.windgustHigh != null ? Number(m.windgustHigh) :
                            m.windGustHigh != null ? Number(m.windGustHigh) : null;
         var precipTotal  = m.precipTotal  != null ? Number(m.precipTotal)  : null;
 
-        console.log('[ranking]', id, 'daily parsed →', { tempHigh: tempHigh, tempLow: tempLow, windgustHigh: windgustHigh, precipTotal: precipTotal });
-
-        // If daily summary gave us nothing, fall back to current observations
-        if (tempHigh == null && tempLow == null && windgustHigh == null) {
-          console.log('[ranking]', id, 'daily empty → falling back to current obs');
-          return fetch(currentUrl)
-            .then(function (r2) {
-              if (!r2.ok) throw new Error('current HTTP ' + r2.status);
-              return r2.json();
-            })
-            .then(function (json2) {
-              var obs2 = json2.observations && json2.observations[0];
-              var m2   = (obs2 && obs2.metric) || {};
-              console.log('[ranking]', id, 'current metric:', JSON.stringify(m2));
-              return {
-                id:           id,
-                tempHigh:     m2.temp        != null ? Number(m2.temp)        : null,
-                tempLow:      m2.temp        != null ? Number(m2.temp)        : null,
-                windgustHigh: m2.windGust    != null ? Number(m2.windGust)    : null,
-                precipTotal:  m2.precipTotal != null ? Number(m2.precipTotal) : null,
-                fallback:     true,
-              };
-            });
-        }
-
+        console.log('[ranking]', id, '→', { tempHigh: tempHigh, tempLow: tempLow, windgustHigh: windgustHigh, precipTotal: precipTotal });
         return { id: id, tempHigh: tempHigh, tempLow: tempLow, windgustHigh: windgustHigh, precipTotal: precipTotal, fallback: false };
+      })
+      .catch(function () {
+        // Fall back to current observations (live values)
+        console.log('[ranking]', id, 'using current obs fallback');
+        return fetch(currentUrl)
+          .then(function (r2) {
+            if (!r2.ok) throw new Error('current HTTP ' + r2.status);
+            return r2.json();
+          })
+          .then(function (json2) {
+            var obs2 = json2.observations && json2.observations[0];
+            var m2   = (obs2 && obs2.metric) || {};
+            return {
+              id:           id,
+              tempHigh:     m2.temp        != null ? Number(m2.temp)        : null,
+              tempLow:      m2.temp        != null ? Number(m2.temp)        : null,
+              windgustHigh: m2.windGust    != null ? Number(m2.windGust)    : null,
+              precipTotal:  m2.precipTotal != null ? Number(m2.precipTotal) : null,
+              fallback:     true,
+            };
+          });
       });
   }
 

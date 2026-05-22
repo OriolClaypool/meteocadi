@@ -101,12 +101,19 @@
     return ' ' + WIND_DIRS[Math.round(deg / 22.5) % 16];
   }
 
-  function tempClass(t) {
-    if (t == null) return '';
-    if (t < -4) return 'temp-neg-strong';
-    if (t < 0)  return 'temp-neg-soft';
-    if (t < 6)  return 'temp-pos-soft';
-    return 'temp-pos';
+  function tempColor(t) {
+    if (t == null || isNaN(t)) return '#e8edf5';
+    if (t <= -10) return '#a78bfa';
+    if (t <   -5) return '#818cf8';
+    if (t <    0) return '#60a5fa';
+    if (t <    5) return '#38bdf8';
+    if (t <   10) return '#2dd4bf';
+    if (t <   15) return '#4ade80';
+    if (t <   20) return '#a3e635';
+    if (t <   25) return '#fbbf24';
+    if (t <   30) return '#fb923c';
+    if (t <   35) return '#f87171';
+    return '#ef4444';
   }
 
   function fmtTemp(t) {
@@ -204,7 +211,8 @@
     const spans  = card.querySelectorAll('.metric-box span');
     setBadge(badge, !!data);
     if (tempEl) {
-      tempEl.className  = 'station-temp' + (data ? ' ' + tempClass(data.temp) : '');
+      tempEl.className   = 'station-temp';
+      tempEl.style.color = data ? tempColor(data.temp) : '';
       tempEl.textContent = data ? fmtTemp(data.temp) : '—';
     }
     if (spans[0]) spans[0].textContent = data ? fmtWind(data.wind, data.winddir) : '—';
@@ -218,7 +226,8 @@
     const spans  = card.querySelectorAll('.stat-item span');
     setBadge(badge, !!data);
     if (tempEl) {
-      tempEl.className  = 'station-full-temp' + (data ? ' ' + tempClass(data.temp) : '');
+      tempEl.className   = 'station-full-temp';
+      tempEl.style.color = data ? tempColor(data.temp) : '';
       tempEl.textContent = data ? fmtTemp(data.temp) : '—';
     }
     if (spans[0]) spans[0].textContent = data ? fmtWind(data.wind, data.winddir)  : '—';
@@ -269,9 +278,9 @@
     const activeEl = qs('[data-stats-active]');
     const activeSub = qs('[data-stats-active-sub]');
 
-    if (minEl)   { minEl.className = 'stats-bar-value ' + tempClass(minE.temp); minEl.textContent = Math.round(minE.temp) + '°'; }
+    if (minEl)   { minEl.className = 'stats-bar-value'; minEl.style.color = tempColor(minE.temp); minEl.textContent = Math.round(minE.temp) + '°'; }
     if (minName) minName.textContent = STATIONS_META[minE.id]?.name ?? minE.id;
-    if (maxEl)   { maxEl.className = 'stats-bar-value ' + tempClass(maxE.temp); maxEl.textContent = Math.round(maxE.temp) + '°'; }
+    if (maxEl)   { maxEl.className = 'stats-bar-value'; maxEl.style.color = tempColor(maxE.temp); maxEl.textContent = Math.round(maxE.temp) + '°'; }
     if (maxName) maxName.textContent = STATIONS_META[maxE.id]?.name ?? maxE.id;
 
     const n = Object.keys(cache).length;
