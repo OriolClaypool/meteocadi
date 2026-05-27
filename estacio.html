@@ -19,6 +19,31 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .detail-maxmin-wrap { text-align: center; margin: 16px auto 8px; }
+    .detail-maxmin-row {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+    .detail-maxmin-item { display: flex; align-items: center; gap: 5px; }
+    .detail-maxmin-label {
+      font-size: 13px;
+      color: rgba(255,255,255,0.45);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+    .detail-maxmin-value { font-size: 18px; font-weight: 600; }
+    .detail-maxmin-sep { width: 1px; height: 16px; background: rgba(255,255,255,0.1); flex-shrink: 0; }
+    .detail-maxmin-update {
+      font-size: 11px;
+      color: rgba(255,255,255,0.3);
+      margin-top: 8px;
+      letter-spacing: 0.02em;
+    }
+  </style>
 </head>
 <body>
 
@@ -72,6 +97,12 @@
 <div class="detail-main-temp" id="station-main-block">
   <div class="detail-temp-value" style="color:var(--text-sec);">—</div>
   <div class="detail-temp-label">Temperatura actual</div>
+</div>
+
+<!-- ══ MÀX / MÍN AVUI ══ -->
+<div id="station-maxmin-wrap" class="detail-maxmin-wrap" style="display:none;">
+  <div class="detail-maxmin-row" id="station-maxmin-row"></div>
+  <div class="detail-maxmin-update" id="station-maxmin-update"></div>
 </div>
 
 <!-- ══ VARIABLES ══ -->
@@ -210,8 +241,7 @@
   var apiKey = window._meteocadiApiKey || 'b146442062ee4f8a86442062ee4f8acd';
   var url = 'https://api.weather.com/v2/pws/observations/current' +
     '?stationId=' + stationId + '&format=json&units=m&apiKey=' + apiKey;
-  var dailyUrl = 'https://api.weather.com/v2/pws/dailysummary/observations/current' +
-    '?stationId=' + stationId + '&format=json&units=m&apiKey=' + apiKey + '&numericPrecision=decimal';
+  var dailyProxyUrl = '/api/dailysummary?stationId=' + stationId;
 
   fetch(url)
     .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
@@ -220,26 +250,41 @@
       if (!obs) throw new Error('no data');
       var m = obs.metric || {};
       var data = {
-        temp:        m.temp         ?? null,
-        heatIndex:   m.heatIndex    ?? null,
-        windChill:   m.windChill    ?? null,
-        dewpt:       m.dewpt        ?? null,
-        wind:        m.windSpeed    ?? null,
-        windGust:    m.windGust     ?? null,
-        winddir:     obs.winddir    ?? null,
-        humidity:    obs.humidity   ?? null,
-        pressure:    m.pressure     ?? null,
-        precipTotal: null,
-        obsTime:     obs.obsTimeLocal ?? null,
+        temp:         m.temp         ?? null,
+        heatIndex:    m.heatIndex    ?? null,
+        windChill:    m.windChill    ?? null,
+        dewpt:        m.dewpt        ?? null,
+        wind:         m.windSpeed    ?? null,
+        windGust:     m.windGust     ?? null,
+        winddir:      obs.winddir    ?? null,
+        humidity:     obs.humidity   ?? null,
+        pressure:     m.pressure     ?? null,
+        precipTotal:  null,
+        tempHigh:     null,
+        tempLow:      null,
+        dailyObsTime: null,
+        obsTime:      obs.obsTimeLocal ?? null,
       };
-      return fetch(dailyUrl)
+      return fetch(dailyProxyUrl)
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (dj) {
-          if (dj) {
-            var dObs = dj.observations && dj.observations[0];
-            if (dObs && dObs.metric) data.precipTotal = dObs.metric.precipTotal ?? null;
+          if (dj && dj.summaries && dj.summaries.length) {
+            var _n = new Date();
+            var today = _n.getFullYear() + '-' +
+              String(_n.getMonth() + 1).padStart(2, '0') + '-' +
+              String(_n.getDate()).padStart(2, '0');
+            for (var i = 0; i < dj.summaries.length; i++) {
+              var s = dj.summaries[i];
+              if (s.obsTimeLocal && s.obsTimeLocal.slice(0, 10) === today && s.metric) {
+                var dm = s.metric;
+                data.precipTotal  = dm.precipTotal != null ? Number(dm.precipTotal)  : null;
+                data.tempHigh     = dm.tempHigh    != null ? Number(dm.tempHigh)     : null;
+                data.tempLow      = dm.tempLow     != null ? Number(dm.tempLow)      : null;
+                data.dailyObsTime = s.obsTimeLocal || null;
+                break;
+              }
+            }
           }
-          console.log('[meteocadi] estacio.html precipTotal (daily):', data.precipTotal);
           render(data);
         })
         .catch(function () { render(data); });
@@ -296,7 +341,49 @@
         (v.sub ? '<div class="detail-var-sub">' + v.sub + '</div>' : '') +
       '</div>';
     }).join('');
+
+    renderMaxMin(d);
   }
+
+  function renderMaxMin(d) {
+    var wrap = document.getElementById('station-maxmin-wrap');
+    if (!wrap) return;
+    var tempHigh = d ? d.tempHigh : null;
+    var tempLow  = d ? d.tempLow  : null;
+    if (tempHigh == null && tempLow == null) { wrap.style.display = 'none'; return; }
+
+    var UP = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.5;flex-shrink:0;"><polyline points="2,9 6,3 10,9"/></svg>';
+    var DN = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.5;flex-shrink:0;"><polyline points="2,3 6,9 10,3"/></svg>';
+
+    function fmtDayTemp(t) {
+      if (t == null) return '—';
+      var r = Math.round(t);
+      return (r > 0 ? '+' : r < 0 ? '−' : '') + Math.abs(r) + '°';
+    }
+
+    document.getElementById('station-maxmin-row').innerHTML =
+      '<div class="detail-maxmin-item">' + UP +
+        '<span class="detail-maxmin-label">Màx. avui</span>' +
+        '<span class="detail-maxmin-value" style="color:' + tempColor(tempHigh) + ';">' + fmtDayTemp(tempHigh) + '</span>' +
+      '</div>' +
+      '<div class="detail-maxmin-sep"></div>' +
+      '<div class="detail-maxmin-item">' + DN +
+        '<span class="detail-maxmin-label">Mín. avui</span>' +
+        '<span class="detail-maxmin-value" style="color:' + tempColor(tempLow) + ';">' + fmtDayTemp(tempLow) + '</span>' +
+      '</div>';
+
+    var updEl = document.getElementById('station-maxmin-update');
+    if (d && d.dailyObsTime) {
+      var diffMin = Math.round((new Date() - new Date(d.dailyObsTime)) / 60000);
+      updEl.textContent = (diffMin >= 0 && diffMin < 1440)
+        ? (diffMin < 2 ? 'actualitzat ara mateix' : 'actualitzat fa ' + diffMin + ' min')
+        : '';
+    } else {
+      updEl.textContent = '';
+    }
+    wrap.style.display = 'block';
+  }
+
   // 7-day forecast from Open-Meteo
   if (meta.lat && meta.lng) {
     var forecastUrl = 'https://api.open-meteo.com/v1/forecast' +

@@ -23,7 +23,7 @@
   <style>
     #map {
       width: 100%;
-      height: calc(100vh - var(--nav-h) - 120px);
+      height: calc(100vh - var(--nav-h) - 170px);
       min-height: 480px;
       border-radius: var(--radius);
       border: 1px solid var(--border);
@@ -65,7 +65,7 @@
       border-radius: 8px;
       padding: 10px 12px;
       font-family: Inter, system-ui, sans-serif;
-      min-width: 128px;
+      min-width: 160px;
     }
     .legend-title {
       font-size: 0.57rem;
@@ -96,6 +96,29 @@
       color: #e8edf5;
       border-color: rgba(255,255,255,0.15);
     }
+    .var-pill-wrap {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+      margin-bottom: 12px;
+    }
+    .var-pill-wrap::-webkit-scrollbar { display: none; }
+    .var-pill-bar { display: flex; gap: 8px; min-width: max-content; }
+    .var-pill {
+      padding: 7px 16px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.08);
+      color: rgba(255,255,255,0.5);
+      font-size: 13px;
+      cursor: pointer;
+      font-family: inherit;
+      white-space: nowrap;
+      line-height: 1.4;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+    }
+    .var-pill.active { background: #3db8ff; color: #fff; border-color: #3db8ff; }
+    .var-pill:hover:not(.active) { background: rgba(255,255,255,0.12); color: #e8edf5; }
   </style>
 </head>
 <body>
@@ -144,6 +167,9 @@
 <!-- ══ MAPA ══ -->
 <section style="padding: 2rem 0 4rem;">
   <div class="container">
+    <div class="var-pill-wrap">
+      <div class="var-pill-bar" id="var-pill-bar"></div>
+    </div>
     <div id="map"></div>
   </div>
 </section>
@@ -179,6 +205,8 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 (function () {
+  'use strict';
+
   var STATIONS_MAP = {
     IBAG65:    { name: 'Bagà Nord',                  alt: 865,  lat: 42.2529, lng: 1.8619 },
     IBAG67:    { name: 'Refugi de Rebost',           alt: 1650, lat: 42.2486, lng: 1.8481 },
@@ -188,23 +216,34 @@
     IGSOL7:    { name: 'Pedraforca',                 alt: 2270, lat: 42.2397, lng: 1.7028 },
     IGUARD34:  { name: 'Coll de Pal - Puigllançada', alt: 2090, lat: 42.2847, lng: 1.8889 },
     ISANTJ138: { name: 'Cerdanyola-Forcat',          alt: 1115, lat: 42.2208, lng: 2.0056 },
-    IGSOL4:    { name: 'Gósol',                       alt: 1450, lat: 42.2400, lng: 1.6622 },
-    ILANOU4:   { name: 'La Nou de Berguedà',          alt: 940,  lat: 42.1922, lng: 1.8694 },
-    ISANTJ53:  { name: 'Cerdanyola-Poble',            alt: 964,  lat: 42.2208, lng: 2.0056 },
-    IBARCELO40: { name: 'La Pobla de Lillet',          alt: 843,  lat: 42.2378, lng: 1.9750 },
+    IGSOL4:    { name: 'Gósol',                      alt: 1450, lat: 42.2400, lng: 1.6622 },
+    ILANOU4:   { name: 'La Nou de Berguedà',         alt: 940,  lat: 42.1922, lng: 1.8694 },
+    ISANTJ53:  { name: 'Cerdanyola-Poble',           alt: 964,  lat: 42.2208, lng: 2.0056 },
+    IBARCELO40: { name: 'La Pobla de Lillet',        alt: 843,  lat: 42.2378, lng: 1.9750 },
   };
 
+  var VARS = [
+    { key: 'temp',      label: 'Temperatura actual'     },
+    { key: 'tempHigh',  label: 'Temperatura màxima avui' },
+    { key: 'tempLow',   label: 'Temperatura mínima avui' },
+    { key: 'precip',    label: 'Precipitació avui'      },
+    { key: 'wind',      label: 'Vent actual'            },
+    { key: 'windGust',  label: 'Ratxa màxima avui'      },
+    { key: 'humidity',  label: 'Humitat actual'         },
+  ];
+
   var currentVar = 'temp';
+  var dailyCache = {};
 
+  /* ── Map init ── */
   var map = L.map('map', { zoomControl: true }).setView([42.255, 1.880], 10);
-
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
     attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/">CARTO</a>',
     subdomains: 'abcd',
     maxZoom: 19,
   }).addTo(map);
 
-  /* ── Helpers ── */
+  /* ── Colour helpers ── */
   function tempColor(t) {
     if (t == null || isNaN(t)) return '#e8edf5';
     t = Math.round(t);
@@ -220,50 +259,80 @@
     if (t <   35) return '#ef4444';
     return '#dc2626';
   }
-  function fmtTemp(t) {
-    if (t == null) return '—';
-    var r = Math.round(t);
-    return (r > 0 ? '+' : '') + r + '°C';
-  }
-  function fmtWind(w)  { return w != null ? Math.round(w) + ' km/h' : '—'; }
-  function fmtHum(h)   { return h != null ? h + '%' : '—'; }
-  function fmtPrec(p)  { return p != null ? p.toFixed(1) + ' mm' : '—'; }
 
-  /* ── Tooltip content per variable ── */
-  function buildTooltipContent(id, meta, data) {
-    var label = meta.name.length > 22 ? meta.name.slice(0, 20) + '…' : meta.name;
-    var valHtml = '<span style="color:rgba(255,255,255,0.3);">—</span>';
-    if (data) {
-      switch (currentVar) {
-        case 'temp':
-          valHtml = '<span style="color:' + tempColor(data.temp) + ';font-size:14px;font-weight:500;">' + fmtTemp(data.temp) + '</span>';
-          break;
-        case 'wind':
-          valHtml = '<span style="color:#93c5fd;font-size:14px;font-weight:500;">' + fmtWind(data.wind) + '</span>';
-          break;
-        case 'humidity':
-          valHtml = '<span style="color:#6ee7b7;font-size:14px;font-weight:500;">' + fmtHum(data.humidity) + '</span>';
-          break;
-        case 'precip':
-          valHtml = '<span style="color:#a5b4fc;font-size:14px;font-weight:500;">' + fmtPrec(data.precipTotal) + '</span>';
-          break;
-      }
+  function humidityColor(h) {
+    if (h < 30) return '#bfdbfe';
+    if (h < 50) return '#93c5fd';
+    if (h < 70) return '#60a5fa';
+    if (h < 85) return '#3b82f6';
+    return '#1d4ed8';
+  }
+
+  function varColor(varKey, val) {
+    if (val == null) return '#4a5568';
+    switch (varKey) {
+      case 'temp': case 'tempHigh': case 'tempLow': return tempColor(val);
+      case 'precip':   return '#7dd3fc';
+      case 'wind': case 'windGust': return '#e8edf5';
+      case 'humidity': return humidityColor(val);
     }
+    return '#e8edf5';
+  }
+
+  /* ── Data access ── */
+  function getVarValue(id, varKey) {
+    var cur = (window._meteocadiCache || {})[id];
+    var day = dailyCache[id];
+    switch (varKey) {
+      case 'temp':     return cur && cur.temp        != null ? cur.temp        : null;
+      case 'tempHigh': return day && day.tempHigh    != null ? day.tempHigh    : null;
+      case 'tempLow':  return day && day.tempLow     != null ? day.tempLow     : null;
+      case 'precip':   return day && day.precipTotal != null ? day.precipTotal : null;
+      case 'wind':     return cur && cur.wind        != null ? cur.wind        : null;
+      case 'windGust': return day && day.windGust    != null ? day.windGust    : null;
+      case 'humidity': return cur && cur.humidity    != null ? cur.humidity    : null;
+    }
+    return null;
+  }
+
+  /* ── Value formatting ── */
+  function fmtVar(varKey, val) {
+    if (val == null) return '—';
+    switch (varKey) {
+      case 'temp': case 'tempHigh': case 'tempLow': {
+        var r = Math.round(val);
+        return (r > 0 ? '+' : r < 0 ? '−' : '') + Math.abs(r) + '°';
+      }
+      case 'precip':   return (+val).toFixed(1) + ' mm';
+      case 'wind': case 'windGust': return Math.round(val) + ' km/h';
+      case 'humidity': return Math.round(val) + '%';
+    }
+    return String(val);
+  }
+
+  /* ── Tooltip ── */
+  function buildTooltipContent(id, meta) {
+    var label = meta.name.length > 22 ? meta.name.slice(0, 20) + '…' : meta.name;
+    var val   = getVarValue(id, currentVar);
+    var color = val != null ? varColor(currentVar, val) : 'rgba(255,255,255,0.3)';
     return '<div style="font-family:Inter,system-ui,sans-serif;text-align:center;line-height:1.3;">' +
       '<div style="font-size:11px;color:rgba(255,255,255,0.65);">' + label + '</div>' +
-      '<div style="margin-top:2px;">' + valHtml + '</div>' +
+      '<div style="margin-top:2px;color:' + color + ';font-size:14px;font-weight:500;">' + fmtVar(currentVar, val) + '</div>' +
     '</div>';
   }
 
-  /* ── Popup content ── */
-  function buildPopup(id, meta, data) {
-    var online = !!data;
-    var temp   = data ? data.temp : null;
+  /* ── Popup ── */
+  function buildPopup(id, meta) {
+    var online  = !!(window._meteocadiCache || {})[id];
+    var val     = getVarValue(id, currentVar);
+    var color   = varColor(currentVar, val);
+    var varConf = null;
+    for (var i = 0; i < VARS.length; i++) { if (VARS[i].key === currentVar) { varConf = VARS[i]; break; } }
     return '<div style="min-width:148px;padding:2px 0;">' +
       '<div class="map-popup-name">' + meta.name + '</div>' +
-      '<div class="map-popup-alt">' + meta.alt.toLocaleString('ca-ES') + ' m s.n.m.</div>' +
-      '<div class="map-popup-temp" style="color:' + tempColor(temp) + ';">' + fmtTemp(temp) + '</div>' +
-      '<div class="map-popup-precip">Precip. avui: ' + (data ? fmtPrec(data.precipTotal) : '—') + '</div>' +
+      '<div class="map-popup-alt">' + meta.alt.toLocaleString('ca-ES') + ' m s.n.m.</div>' +
+      '<div class="map-popup-temp" style="color:' + color + ';">' + fmtVar(currentVar, val) + '</div>' +
+      '<div class="map-popup-precip">' + (varConf ? varConf.label : currentVar) + '</div>' +
       '<div class="map-popup-status ' + (online ? 'online' : 'offline') + '">' +
         (online ? '● Activa' : '○ Sense senyal') +
       '</div>' +
@@ -275,14 +344,13 @@
   var markers = {};
 
   function updateMarkers() {
-    var cache = window._meteocadiCache || {};
     Object.keys(STATIONS_MAP).forEach(function (id) {
       var meta   = STATIONS_MAP[id];
-      var data   = cache[id] || null;
-      var online = !!data;
-      var color  = online ? '#34d399' : '#fbbf24';
-      var popup  = buildPopup(id, meta, data);
-      var ttip   = buildTooltipContent(id, meta, data);
+      var online = !!(window._meteocadiCache || {})[id];
+      var val    = getVarValue(id, currentVar);
+      var color  = online ? varColor(currentVar, val) : '#fbbf24';
+      var popup  = buildPopup(id, meta);
+      var ttip   = buildTooltipContent(id, meta);
 
       if (markers[id]) {
         markers[id].setStyle({ color: color, fillColor: color });
@@ -299,41 +367,113 @@
     });
   }
 
-  function refreshTooltips() {
-    var cache = window._meteocadiCache || {};
-    Object.keys(STATIONS_MAP).forEach(function (id) {
-      if (markers[id]) {
-        markers[id].getTooltip().setContent(buildTooltipContent(id, STATIONS_MAP[id], cache[id] || null));
-      }
-    });
+  /* ── Legend (variable info) ── */
+  var legendDiv = null;
+
+  var LEGEND_LABELS = {
+    temp:     'Temp. actual',
+    tempHigh: 'Temp. màx. avui',
+    tempLow:  'Temp. mín. avui',
+    precip:   'Precipitació',
+    wind:     'Vent actual',
+    windGust: 'Ratxa màxima',
+    humidity: 'Humitat',
+  };
+
+  function updateLegend() {
+    if (!legendDiv) return;
+    var isTempVar = currentVar === 'temp' || currentVar === 'tempHigh' || currentVar === 'tempLow';
+    var isHum = currentVar === 'humidity';
+    var html = '<div class="legend-title">' + (LEGEND_LABELS[currentVar] || currentVar) + '</div>';
+    if (isTempVar) {
+      html += '<div style="display:flex;gap:2px;margin-top:5px;">' +
+        ['#a78bfa','#818cf8','#60a5fa','#38bdf8','#2dd4bf','#4ade80','#a3e635','#fbbf24','#fb923c','#ef4444','#dc2626']
+          .map(function(c) { return '<div style="flex:1;height:5px;background:' + c + ';border-radius:1px;"></div>'; })
+          .join('') +
+        '</div><div style="display:flex;justify-content:space-between;font-size:9px;color:rgba(255,255,255,0.35);margin-top:2px;">' +
+        '<span>-10°</span><span>+35°</span></div>';
+    } else if (isHum) {
+      html += '<div style="display:flex;gap:2px;margin-top:5px;">' +
+        ['#bfdbfe','#93c5fd','#60a5fa','#3b82f6','#1d4ed8']
+          .map(function(c) { return '<div style="flex:1;height:5px;background:' + c + ';border-radius:1px;"></div>'; })
+          .join('') +
+        '</div><div style="display:flex;justify-content:space-between;font-size:9px;color:rgba(255,255,255,0.35);margin-top:2px;">' +
+        '<span>0%</span><span>100%</span></div>';
+    } else {
+      var chipColor = currentVar === 'precip' ? '#7dd3fc' : '#e8edf5';
+      var unit = currentVar === 'precip' ? 'mm' : 'km/h';
+      html += '<div style="display:flex;align-items:center;gap:6px;margin-top:5px;">' +
+        '<div style="width:10px;height:10px;border-radius:50%;background:' + chipColor + ';flex-shrink:0;"></div>' +
+        '<span style="font-size:10px;color:rgba(255,255,255,0.45);">' + unit + '</span></div>';
+    }
+    legendDiv.innerHTML = html;
   }
 
-  /* ── Llegenda ── */
   var LegendCtrl = L.Control.extend({
     onAdd: function () {
       var div = L.DomUtil.create('div', 'map-legend');
-      div.innerHTML =
-        '<div class="legend-title">Variable</div>' +
-        '<button class="legend-btn active" data-var="temp">Temperatura</button>' +
-        '<button class="legend-btn" data-var="wind">Vent</button>' +
-        '<button class="legend-btn" data-var="humidity">Humitat</button>' +
-        '<button class="legend-btn" data-var="precip">Precipitació</button>';
       L.DomEvent.disableClickPropagation(div);
       L.DomEvent.disableScrollPropagation(div);
-      div.querySelectorAll('.legend-btn').forEach(function (btn) {
-        L.DomEvent.on(btn, 'click', function () {
-          currentVar = btn.dataset.var;
-          div.querySelectorAll('.legend-btn').forEach(function (b) { b.classList.remove('active'); });
-          btn.classList.add('active');
-          refreshTooltips();
-        });
-      });
+      legendDiv = div;
+      updateLegend();
       return div;
     },
   });
   new LegendCtrl({ position: 'topright' }).addTo(map);
 
+  /* ── Pill bar ── */
+  var pillBar = document.getElementById('var-pill-bar');
+  if (pillBar) {
+    VARS.forEach(function (v) {
+      var btn = document.createElement('button');
+      btn.className = 'var-pill' + (v.key === currentVar ? ' active' : '');
+      btn.textContent = v.label;
+      btn.addEventListener('click', function () {
+        currentVar = v.key;
+        pillBar.querySelectorAll('.var-pill').forEach(function (b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        updateMarkers();
+        updateLegend();
+      });
+      pillBar.appendChild(btn);
+    });
+  }
+
+  /* ── Daily summary fetch (for daily-source variables) ── */
+  function fetchAllDailySummaries() {
+    var _n = new Date();
+    var today = _n.getFullYear() + '-' +
+      String(_n.getMonth() + 1).padStart(2, '0') + '-' +
+      String(_n.getDate()).padStart(2, '0');
+
+    Object.keys(STATIONS_MAP).forEach(function (id) {
+      fetch('/api/dailysummary?stationId=' + id)
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (json) {
+          if (!json || !json.summaries) return;
+          for (var i = 0; i < json.summaries.length; i++) {
+            var s = json.summaries[i];
+            if (s.obsTimeLocal && s.obsTimeLocal.slice(0, 10) === today && s.metric) {
+              var m = s.metric;
+              dailyCache[id] = {
+                tempHigh:    m.tempHigh    != null ? Number(m.tempHigh)    : null,
+                tempLow:     m.tempLow     != null ? Number(m.tempLow)     : null,
+                windGust:    m.windgustHigh != null ? Number(m.windgustHigh) :
+                             m.windGustHigh != null ? Number(m.windGustHigh) : null,
+                precipTotal: m.precipTotal != null ? Number(m.precipTotal) : null,
+              };
+              break;
+            }
+          }
+          updateMarkers();
+        })
+        .catch(function () {});
+    });
+  }
+
+  /* ── Init ── */
   updateMarkers();
+  fetchAllDailySummaries();
   document.addEventListener('meteocadiRefresh', updateMarkers);
 })();
 </script>
