@@ -119,6 +119,13 @@
     }
     .var-pill.active { background: #3db8ff; color: #fff; border-color: #3db8ff; }
     .var-pill:hover:not(.active) { background: rgba(255,255,255,0.12); color: #e8edf5; }
+    .map-disclaimer {
+      font-size: 10px;
+      color: rgba(255,255,255,0.22);
+      margin-top: 8px;
+      letter-spacing: 0.02em;
+      text-align: right;
+    }
   </style>
 </head>
 <body>
@@ -171,6 +178,7 @@
       <div class="var-pill-bar" id="var-pill-bar"></div>
     </div>
     <div id="map"></div>
+    <p class="map-disclaimer">Mapa orientatiu interpolat a partir de les estacions de la xarxa.</p>
   </div>
 </section>
 
@@ -471,10 +479,158 @@
     });
   }
 
+  /* ── Thermal overlay ── */
+  var THERMAL_BOUNDS = [[42.10, 1.54], [42.38, 2.12]];
+  var THERMAL_W = 300, THERMAL_H = 180;
+  var THERMAL_OPACITY = 0.55;
+  var THERMAL_FADE    = 0.10; // fraction of canvas to fade at each edge
+
+  // Temperature colour stops (same scale as tempColor, as [r,g,b] for interpolation)
+  var TC = [
+    [-10, 167, 139, 250],
+    [ -5, 129, 140, 248],
+    [  0,  96, 165, 250],
+    [  5,  56, 189, 248],
+    [ 10,  45, 212, 191],
+    [ 15,  74, 222, 128],
+    [ 20, 163, 230,  53],
+    [ 25, 251, 191,  36],
+    [ 30, 251, 146,  60],
+    [ 35, 239,  68,  68],
+    [ 40, 220,  38,  38],
+  ];
+
+  function tempToRgbSmooth(t) {
+    if (t <= TC[0][0]) return TC[0];
+    var last = TC[TC.length - 1];
+    if (t >= last[0]) return last;
+    for (var i = 0; i < TC.length - 1; i++) {
+      var a = TC[i], b = TC[i + 1];
+      if (t >= a[0] && t < b[0]) {
+        var f = (t - a[0]) / (b[0] - a[0]);
+        return [0, Math.round(a[1] + f * (b[1] - a[1])),
+                   Math.round(a[2] + f * (b[2] - a[2])),
+                   Math.round(a[3] + f * (b[3] - a[3]))];
+      }
+    }
+    return last;
+  }
+
+  var thermalLayer    = null;
+  var thermalIsActive = false;
+
+  function buildThermalDataURL() {
+    var pts = [];
+    Object.keys(STATIONS_MAP).forEach(function(id) {
+      var t = getVarValue(id, 'temp');
+      if (t == null) return;
+      var m = STATIONS_MAP[id];
+      pts.push({ lat: m.lat, lng: m.lng, t: t });
+    });
+    if (pts.length < 2) return null;
+
+    var minLat = THERMAL_BOUNDS[0][0], maxLat = THERMAL_BOUNDS[1][0];
+    var minLng = THERMAL_BOUNDS[0][1], maxLng = THERMAL_BOUNDS[1][1];
+    var latSpan = maxLat - minLat, lngSpan = maxLng - minLng;
+    var W = THERMAL_W, H = THERMAL_H;
+
+    var cvs = document.createElement('canvas');
+    cvs.width = W; cvs.height = H;
+    var ctx = cvs.getContext('2d');
+    var img = ctx.createImageData(W, H);
+    var d   = img.data;
+
+    for (var py = 0; py < H; py++) {
+      var lat    = maxLat - (py / (H - 1)) * latSpan;
+      var cosLat = Math.cos(lat * Math.PI / 180);
+      var fy     = Math.min(py, H - 1 - py) / (THERMAL_FADE * H);
+
+      for (var px = 0; px < W; px++) {
+        var lng = minLng + (px / (W - 1)) * lngSpan;
+        var fx  = Math.min(px, W - 1 - px) / (THERMAL_FADE * W);
+
+        // IDW (power=2, epsilon=0.01 km² prevents 0-division)
+        var sumW = 0, sumWT = 0;
+        for (var k = 0; k < pts.length; k++) {
+          var dLat = (lat - pts[k].lat) * 111.0;
+          var dLng = (lng - pts[k].lng) * 111.0 * cosLat;
+          var w    = 1.0 / (dLat * dLat + dLng * dLng + 0.01);
+          sumW  += w;
+          sumWT += w * pts[k].t;
+        }
+        var rgb = tempToRgbSmooth(sumWT / sumW);
+
+        // cosine ease-in edge fade
+        var edge  = Math.min(1, Math.min(fx, fy));
+        var alpha = (0.5 - 0.5 * Math.cos(edge * Math.PI)) * THERMAL_OPACITY;
+
+        var i4 = (py * W + px) * 4;
+        d[i4]     = rgb[1];
+        d[i4 + 1] = rgb[2];
+        d[i4 + 2] = rgb[3];
+        d[i4 + 3] = Math.round(alpha * 255);
+      }
+    }
+
+    ctx.putImageData(img, 0, 0);
+    return cvs.toDataURL();
+  }
+
+  function refreshThermalLayer() {
+    if (!thermalIsActive) return;
+    var url = buildThermalDataURL();
+    if (!url) return;
+    if (thermalLayer) {
+      thermalLayer.setUrl(url);
+    } else {
+      thermalLayer = L.imageOverlay(url, THERMAL_BOUNDS, {
+        opacity: 1,       // opacity is baked into the canvas alpha
+        interactive: false,
+        pane: 'thermalPane',
+      }).addTo(map);
+    }
+  }
+
+  function setThermalActive(on) {
+    thermalIsActive = on;
+    if (!on) {
+      if (thermalLayer) { thermalLayer.remove(); thermalLayer = null; }
+    } else {
+      refreshThermalLayer();
+    }
+  }
+
+  // Dedicated pane below the marker/SVG layers (overlayPane is 400)
+  map.createPane('thermalPane').style.zIndex = 350;
+
+  // Thermal toggle control (bottom-left)
+  var ThermalCtrl = L.Control.extend({
+    options: { position: 'bottomleft' },
+    onAdd: function() {
+      var div = L.DomUtil.create('div', 'map-legend');
+      L.DomEvent.disableClickPropagation(div);
+      L.DomEvent.disableScrollPropagation(div);
+      var btn = L.DomUtil.create('button', 'legend-btn', div);
+      btn.textContent = 'Mapa tèrmic';
+      btn.setAttribute('aria-pressed', 'false');
+      L.DomEvent.on(btn, 'click', function() {
+        thermalIsActive = !thermalIsActive;
+        btn.classList.toggle('active', thermalIsActive);
+        btn.setAttribute('aria-pressed', String(thermalIsActive));
+        setThermalActive(thermalIsActive);
+      });
+      return div;
+    },
+  });
+  new ThermalCtrl().addTo(map);
+
   /* ── Init ── */
   updateMarkers();
   fetchAllDailySummaries();
-  document.addEventListener('meteocadiRefresh', updateMarkers);
+  document.addEventListener('meteocadiRefresh', function() {
+    updateMarkers();
+    refreshThermalLayer();
+  });
 })();
 </script>
 </body>
