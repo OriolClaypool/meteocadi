@@ -43,6 +43,32 @@
       margin-top: 8px;
       letter-spacing: 0.02em;
     }
+    /* Hourly charts */
+    .hourly-charts-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+    @media (max-width: 700px) {
+      .hourly-charts-grid { grid-template-columns: 1fr; }
+    }
+    .hourly-chart-card {
+      background: #1c2e4a;
+      border: 1px solid rgba(99,179,255,0.12);
+      border-radius: var(--radius);
+      padding: 1rem 1rem 0.75rem;
+    }
+    .hourly-chart-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: rgba(255,255,255,0.45);
+      margin-bottom: 0.75rem;
+    }
+    .hourly-chart-wrap {
+      position: relative;
+      height: 160px;
+    }
   </style>
 </head>
 <body>
@@ -122,15 +148,26 @@
   </div>
 </section>
 
-<!-- ══ HISTORIAL I GRÀFICS ══ -->
-<section class="section">
+<!-- ══ ÚLTIMES 24 HORES ══ -->
+<section class="section" id="hourly-section" style="display:none;">
   <div class="container">
     <div class="section-header">
-      <span class="eyebrow">Registres</span>
-      <h2>Historial i gràfics</h2>
+      <span class="eyebrow">Evolució</span>
+      <h2>Últimes 24 hores</h2>
     </div>
-    <div style="background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius); height:240px; display:flex; align-items:center; justify-content:center;">
-      <span style="color:rgba(255,255,255,0.2); font-size:13px;">[ Gràfics disponibles pròximament ]</span>
+    <div class="hourly-charts-grid">
+      <div class="hourly-chart-card">
+        <div class="hourly-chart-label">Temperatura (°C)</div>
+        <div class="hourly-chart-wrap"><canvas id="chart-temp"></canvas></div>
+      </div>
+      <div class="hourly-chart-card">
+        <div class="hourly-chart-label">Vent (km/h)</div>
+        <div class="hourly-chart-wrap"><canvas id="chart-wind"></canvas></div>
+      </div>
+      <div class="hourly-chart-card">
+        <div class="hourly-chart-label">Precipitació (mm)</div>
+        <div class="hourly-chart-wrap"><canvas id="chart-precip"></canvas></div>
+      </div>
     </div>
   </div>
 </section>
@@ -176,6 +213,7 @@
   </div>
 </footer>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="js/main.js"></script>
 <script>
 (function () {
@@ -442,6 +480,202 @@
     }).join('');
 
     document.getElementById('forecast-grid').innerHTML = html;
+  }
+
+  // Hourly charts (last 24h)
+  fetch('/api/hourly?stationId=' + stationId)
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      var obs = data && data.observations;
+      if (!obs || !obs.length) return;
+      renderHourlyCharts(obs);
+    })
+    .catch(function() {});
+
+  function renderHourlyCharts(observations) {
+    if (typeof Chart === 'undefined') return;
+
+    var labels = observations.map(function(o) {
+      var t = String(o.obsTimeLocal || '');
+      var m = t.match(/[T ](\d{2}):\d{2}/);
+      return m ? m[1] + 'h' : '';
+    });
+
+    var tempData = observations.map(function(o) {
+      return o.metric && o.metric.tempAvg != null ? Number(o.metric.tempAvg) : null;
+    });
+
+    var windAvg = observations.map(function(o) {
+      return o.metric && o.metric.windspeedAvg != null ? Number(o.metric.windspeedAvg) : null;
+    });
+
+    var windGust = observations.map(function(o) {
+      return o.metric && o.metric.windgustHigh != null ? Number(o.metric.windgustHigh) : null;
+    });
+
+    var precipCum = observations.map(function(o) {
+      return o.metric && o.metric.precipTotal != null ? Number(o.metric.precipTotal) : 0;
+    });
+    var precipDeltas = precipCum.map(function(v, i) {
+      return i === 0 ? v : Math.max(0, v - precipCum[i - 1]);
+    });
+
+    var hasData = tempData.some(function(v) { return v != null; });
+    if (!hasData) return;
+
+    document.getElementById('hourly-section').style.display = '';
+
+    var gridColor  = 'rgba(255,255,255,0.06)';
+    var tickColor  = 'rgba(255,255,255,0.45)';
+    var tickFont   = { size: 10 };
+    var borderCfg  = { color: gridColor };
+    var tooltipCfg = {
+      backgroundColor: 'rgba(10,20,40,0.92)',
+      titleColor:      'rgba(255,255,255,0.65)',
+      bodyColor:       'rgba(255,255,255,0.5)',
+      borderColor:     'rgba(99,179,255,0.18)',
+      borderWidth:     1,
+    };
+    var xAxis = {
+      grid:   { color: gridColor },
+      ticks:  { color: tickColor, maxTicksLimit: 8, font: tickFont },
+      border: borderCfg,
+    };
+
+    // Temperature
+    new Chart(document.getElementById('chart-temp'), {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: '°C',
+          data: tempData,
+          borderColor: '#3db8ff',
+          backgroundColor: 'rgba(61,184,255,0.08)',
+          borderWidth: 2,
+          pointRadius: 0,
+          pointHoverRadius: 3,
+          fill: true,
+          tension: 0.3,
+          spanGaps: true,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: Object.assign({}, tooltipCfg, {
+            callbacks: {
+              label: function(ctx) { return ctx.parsed.y != null ? ctx.parsed.y.toFixed(1) + ' °C' : ''; },
+            },
+          }),
+        },
+        scales: {
+          x: xAxis,
+          y: {
+            grid:   { color: gridColor },
+            ticks:  { color: tickColor, font: tickFont, callback: function(v) { return v + '°'; } },
+            border: borderCfg,
+          },
+        },
+      },
+    });
+
+    // Wind
+    new Chart(document.getElementById('chart-wind'), {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Ratxa',
+            data: windGust,
+            borderColor: 'rgba(163,230,53,0.4)',
+            backgroundColor: 'transparent',
+            borderWidth: 1.5,
+            borderDash: [4, 3],
+            pointRadius: 0,
+            tension: 0.3,
+            spanGaps: true,
+          },
+          {
+            label: 'Vent mig',
+            data: windAvg,
+            borderColor: '#a3e635',
+            backgroundColor: 'rgba(163,230,53,0.07)',
+            borderWidth: 2,
+            pointRadius: 0,
+            fill: true,
+            tension: 0.3,
+            spanGaps: true,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            display: true,
+            labels: { color: tickColor, boxWidth: 10, font: tickFont },
+          },
+          tooltip: Object.assign({}, tooltipCfg, {
+            callbacks: {
+              label: function(ctx) {
+                return ctx.dataset.label + ': ' + (ctx.parsed.y != null ? ctx.parsed.y.toFixed(1) + ' km/h' : '—');
+              },
+            },
+          }),
+        },
+        scales: {
+          x: xAxis,
+          y: {
+            grid:   { color: gridColor },
+            ticks:  { color: tickColor, font: tickFont, callback: function(v) { return v; } },
+            border: borderCfg,
+            min: 0,
+          },
+        },
+      },
+    });
+
+    // Precipitation
+    new Chart(document.getElementById('chart-precip'), {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'mm',
+          data: precipDeltas,
+          backgroundColor: 'rgba(125,211,252,0.65)',
+          borderColor: '#7dd3fc',
+          borderWidth: 1,
+          borderRadius: 2,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: Object.assign({}, tooltipCfg, {
+            callbacks: {
+              label: function(ctx) { return ctx.parsed.y != null ? ctx.parsed.y.toFixed(2) + ' mm' : ''; },
+            },
+          }),
+        },
+        scales: {
+          x: xAxis,
+          y: {
+            grid:   { color: gridColor },
+            ticks:  { color: tickColor, font: tickFont, callback: function(v) { return v + ' mm'; } },
+            border: borderCfg,
+            min: 0,
+          },
+        },
+      },
+    });
   }
 })();
 </script>
