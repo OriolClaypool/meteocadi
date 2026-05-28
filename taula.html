@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Rànquing del dia — Meteocadí</title>
+  <title>Taula del dia — Meteocadí</title>
   <link rel="icon" type="image/png" href="imatges/logo.png">
   <link rel="apple-touch-icon" href="imatges/logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -11,12 +11,12 @@
   <link rel="stylesheet" href="css/style.css" />
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <style>
-    .ranking-page-wrap {
+    .taula-page-wrap {
       padding: 2rem 0 4rem;
       background: var(--bg-raised);
       min-height: 60vh;
     }
-    .ranking-controls {
+    .taula-controls {
       display: flex;
       justify-content: center;
       gap: 10px;
@@ -56,8 +56,8 @@
       transform-origin: top left;
     }
 
-    /* The exported card — always 1080×1920 */
-    #ranking-card {
+    /* The exported card */
+    #taula-card {
       width: 1080px;
       height: 1920px;
       position: relative;
@@ -66,13 +66,13 @@
       font-family: inherit;
       box-sizing: border-box;
     }
-    .rc-glow {
+    .tc-glow {
       position: absolute;
       inset: 0;
       background: radial-gradient(ellipse at top right, rgba(13,159,255,0.12), transparent 70%);
       pointer-events: none;
     }
-    .rc-content {
+    .tc-content {
       position: relative;
       z-index: 1;
       padding: 140px 70px 70px;
@@ -83,25 +83,28 @@
     }
 
     /* Subtitle */
-    .rc-subtitle-block { margin-top: 0; }
-    .rc-header-row {
+    .tc-subtitle-block {
+      margin-top: 0;
+      flex-shrink: 0;
+    }
+    .tc-header-row {
       display: flex;
       justify-content: space-between;
       align-items: baseline;
       margin-bottom: 6px;
     }
-    .rc-date {
+    .tc-date {
       font-size: 22px;
       color: rgba(255,255,255,0.4);
     }
-    .rc-eyebrow {
+    .tc-eyebrow {
       font-size: 20px;
       font-weight: 600;
       letter-spacing: 0.12em;
       color: #3db8ff;
       text-transform: uppercase;
     }
-    .rc-var-title {
+    .tc-var-title {
       font-size: 44px;
       font-weight: 600;
       color: #f0f4ff;
@@ -110,105 +113,90 @@
     }
 
     /* Loading */
-    .rc-loading {
+    .tc-loading {
       margin-top: 120px;
       text-align: center;
       font-size: 22px;
       color: rgba(255,255,255,0.35);
     }
 
-    /* Podium */
-    .rc-podium {
-      display: flex;
-      justify-content: center;
-      align-items: flex-end;
-      gap: 16px;
-      margin-top: 70px;
-    }
-    .podium-card {
-      border-radius: 20px;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      align-items: stretch;
-      text-align: center;
-      box-sizing: border-box;
-      flex-shrink: 0;
-    }
-    .podium-card.p1 {
-      width: 260px; height: 360px;
-      background: linear-gradient(180deg, rgba(251,191,36,0.14), rgba(251,191,36,0.03));
-      border: 1px solid rgba(251,191,36,0.3);
-      box-shadow: 0 0 50px rgba(251,191,36,0.12);
-    }
-    .podium-card.p2 {
-      width: 220px; height: 290px;
-      background: linear-gradient(180deg, rgba(203,213,225,0.12), rgba(203,213,225,0.02));
-      border: 1px solid rgba(148,163,184,0.3);
-    }
-    .podium-card.p3 {
-      width: 220px; height: 240px;
-      background: linear-gradient(180deg, rgba(205,124,47,0.12), rgba(205,124,47,0.02));
-      border: 1px solid rgba(205,124,47,0.3);
-    }
-    .podium-accent {
-      height: 5px;
-      flex-shrink: 0;
-    }
-    .p1 .podium-accent { background: linear-gradient(90deg, #f59e0b, #fbbf24, #f59e0b); }
-    .p2 .podium-accent { background: linear-gradient(90deg, #94a3b8, #cbd5e1, #94a3b8); }
-    .p3 .podium-accent { background: linear-gradient(90deg, #b45309, #cd7c2f, #b45309); }
-    .podium-body {
-      padding: 16px 20px 28px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+    /* Body: fills remaining height, pushes footer down */
+    .taula-body {
       flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      margin-top: 36px;
     }
-    .podium-crown { margin-bottom: 10px; line-height: 0; }
-    .podium-medal {
-      border-radius: 50%;
+
+    /* Station list — fills all available body height */
+    #tc-list {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+
+    /* Rows — distribute evenly to fill the list height */
+    .tc-row {
+      flex: 1;
       display: flex;
       align-items: center;
-      justify-content: center;
-      font-weight: 800;
-      flex-shrink: 0;
-      margin-bottom: 10px;
+      padding: 16px 20px;
+      border-radius: 12px;
+      gap: 24px;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      box-sizing: border-box;
     }
-    .p1 .podium-medal { width: 56px; height: 56px; background: rgba(251,191,36,0.15); border: 2px solid rgba(251,191,36,0.4); color: #fbbf24; font-size: 28px; }
-    .p2 .podium-medal { width: 48px; height: 48px; background: rgba(148,163,184,0.15); border: 2px solid rgba(148,163,184,0.4); color: #94a3b8; font-size: 22px; }
-    .p3 .podium-medal { width: 44px; height: 44px; background: rgba(205,124,47,0.15); border: 2px solid rgba(205,124,47,0.4); color: #cd7c2f; font-size: 20px; }
-    .podium-name { font-weight: 700; color: #f0f4ff; margin-bottom: 4px; line-height: 1.2; }
-    .p1 .podium-name { font-size: 28px; }
-    .p2 .podium-name { font-size: 22px; }
-    .p3 .podium-name { font-size: 22px; }
-    .podium-alt { color: rgba(255,255,255,0.35); margin-bottom: 10px; }
-    .p1 .podium-alt { font-size: 18px; }
-    .p2 .podium-alt { font-size: 15px; }
-    .p3 .podium-alt { font-size: 15px; }
-    .podium-value { font-weight: 700; line-height: 1; white-space: nowrap; }
-    .p1 .podium-value { font-size: 64px; }
-    .p2 .podium-value { font-size: 46px; }
-    .p3 .podium-value { font-size: 40px; }
+    .tc-row:last-child { border-bottom: none; }
+    .tc-row:nth-child(even) { background: rgba(255,255,255,0.025); }
+    .tc-row-first {
+      background: rgba(61,184,255,0.055) !important;
+      border-left: 4px solid #3db8ff;
+      padding-left: 16px;
+    }
+
+    .tc-pos {
+      font-size: 36px;
+      color: rgba(255,255,255,0.28);
+      width: 52px;
+      flex-shrink: 0;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+    .tc-station-info {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      min-width: 0;
+    }
+    .tc-name {
+      font-size: 44px;
+      font-weight: 500;
+      color: #f0f4ff;
+      line-height: 1.15;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .tc-alt {
+      font-size: 26px;
+      color: rgba(255,255,255,0.32);
+      font-variant-numeric: tabular-nums;
+    }
+    .tc-val {
+      font-size: 72px;
+      font-weight: 600;
+      flex-shrink: 0;
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
     .val-unit { font-size: 0.42em; font-weight: 500; opacity: 0.75; }
 
-    /* Rest of ranking list */
-    .rc-list { margin-top: 50px; }
-    .rc-row {
-      display: flex;
-      align-items: center;
-      padding: 16px 14px;
-      border-radius: 10px;
-      gap: 16px;
-    }
-    .rc-row:nth-child(even) { background: rgba(255,255,255,0.025); }
-    .rc-row-pos { font-size: 24px; color: rgba(255,255,255,0.3); width: 40px; flex-shrink: 0; text-align: center; }
-    .rc-row-name { font-size: 24px; font-weight: 500; color: rgba(255,255,255,0.75); flex: 1; }
-    .rc-row-alt { font-size: 18px; color: rgba(255,255,255,0.3); flex-shrink: 0; }
-    .rc-row-val { font-size: 28px; font-weight: 600; flex-shrink: 0; }
-
-    /* Card footer — pushed to bottom */
-    .rc-card-footer {
+    /* Card footer */
+    .tc-card-footer {
+      flex-shrink: 0;
       margin-top: auto;
       padding-top: 24px;
       border-top: 1px solid rgba(255,255,255,0.07);
@@ -216,53 +204,42 @@
       justify-content: space-between;
       align-items: center;
     }
-    .rc-footer-left { font-size: 20px; font-weight: 600; color: #3db8ff; }
-    .rc-footer-right { font-size: 15px; color: rgba(255,255,255,0.3); }
+    .tc-footer-left  { font-size: 20px; font-weight: 600; color: #3db8ff; }
+    .tc-footer-right { font-size: 15px; color: rgba(255,255,255,0.3); }
 
     .download-wrap { text-align: center; margin: 24px 0 48px; }
 
-    /* ── ranking-body: flex wrapper for podium + list ── */
-    .ranking-body { flex: 1; display: flex; flex-direction: column; min-height: 0; }
-
-    /* ── Vertical format (1080×1920) — spacing overrides ── */
-    .format-vertical .rc-content      { padding: 160px 90px 90px; }
-    .format-vertical .rc-podium       { margin-top: 50px; }
-    .format-vertical .rc-list         { margin-top: 30px; }
-    .format-vertical .rc-footer-left  { font-size: 28px; }
-    .format-vertical .rc-footer-right { font-size: 20px; color: rgba(255,255,255,0.35); }
+    /* ── Vertical format (1080×1920) ── */
+    .format-vertical .tc-content      { padding: 160px 90px 90px; }
+    .format-vertical .tc-footer-left  { font-size: 28px; }
+    .format-vertical .tc-footer-right { font-size: 20px; color: rgba(255,255,255,0.35); }
 
     /* ── Horizontal format (1920×1080) ── */
-    #ranking-card.format-horizontal { width: 1920px; height: 1080px; }
-    .format-horizontal .rc-content        { padding: 60px 90px 50px; }
-    .format-horizontal .rc-subtitle-block { margin-top: 0; }
-    .format-horizontal .rc-eyebrow        { font-size: 17px; }
-    .format-horizontal .rc-var-title      { font-size: 38px; margin-top: 2px; }
-    .format-horizontal .rc-date           { font-size: 18px; }
-    .format-horizontal .rc-loading        { margin-top: 60px; }
-    .format-horizontal .ranking-body {
+    #taula-card.format-horizontal { width: 1920px; height: 1080px; }
+    .format-horizontal .tc-content        { padding: 60px 90px 50px; }
+    .format-horizontal .tc-subtitle-block { margin-top: 0; }
+    .format-horizontal .tc-eyebrow        { font-size: 17px; }
+    .format-horizontal .tc-var-title      { font-size: 38px; margin-top: 2px; }
+    .format-horizontal .tc-date           { font-size: 18px; }
+    .format-horizontal .tc-loading        { margin-top: 60px; }
+    .format-horizontal .taula-body        { margin-top: 20px; }
+    .format-horizontal #tc-list {
       flex-direction: row;
       gap: 60px;
-      align-items: center;
-      margin-top: 30px;
+      align-items: stretch;
     }
-    .format-horizontal .rc-podium {
-      flex: 0 0 52%;
-      margin-top: 0;
-      justify-content: center;
-    }
-    .format-horizontal .rc-list {
+    .format-horizontal .tc-col {
       flex: 1;
-      margin-top: 0;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
     }
-    .format-horizontal .podium-card.p1 { width: 290px; height: 400px; }
-    .format-horizontal .podium-card.p2 { width: 255px; height: 330px; }
-    .format-horizontal .podium-card.p3 { width: 240px; height: 270px; }
-    .format-horizontal .p1 .podium-value { font-size: 68px; }
-    .format-horizontal .p2 .podium-value { font-size: 50px; }
-    .format-horizontal .p3 .podium-value { font-size: 44px; }
-    .format-horizontal .p1 .podium-name  { font-size: 30px; }
-    .format-horizontal .p2 .podium-name  { font-size: 24px; }
-    .format-horizontal .p3 .podium-name  { font-size: 22px; }
+    .format-horizontal .tc-row       { padding: 12px 16px; gap: 18px; border-radius: 10px; }
+    .format-horizontal .tc-row-first { padding-left: 12px; }
+    .format-horizontal .tc-pos       { font-size: 26px; width: 40px; }
+    .format-horizontal .tc-name      { font-size: 34px; }
+    .format-horizontal .tc-alt       { font-size: 20px; }
+    .format-horizontal .tc-val       { font-size: 56px; }
   </style>
 </head>
 <body>
@@ -294,49 +271,48 @@
 <div class="page-header">
   <div class="container">
     <span class="eyebrow">Eina interna</span>
-    <h1>Rànquing del dia</h1>
+    <h1>Taula del dia</h1>
   </div>
 </div>
 
-<!-- ══ RANKING ══ -->
-<div class="ranking-page-wrap">
+<!-- ══ TAULA ══ -->
+<div class="taula-page-wrap">
   <div class="container">
 
-    <div class="ranking-controls">
+    <div class="taula-controls">
       <button class="pill-btn var-btn active" data-var="tempHigh">Temp. màxima</button>
       <button class="pill-btn var-btn" data-var="tempLow">Temp. mínima</button>
       <button class="pill-btn var-btn" data-var="windgustHigh">Vent màxim</button>
       <button class="pill-btn var-btn" data-var="precipTotal">Precipitació</button>
     </div>
-    <div class="ranking-controls" style="margin-top:-8px; margin-bottom:1.5rem;">
-      <button class="pill-btn fmt-btn active" data-fmt="vertical">Vertical (Stories)</button>
-      <button class="pill-btn fmt-btn" data-fmt="horizontal">Horitzontal (Twitter/X)</button>
+    <div class="taula-controls" style="margin-top:-8px; margin-bottom:1.5rem;">
+      <button class="pill-btn fmt-btn active" data-fmt="vertical">Vertical (1080×1920)</button>
+      <button class="pill-btn fmt-btn" data-fmt="horizontal">Horitzontal (1920×1080)</button>
     </div>
 
     <div class="card-outer" id="card-outer">
       <div class="card-scaler" id="card-scaler">
-        <div id="ranking-card" class="format-vertical">
-          <div class="rc-glow"></div>
-          <div class="rc-content">
+        <div id="taula-card" class="format-vertical">
+          <div class="tc-glow"></div>
+          <div class="tc-content">
 
-            <div class="rc-subtitle-block">
-              <div class="rc-header-row">
-                <div class="rc-eyebrow">RÀNQUING DEL DIA</div>
-                <div class="rc-date" id="rc-date"></div>
+            <div class="tc-subtitle-block">
+              <div class="tc-header-row">
+                <div class="tc-eyebrow">DADES DEL DIA</div>
+                <div class="tc-date" id="tc-date"></div>
               </div>
-              <div class="rc-var-title" id="rc-var-title">Temperatura màxima</div>
+              <div class="tc-var-title" id="tc-var-title">Temperatura màxima</div>
             </div>
 
-            <div id="rc-loading" class="rc-loading">Carregant dades...</div>
+            <div id="tc-loading" class="tc-loading">Carregant dades...</div>
 
-            <div class="ranking-body">
-              <div id="rc-podium" class="rc-podium" style="display:none;"></div>
-              <div id="rc-list" class="rc-list" style="display:none;"></div>
+            <div class="taula-body">
+              <div id="tc-list" style="display:none;"></div>
             </div>
 
-            <div class="rc-card-footer">
-              <span class="rc-footer-left">meteocadi.cat</span>
-              <span class="rc-footer-right">Dades de la xarxa d'estacions Meteocadí</span>
+            <div class="tc-card-footer">
+              <span class="tc-footer-left">meteocadi.cat</span>
+              <span class="tc-footer-right" id="tc-footer-right">Dades de la xarxa d'estacions Meteocadí</span>
             </div>
 
           </div>
@@ -345,7 +321,7 @@
     </div>
 
     <div class="download-wrap">
-      <button id="download-ranking" class="btn btn-primary" style="font-size:14px; padding:12px 28px;">
+      <button id="download-taula" class="btn btn-primary" style="font-size:14px; padding:12px 28px;">
         Descarregar imatge
       </button>
     </div>
@@ -385,8 +361,6 @@
 (function () {
   'use strict';
 
-  var API_KEY = 'b146442062ee4f8a86442062ee4f8acd';
-
   var STATIONS_META = {
     IBAG65:     { name: 'Bagà Nord',                  alt: 865  },
     IBAG67:     { name: 'Refugi de Rebost',           alt: 1650 },
@@ -409,9 +383,16 @@
     precipTotal:  'Precipitació',
   };
 
+  var VAR_FILE_NAMES = {
+    tempHigh:     'temp-maxima',
+    tempLow:      'temp-minima',
+    windgustHigh: 'vent-maxim',
+    precipTotal:  'precipitacio',
+  };
+
   var months = ['gener','febrer','març','abril','maig','juny','juliol','agost','setembre','octubre','novembre','desembre'];
   var _d = new Date();
-  document.getElementById('rc-date').textContent =
+  document.getElementById('tc-date').textContent =
     _d.getDate() + ' de ' + months[_d.getMonth()] + ' de ' + _d.getFullYear();
 
   var activeVar    = 'tempHigh';
@@ -426,10 +407,10 @@
     var cardW  = isH ? 1920 : 1080;
     var cardH  = isH ? 1080 : 1920;
     var scale  = outer.offsetWidth / cardW;
-    scaler.style.width  = cardW + 'px';
-    scaler.style.height = cardH + 'px';
+    scaler.style.width     = cardW + 'px';
+    scaler.style.height    = cardH + 'px';
     scaler.style.transform = 'scale(' + scale + ')';
-    outer.style.height = Math.round(cardH * scale) + 'px';
+    outer.style.height     = Math.round(cardH * scale) + 'px';
   }
   window.addEventListener('resize', scaleCard);
 
@@ -472,52 +453,37 @@
 
   // ── Loading state ─────────────────────────────
   function showLoading() {
-    document.getElementById('rc-loading').style.display = 'block';
-    document.getElementById('rc-podium').style.display  = 'none';
-    document.getElementById('rc-list').style.display    = 'none';
+    document.getElementById('tc-loading').style.display = 'block';
+    document.getElementById('tc-list').style.display    = 'none';
   }
 
   function hideLoading() {
-    document.getElementById('rc-loading').style.display = 'none';
-    document.getElementById('rc-podium').style.display  = 'flex';
-    document.getElementById('rc-list').style.display    = 'block';
+    document.getElementById('tc-loading').style.display = 'none';
+    document.getElementById('tc-list').style.display    = '';
   }
 
-  // ── Crown SVG (1st place) ─────────────────────
-  var CROWN_SVG =
-    '<svg width="56" height="44" viewBox="0 0 56 44" xmlns="http://www.w3.org/2000/svg">' +
-      '<circle cx="4"  cy="14" r="5" fill="#fbbf24"/>' +
-      '<circle cx="52" cy="14" r="5" fill="#fbbf24"/>' +
-      '<circle cx="28" cy="5"  r="5" fill="#fbbf24"/>' +
-      '<path d="M4 14 L4 36 L52 36 L52 14 L38 26 L28 5 L18 26 Z" fill="#fbbf24"/>' +
-      '<rect x="4" y="34" width="48" height="8" rx="4" fill="#fbbf24"/>' +
-    '</svg>';
-
-  // ── Fetch: /api/dailysummary (7day) → fallback to current obs ──
+  // ── Fetch: /api/dailysummary only — NO current-obs fallback ──
+  // Stations without a today entry are excluded entirely.
   function fetchStation(id) {
-    var dailyUrl   = '/api/dailysummary?stationId=' + id;
-    var currentUrl = 'https://api.weather.com/v2/pws/observations/current' +
-      '?stationId=' + id + '&format=json&units=m&apiKey=' + API_KEY;
-
-    return fetch(dailyUrl)
+    return fetch('/api/dailysummary?stationId=' + id)
       .then(function (r) { return r.json(); })
       .then(function (json) {
         if (json.error) {
-          console.warn('[ranking]', id, 'WU error:', json.wuStatus, json.wuBody);
-          throw new Error('proxy error');
+          console.warn('[taula]', id, 'proxy error:', json.wuStatus);
+          return { id: id, excluded: true };
         }
 
         var summaries = json.summaries;
         if (!summaries || !summaries.length) {
-          console.log('[ranking]', id, 'summaries empty → fallback');
-          throw new Error('no summaries');
+          console.log('[taula]', id, 'no summaries — excluded');
+          return { id: id, excluded: true };
         }
 
-        // Only accept an entry whose date matches today (local date, YYYY-MM-DD)
         var _n = new Date();
         var today = _n.getFullYear() + '-' +
           String(_n.getMonth() + 1).padStart(2, '0') + '-' +
           String(_n.getDate()).padStart(2, '0');
+
         var entry = null;
         for (var i = 0; i < summaries.length; i++) {
           if (summaries[i].obsTimeLocal && summaries[i].obsTimeLocal.slice(0, 10) === today) {
@@ -525,55 +491,39 @@
             break;
           }
         }
+
         if (!entry) {
           var lastDate = (summaries[summaries.length - 1] || {}).obsTimeLocal || '?';
-          console.log('[ranking] excluded:', id, '— no data for today (' + today + '), last entry:', lastDate);
+          console.log('[taula] excluded:', id, '— no entry for today (' + today + '), last entry:', lastDate);
           return { id: id, excluded: true };
         }
 
-        var m = (entry && entry.metric) || {};
-        console.log('[ranking]', id, 'summary', entry.obsTimeLocal, 'metric:', JSON.stringify(m));
-
+        var m = (entry.metric) || {};
         var tempHigh     = m.tempHigh     != null ? Number(m.tempHigh)     : null;
         var tempLow      = m.tempLow      != null ? Number(m.tempLow)      : null;
         var windgustHigh = m.windgustHigh != null ? Number(m.windgustHigh) :
                            m.windGustHigh != null ? Number(m.windGustHigh) : null;
         var precipTotal  = m.precipTotal  != null ? Number(m.precipTotal)  : null;
 
-        console.log('[ranking]', id, '→', { tempHigh: tempHigh, tempLow: tempLow, windgustHigh: windgustHigh, precipTotal: precipTotal });
-        return { id: id, tempHigh: tempHigh, tempLow: tempLow, windgustHigh: windgustHigh, precipTotal: precipTotal, fallback: false };
+        console.log('[taula]', id, 'daily summary', entry.obsTimeLocal,
+          '→ tempHigh:', tempHigh, 'tempLow:', tempLow,
+          'windgustHigh:', windgustHigh, 'precipTotal:', precipTotal);
+
+        return { id: id, tempHigh: tempHigh, tempLow: tempLow, windgustHigh: windgustHigh, precipTotal: precipTotal };
       })
-      .catch(function () {
-        // Fall back to current observations (live values)
-        console.log('[ranking]', id, 'using current obs fallback');
-        return fetch(currentUrl)
-          .then(function (r2) {
-            if (!r2.ok) throw new Error('current HTTP ' + r2.status);
-            return r2.json();
-          })
-          .then(function (json2) {
-            var obs2 = json2.observations && json2.observations[0];
-            var m2   = (obs2 && obs2.metric) || {};
-            return {
-              id:           id,
-              tempHigh:     m2.temp        != null ? Number(m2.temp)        : null,
-              tempLow:      m2.temp        != null ? Number(m2.temp)        : null,
-              windgustHigh: m2.windGust    != null ? Number(m2.windGust)    : null,
-              precipTotal:  m2.precipTotal != null ? Number(m2.precipTotal) : null,
-              fallback:     true,
-            };
-          });
+      .catch(function (err) {
+        console.warn('[taula]', id, 'fetch failed:', err.message);
+        return { id: id, excluded: true };
       });
   }
 
   function fetchAllStations() {
     var ids = Object.keys(STATIONS_META);
-    console.log('[ranking] Fetching', ids.length, 'stations (daily summary + current obs fallback)');
+    console.log('[taula] Fetching daily summaries for', ids.length, 'stations');
 
     return Promise.allSettled(ids.map(fetchStation))
       .then(function (results) {
         var data = {};
-        var fallbackCount = 0;
         var excluded = [];
         results.forEach(function (r) {
           if (r.status === 'fulfilled') {
@@ -581,29 +531,29 @@
               excluded.push(r.value.id);
             } else {
               data[r.value.id] = r.value;
-              if (r.value.fallback) fallbackCount++;
             }
           } else {
-            console.warn('[ranking] FAILED:', r.reason);
+            console.warn('[taula] FAILED:', r.reason);
           }
         });
         if (excluded.length) {
-          console.log('[ranking] Excluded (no today data):', excluded.join(', '));
+          console.log('[taula] Excluded (no today data):', excluded.join(', '));
         }
-        console.log('[ranking] Done. Stations with today data:', Object.keys(data).length,
-          '/ excluded:', excluded.length, '/ fallback (live):', fallbackCount);
-        if (fallbackCount > 0) {
-          var footerRight = document.querySelector('.rc-footer-right');
-          if (footerRight) footerRight.textContent = 'Dades en temps real · Xarxa Meteocadí';
-        }
+        console.log('[taula] Done. Stations with today data:', Object.keys(data).length,
+          '/ excluded:', excluded.length);
         return data;
       });
   }
 
   // ── Ranking sort ──────────────────────────────
+  // For temp/wind: deduplicate Bagà — keep only Centre (IBAG73), drop Nord+Sud
+  var EXCL_NON_PRECIP = { IBAG65: 1, IBAG72: 1 };
+
   function buildRanking(varKey) {
+    var excl = varKey !== 'precipTotal' ? EXCL_NON_PRECIP : {};
     return Object.keys(STATIONS_META)
       .filter(function (id) {
+        if (excl[id]) return false;
         return cache[id] && cache[id][varKey] != null;
       })
       .map(function (id) {
@@ -611,79 +561,66 @@
       })
       .sort(function (a, b) {
         return varKey === 'tempLow' ? a.value - b.value : b.value - a.value;
-      });
+      })
+      .slice(0, 8);
+  }
+
+  // ── Create a row element ───────────────────────
+  function createRow(entry, pos, varKey) {
+    var row = document.createElement('div');
+    row.className = 'tc-row' + (pos === 1 ? ' tc-row-first' : '');
+    var color = valueColor(varKey, entry.value);
+    row.innerHTML =
+      '<span class="tc-pos">' + pos + '</span>' +
+      '<span class="tc-station-info">' +
+        '<span class="tc-name">' + entry.name + '</span>' +
+        '<span class="tc-alt">' + entry.alt.toLocaleString('ca-ES') + ' m</span>' +
+      '</span>' +
+      '<span class="tc-val" style="color:' + color + '">' + formatValue(varKey, entry.value) + '</span>';
+    return row;
   }
 
   // ── Render ────────────────────────────────────
-  function renderRanking(varKey) {
-    console.log('[ranking] renderRanking()', varKey, 'cache keys:', cache ? Object.keys(cache) : 'NULL');
-
-    document.getElementById('rc-var-title').textContent = VAR_FULL_LABELS[varKey];
+  function renderTable(varKey) {
+    document.getElementById('tc-var-title').textContent = VAR_FULL_LABELS[varKey];
 
     if (!cache) {
-      console.warn('[ranking] cache is null — aborting render');
+      console.warn('[taula] cache is null — aborting render');
       return;
     }
 
     var entries = buildRanking(varKey);
-    console.log('[ranking]', entries.length, 'entries for', varKey,
-      entries.map(function (e) { return e.name + '=' + e.value; }));
-
-    var podiumEl = document.getElementById('rc-podium');
-    var listEl   = document.getElementById('rc-list');
-    podiumEl.innerHTML = '';
-    listEl.innerHTML   = '';
+    var listEl  = document.getElementById('tc-list');
+    listEl.innerHTML = '';
 
     if (!entries.length) {
-      var loadEl = document.getElementById('rc-loading');
+      var loadEl = document.getElementById('tc-loading');
       loadEl.textContent = 'No hi ha dades disponibles.';
       loadEl.style.display = 'block';
-      podiumEl.style.display = 'none';
-      listEl.style.display   = 'none';
+      listEl.style.display = 'none';
       return;
     }
 
-    // Podium: render [2nd | 1st | 3rd]
-    var top3 = [entries[0], entries[1], entries[2]];
-    var order   = [top3[1], top3[0], top3[2]]; // left=2nd, center=1st, right=3rd
-    var clsMap  = ['p2', 'p1', 'p3'];
-    var posMap  = [2, 1, 3];
+    if (activeFormat === 'horizontal') {
+      var mid     = Math.ceil(entries.length / 2);
+      var colLeft = document.createElement('div');
+      colLeft.className = 'tc-col';
+      var colRight = document.createElement('div');
+      colRight.className = 'tc-col';
 
-    order.forEach(function (entry, i) {
-      if (!entry) return;
-      var cls   = clsMap[i];
-      var pos   = posMap[i];
-      var color = valueColor(varKey, entry.value);
-      var crown = (cls === 'p1')
-        ? '<div class="podium-crown">' + CROWN_SVG + '</div>'
-        : '';
+      entries.forEach(function (entry, i) {
+        var row = createRow(entry, i + 1, varKey);
+        if (i < mid) colLeft.appendChild(row);
+        else         colRight.appendChild(row);
+      });
 
-      var card = document.createElement('div');
-      card.className = 'podium-card ' + cls;
-      card.innerHTML =
-        '<div class="podium-accent"></div>' +
-        '<div class="podium-body">' +
-          crown +
-          '<div class="podium-medal">' + pos + '</div>' +
-          '<div class="podium-name">' + entry.name + '</div>' +
-          '<div class="podium-alt">' + entry.alt.toLocaleString('ca-ES') + ' m</div>' +
-          '<div class="podium-value" style="color:' + color + '">' + formatValue(varKey, entry.value) + '</div>' +
-        '</div>';
-      podiumEl.appendChild(card);
-    });
-
-    // Rest of list (4th onwards)
-    entries.slice(3).forEach(function (entry, i) {
-      var color = valueColor(varKey, entry.value);
-      var row = document.createElement('div');
-      row.className = 'rc-row';
-      row.innerHTML =
-        '<span class="rc-row-pos">' + (i + 4) + '</span>' +
-        '<span class="rc-row-name">' + entry.name + '</span>' +
-        '<span class="rc-row-alt">' + entry.alt.toLocaleString('ca-ES') + ' m</span>' +
-        '<span class="rc-row-val" style="color:' + color + '">' + formatValue(varKey, entry.value) + '</span>';
-      listEl.appendChild(row);
-    });
+      listEl.appendChild(colLeft);
+      listEl.appendChild(colRight);
+    } else {
+      entries.forEach(function (entry, i) {
+        listEl.appendChild(createRow(entry, i + 1, varKey));
+      });
+    }
 
     hideLoading();
     scaleCard();
@@ -693,15 +630,15 @@
   function loadAndRender() {
     showLoading();
     if (cache) {
-      renderRanking(activeVar);
+      renderTable(activeVar);
       return;
     }
     fetchAllStations().then(function (data) {
       cache = data;
-      renderRanking(activeVar);
+      renderTable(activeVar);
     }).catch(function (err) {
-      console.error('[ranking] fetchAllStations failed:', err);
-      var loadEl = document.getElementById('rc-loading');
+      console.error('[taula] fetchAllStations failed:', err);
+      var loadEl = document.getElementById('tc-loading');
       loadEl.textContent = 'Error carregant les dades.';
     });
   }
@@ -712,7 +649,7 @@
       document.querySelectorAll('.var-btn').forEach(function (b) { b.classList.remove('active'); });
       btn.classList.add('active');
       activeVar = btn.dataset.var;
-      renderRanking(activeVar);
+      if (cache) renderTable(activeVar);
     });
   });
 
@@ -722,20 +659,22 @@
       document.querySelectorAll('.fmt-btn').forEach(function (b) { b.classList.remove('active'); });
       btn.classList.add('active');
       activeFormat = btn.dataset.fmt;
-      var card = document.getElementById('ranking-card');
+      var card = document.getElementById('taula-card');
       card.classList.remove('format-vertical', 'format-horizontal');
       card.classList.add('format-' + activeFormat);
-      scaleCard();
+      if (cache) renderTable(activeVar);
+      else scaleCard();
     });
   });
 
   // ── Download ──────────────────────────────────
-  document.getElementById('download-ranking').addEventListener('click', function () {
-    var card  = document.getElementById('ranking-card');
-    var isH   = activeFormat === 'horizontal';
-    var w     = isH ? 1920 : 1080;
-    var h     = isH ? 1080 : 1920;
+  document.getElementById('download-taula').addEventListener('click', function () {
+    var card    = document.getElementById('taula-card');
+    var isH     = activeFormat === 'horizontal';
+    var w       = isH ? 1920 : 1080;
+    var h       = isH ? 1080 : 1920;
     var fmtName = isH ? 'horitzontal' : 'vertical';
+    var varName = VAR_FILE_NAMES[activeVar];
     html2canvas(card, {
       width: w,
       height: h,
@@ -744,7 +683,7 @@
       useCORS: true,
       logging: false,
       onclone: function (clonedDoc) {
-        var clonedCard = clonedDoc.getElementById('ranking-card');
+        var clonedCard = clonedDoc.getElementById('taula-card');
         if (clonedCard) {
           clonedCard.style.transform = 'none';
           clonedCard.style.margin    = '0';
@@ -760,11 +699,11 @@
       },
     }).then(function (canvas) {
       var link = document.createElement('a');
-      link.download = 'meteocadi-ranking-' + fmtName + '-' + new Date().toISOString().split('T')[0] + '.png';
+      link.download = 'meteocadi-taula-' + varName + '-' + fmtName + '-' + new Date().toISOString().split('T')[0] + '.png';
       link.href = canvas.toDataURL('image/png');
       link.click();
     }).catch(function (err) {
-      console.error('Download error:', err);
+      console.error('[taula] Download error:', err);
     });
   });
 
