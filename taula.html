@@ -468,28 +468,29 @@
     document.getElementById('tc-list').style.display    = '';
   }
 
-  // ── Fetch: /api/dailysummary only — NO current-obs fallback ──
-  // Stations without a today entry are excluded entirely.
+  // ── Fetch: /api/dailysummary — identical logic to ranking.html, no fallback ──
   function fetchStation(id) {
-    return fetch('/api/dailysummary?stationId=' + id)
+    var dailyUrl = '/api/dailysummary?stationId=' + id;
+
+    return fetch(dailyUrl)
       .then(function (r) { return r.json(); })
       .then(function (json) {
         if (json.error) {
-          console.warn('[taula]', id, 'proxy error:', json.wuStatus);
-          return { id: id, excluded: true };
+          console.warn('[taula]', id, 'WU error:', json.wuStatus, json.wuBody);
+          throw new Error('proxy error');
         }
 
         var summaries = json.summaries;
         if (!summaries || !summaries.length) {
-          console.log('[taula]', id, 'no summaries — excluded');
-          return { id: id, excluded: true };
+          console.log('[taula]', id, 'summaries empty — excluded');
+          throw new Error('no summaries');
         }
 
+        // Only accept an entry whose date matches today (local date, YYYY-MM-DD)
         var _n = new Date();
         var today = _n.getFullYear() + '-' +
           String(_n.getMonth() + 1).padStart(2, '0') + '-' +
           String(_n.getDate()).padStart(2, '0');
-
         var entry = null;
         for (var i = 0; i < summaries.length; i++) {
           if (summaries[i].obsTimeLocal && summaries[i].obsTimeLocal.slice(0, 10) === today) {
@@ -497,24 +498,22 @@
             break;
           }
         }
-
         if (!entry) {
           var lastDate = (summaries[summaries.length - 1] || {}).obsTimeLocal || '?';
-          console.log('[taula] excluded:', id, '— no entry for today (' + today + '), last entry:', lastDate);
+          console.log('[taula] excluded:', id, '— no data for today (' + today + '), last entry:', lastDate);
           return { id: id, excluded: true };
         }
 
-        var m = (entry.metric) || {};
+        var m = (entry && entry.metric) || {};
+        console.log('[taula]', id, 'summary', entry.obsTimeLocal, 'metric:', JSON.stringify(m));
+
         var tempHigh     = m.tempHigh     != null ? Number(m.tempHigh)     : null;
         var tempLow      = m.tempLow      != null ? Number(m.tempLow)      : null;
         var windgustHigh = m.windgustHigh != null ? Number(m.windgustHigh) :
                            m.windGustHigh != null ? Number(m.windGustHigh) : null;
         var precipTotal  = m.precipTotal  != null ? Number(m.precipTotal)  : null;
 
-        console.log('[taula]', id, 'daily summary', entry.obsTimeLocal,
-          '→ tempHigh:', tempHigh, 'tempLow:', tempLow,
-          'windgustHigh:', windgustHigh, 'precipTotal:', precipTotal);
-
+        console.log('[taula]', id, '→', { tempHigh: tempHigh, tempLow: tempLow, windgustHigh: windgustHigh, precipTotal: precipTotal });
         return { id: id, tempHigh: tempHigh, tempLow: tempLow, windgustHigh: windgustHigh, precipTotal: precipTotal };
       })
       .catch(function (err) {
