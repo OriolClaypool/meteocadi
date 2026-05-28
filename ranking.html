@@ -87,12 +87,16 @@
     .rc-header-row {
       display: flex;
       justify-content: space-between;
-      align-items: baseline;
-      margin-bottom: 6px;
+      align-items: center;
+    }
+    .rc-header-left {
+      display: flex;
+      flex-direction: column;
     }
     .rc-date {
       font-size: 22px;
       color: rgba(255,255,255,0.4);
+      flex-shrink: 0;
     }
     .rc-eyebrow {
       font-size: 20px;
@@ -321,10 +325,12 @@
 
             <div class="rc-subtitle-block">
               <div class="rc-header-row">
-                <div class="rc-eyebrow">RÀNQUING DEL DIA</div>
+                <div class="rc-header-left">
+                  <div class="rc-eyebrow">RÀNQUING DEL DIA</div>
+                  <div class="rc-var-title" id="rc-var-title">Temperatura màxima</div>
+                </div>
                 <div class="rc-date" id="rc-date"></div>
               </div>
-              <div class="rc-var-title" id="rc-var-title">Temperatura màxima</div>
             </div>
 
             <div id="rc-loading" class="rc-loading">Carregant dades...</div>

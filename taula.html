@@ -90,12 +90,16 @@
     .tc-header-row {
       display: flex;
       justify-content: space-between;
-      align-items: baseline;
-      margin-bottom: 6px;
+      align-items: center;
+    }
+    .tc-header-left {
+      display: flex;
+      flex-direction: column;
     }
     .tc-date {
       font-size: 22px;
       color: rgba(255,255,255,0.4);
+      flex-shrink: 0;
     }
     .tc-eyebrow {
       font-size: 20px;
@@ -298,10 +302,12 @@
 
             <div class="tc-subtitle-block">
               <div class="tc-header-row">
-                <div class="tc-eyebrow">DADES DEL DIA</div>
+                <div class="tc-header-left">
+                  <div class="tc-eyebrow">DADES DEL DIA</div>
+                  <div class="tc-var-title" id="tc-var-title">Temperatura màxima</div>
+                </div>
                 <div class="tc-date" id="tc-date"></div>
               </div>
-              <div class="tc-var-title" id="tc-var-title">Temperatura màxima</div>
             </div>
 
             <div id="tc-loading" class="tc-loading">Carregant dades...</div>
