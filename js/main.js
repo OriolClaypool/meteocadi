@@ -164,6 +164,8 @@
       precipTotal,
       pressure:     m.pressure         ?? null,
       obsTimeLocal: obs.obsTimeLocal   ?? null,
+      lat:          obs.lat            ?? null,
+      lon:          obs.lon            ?? null,
     };
   }
 

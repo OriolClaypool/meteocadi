@@ -240,8 +240,9 @@
     { key: 'humidity',  label: 'Humitat actual'         },
   ];
 
-  var currentVar = 'temp';
-  var dailyCache = {};
+  var currentVar   = 'temp';
+  var dailyCache   = {};
+  var _loggedCoords = {};
 
   /* ── Map init ── */
   var map = L.map('map', { zoomControl: true }).setView([42.255, 1.880], 10);
@@ -348,24 +349,44 @@
     '</div>';
   }
 
+  /* ── API coords helper ── */
+  function getMarkerCoords(id) {
+    var meta    = STATIONS_MAP[id];
+    var apiData = (window._meteocadiCache || {})[id];
+    if (apiData && apiData.lat != null && apiData.lon != null) {
+      return { lat: apiData.lat, lng: apiData.lon };
+    }
+    return { lat: meta.lat, lng: meta.lng };
+  }
+
   /* ── Markers ── */
   var markers = {};
 
   function updateMarkers() {
     Object.keys(STATIONS_MAP).forEach(function (id) {
-      var meta   = STATIONS_MAP[id];
-      var online = !!(window._meteocadiCache || {})[id];
-      var val    = getVarValue(id, currentVar);
-      var color  = online ? varColor(currentVar, val) : '#fbbf24';
-      var popup  = buildPopup(id, meta);
-      var ttip   = buildTooltipContent(id, meta);
+      var meta    = STATIONS_MAP[id];
+      var online  = !!(window._meteocadiCache || {})[id];
+      var val     = getVarValue(id, currentVar);
+      var color   = online ? varColor(currentVar, val) : '#fbbf24';
+      var popup   = buildPopup(id, meta);
+      var ttip    = buildTooltipContent(id, meta);
+      var coords  = getMarkerCoords(id);
 
       if (markers[id]) {
+        markers[id].setLatLng([coords.lat, coords.lng]);
         markers[id].setStyle({ color: color, fillColor: color });
         markers[id].setPopupContent(popup);
         markers[id].getTooltip().setContent(ttip);
+        if (!_loggedCoords[id]) {
+          var apiData = (window._meteocadiCache || {})[id];
+          if (apiData && apiData.lat != null) {
+            console.log('[' + id + '] coords — API: ' + apiData.lat + ', ' + apiData.lon +
+                        ' | hardcoded: ' + meta.lat + ', ' + meta.lng);
+            _loggedCoords[id] = true;
+          }
+        }
       } else {
-        markers[id] = L.circleMarker([meta.lat, meta.lng], {
+        markers[id] = L.circleMarker([coords.lat, coords.lng], {
           radius: 9, color: color, fillColor: color, fillOpacity: 0.85, weight: 2,
         })
         .addTo(map)
@@ -524,8 +545,8 @@
     Object.keys(STATIONS_MAP).forEach(function(id) {
       var t = getVarValue(id, 'temp');
       if (t == null) return;
-      var m = STATIONS_MAP[id];
-      pts.push({ lat: m.lat, lng: m.lng, t: t });
+      var coords = getMarkerCoords(id);
+      pts.push({ lat: coords.lat, lng: coords.lng, t: t });
     });
     if (pts.length < 2) return null;
 

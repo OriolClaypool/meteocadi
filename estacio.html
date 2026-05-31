@@ -281,12 +281,34 @@
     '?stationId=' + stationId + '&format=json&units=m&apiKey=' + apiKey;
   var dailyProxyUrl = '/api/dailysummary?stationId=' + stationId;
 
+  function loadForecast(lat, lng) {
+    if (!lat || !lng) return;
+    var forecastUrl = 'https://api.open-meteo.com/v1/forecast' +
+      '?latitude=' + lat + '&longitude=' + lng +
+      '&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,weathercode' +
+      '&timezone=Europe%2FMadrid&forecast_days=7';
+    fetch(forecastUrl)
+      .then(function(r) { return r.json(); })
+      .then(function(data) { renderForecast(data); })
+      .catch(function() {
+        document.getElementById('forecast-grid').innerHTML =
+          '<p style="color:rgba(255,255,255,0.3);font-size:12px;grid-column:1/-1;text-align:center;">Previsió no disponible</p>';
+      });
+  }
+
   fetch(url)
     .then(function (r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
     .then(function (json) {
       var obs = json.observations && json.observations[0];
       if (!obs) throw new Error('no data');
       var m = obs.metric || {};
+
+      var realLat = (obs.lat != null) ? obs.lat : meta.lat;
+      var realLon = (obs.lon != null) ? obs.lon : meta.lng;
+      console.log('[' + stationId + '] coords — API: ' + obs.lat + ', ' + obs.lon +
+                  ' | hardcoded: ' + meta.lat + ', ' + meta.lng);
+      loadForecast(realLat, realLon);
+
       var data = {
         temp:         m.temp         ?? null,
         heatIndex:    m.heatIndex    ?? null,
@@ -327,7 +349,10 @@
         })
         .catch(function () { render(data); });
     })
-    .catch(function () { render(null); });
+    .catch(function () {
+      loadForecast(meta.lat, meta.lng);
+      render(null);
+    });
 
   function render(d) {
     var badge = document.getElementById('station-badge');
@@ -420,22 +445,6 @@
       updEl.textContent = '';
     }
     wrap.style.display = 'block';
-  }
-
-  // 7-day forecast from Open-Meteo
-  if (meta.lat && meta.lng) {
-    var forecastUrl = 'https://api.open-meteo.com/v1/forecast' +
-      '?latitude=' + meta.lat + '&longitude=' + meta.lng +
-      '&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,weathercode' +
-      '&timezone=Europe%2FMadrid&forecast_days=7';
-
-    fetch(forecastUrl)
-      .then(function(r) { return r.json(); })
-      .then(function(data) { renderForecast(data); })
-      .catch(function() {
-        document.getElementById('forecast-grid').innerHTML =
-          '<p style="color:rgba(255,255,255,0.3);font-size:12px;grid-column:1/-1;text-align:center;">Previsió no disponible</p>';
-      });
   }
 
   function weatherEmoji(code) {
