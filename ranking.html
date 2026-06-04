@@ -456,9 +456,34 @@
     return '#dc2626';
   }
 
+  function windColor(w) {
+    if (w == null || isNaN(w)) return '#e8edf5';
+    if (w < 10)  return '#64748b';
+    if (w < 20)  return '#38bdf8';
+    if (w < 30)  return '#2dd4bf';
+    if (w < 40)  return '#a3e635';
+    if (w < 55)  return '#fbbf24';
+    if (w < 70)  return '#fb923c';
+    if (w < 90)  return '#ef4444';
+    return '#dc2626';
+  }
+
+  function precipColor(p) {
+    if (p == null || isNaN(p)) return '#7dd3fc';
+    if (p <= 0)  return '#475569';
+    if (p < 1)   return '#7dd3fc';
+    if (p < 5)   return '#38bdf8';
+    if (p < 10)  return '#2dd4bf';
+    if (p < 15)  return '#4ade80';
+    if (p < 30)  return '#fbbf24';
+    if (p < 50)  return '#fb923c';
+    if (p < 80)  return '#ef4444';
+    return '#f472b6';
+  }
+
   function valueColor(varKey, val) {
-    if (varKey === 'windgustHigh') return '#e8edf5';
-    if (varKey === 'precipTotal')  return '#7dd3fc';
+    if (varKey === 'windgustHigh') return windColor(val);
+    if (varKey === 'precipTotal')  return precipColor(val);
     return tempColor(val);
   }
 
@@ -467,9 +492,9 @@
   function formatValue(varKey, val) {
     if (val == null) return '—';
     if (varKey === 'tempHigh' || varKey === 'tempLow') {
-      var r = Math.round(val);
-      var sign = r > 0 ? '+' : r < 0 ? '−' : '';
-      return sign + Math.abs(r) + U + '°C</span>';
+      var n = Math.abs(Number(val)).toFixed(1);
+      var sign = Number(val) > 0 ? '+' : Number(val) < 0 ? '−' : '';
+      return sign + n + U + '°C</span>';
     }
     if (varKey === 'windgustHigh') return Math.round(val) + U + ' km/h</span>';
     if (varKey === 'precipTotal')  return val.toFixed(1) + U + ' mm</span>';

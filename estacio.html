@@ -254,6 +254,31 @@
     return '#dc2626';
   }
 
+  function windColor(w) {
+    if (w == null || isNaN(w)) return '#e8edf5';
+    if (w < 10)  return '#64748b';
+    if (w < 20)  return '#38bdf8';
+    if (w < 30)  return '#2dd4bf';
+    if (w < 40)  return '#a3e635';
+    if (w < 55)  return '#fbbf24';
+    if (w < 70)  return '#fb923c';
+    if (w < 90)  return '#ef4444';
+    return '#dc2626';
+  }
+
+  function precipColor(p) {
+    if (p == null || isNaN(p)) return '#7dd3fc';
+    if (p <= 0)  return '#475569';
+    if (p < 1)   return '#7dd3fc';
+    if (p < 5)   return '#38bdf8';
+    if (p < 10)  return '#2dd4bf';
+    if (p < 15)  return '#4ade80';
+    if (p < 30)  return '#fbbf24';
+    if (p < 50)  return '#fb923c';
+    if (p < 80)  return '#ef4444';
+    return '#f472b6';
+  }
+
   function fmt(v, suffix, dec) {
     if (v == null) return '—';
     return (dec ? (+v).toFixed(dec) : Math.round(v)) + (suffix || '');
@@ -370,8 +395,7 @@
     }
 
     var temp    = d ? d.temp : null;
-    var sign    = temp != null && temp > 0 ? '+' : '';
-    var tempStr = temp != null ? sign + Math.round(temp) + '°C' : '—';
+    var tempStr = temp != null ? (temp > 0 ? '+' : temp < 0 ? '−' : '') + Math.abs(Number(temp)).toFixed(1) + '°C' : '—';
     document.getElementById('station-main-block').innerHTML =
       '<div class="detail-temp-value" style="color:' + tempColor(temp) + ';">' + tempStr + '</div>' +
       '<div class="detail-temp-label">Temperatura actual</div>';
@@ -384,17 +408,17 @@
         feels = d.heatIndex; feelsLabel = 'Índex de calor';
       }
     }
-    var feelsStr = feels != null ? (feels > 0 ? '+' : '') + Math.round(feels) + '°C' : '—';
+    var feelsStr = feels != null ? (feels > 0 ? '+' : feels < 0 ? '−' : '') + Math.abs(Number(feels)).toFixed(1) + '°C' : '—';
 
     var vars = [
       { label: feelsLabel,             value: feelsStr,                                                       color: tempColor(feels),  sub: '' },
       { label: 'Punt de rosada',       value: fmt(d ? d.dewpt : null, '°C', 1),                               color: '#93c5fd',         sub: '' },
       { label: 'Humitat relativa',     value: fmt(d ? d.humidity : null, '%'),                                color: '#6ee7b7',         sub: '' },
-      { label: 'Vent mig',             value: fmt(d ? d.wind : null, ' km/h'),                                color: 'var(--text)',     sub: d && d.winddir != null ? windLabel(d.winddir) : '' },
-      { label: 'Direcció del vent',    value: d ? windLabel(d.winddir) : '—',                                 color: 'var(--text)',     sub: d && d.winddir != null ? d.winddir + '°' : '' },
-      { label: 'Ratxa màxima',         value: fmt(d ? d.windGust : null, ' km/h'),                            color: '#fbbf24',         sub: '' },
-      { label: 'Pressió atmosfèrica',  value: fmt(d ? d.pressure : null, ' hPa'),                             color: 'var(--text)',     sub: '' },
-      { label: 'Precip. avui',          value: d && d.precipTotal != null ? d.precipTotal.toFixed(1) + ' mm' : '—', color: '#a5b4fc',   sub: 'Des de mitjanit' },
+      { label: 'Vent mig',             value: fmt(d ? d.wind : null, ' km/h'),                                color: windColor(d ? d.wind : null),          sub: d && d.winddir != null ? windLabel(d.winddir) : '' },
+      { label: 'Direcció del vent',    value: d ? windLabel(d.winddir) : '—',                                 color: 'var(--text)',                         sub: d && d.winddir != null ? d.winddir + '°' : '' },
+      { label: 'Ratxa màxima',         value: fmt(d ? d.windGust : null, ' km/h'),                            color: windColor(d ? d.windGust : null),       sub: '' },
+      { label: 'Pressió atmosfèrica',  value: fmt(d ? d.pressure : null, ' hPa'),                             color: 'var(--text)',                         sub: '' },
+      { label: 'Precip. avui',          value: d && d.precipTotal != null ? d.precipTotal.toFixed(1) + ' mm' : '—', color: precipColor(d ? d.precipTotal : null), sub: 'Des de mitjanit' },
     ];
 
     document.getElementById('station-vars-grid').innerHTML = vars.map(function (v) {
@@ -420,8 +444,8 @@
 
     function fmtDayTemp(t) {
       if (t == null) return '—';
-      var r = Math.round(t);
-      return (r > 0 ? '+' : r < 0 ? '−' : '') + Math.abs(r) + '°';
+      var n = Math.abs(Number(t)).toFixed(1);
+      return (Number(t) > 0 ? '+' : Number(t) < 0 ? '−' : '') + n + '°';
     }
 
     document.getElementById('station-maxmin-row').innerHTML =
@@ -584,7 +608,7 @@
           x: xAxis,
           y: {
             grid:   { color: gridColor },
-            ticks:  { color: tickColor, font: tickFont, callback: function(v) { return v + '°'; } },
+            ticks:  { color: tickColor, font: tickFont, callback: function(v) { return Number(v).toFixed(1) + '°'; } },
             border: borderCfg,
           },
         },

@@ -117,10 +117,37 @@
     return '#dc2626';
   }
 
+  function windColor(w) {
+    if (w == null || isNaN(w)) return '#e8edf5';
+    if (w < 10)  return '#64748b';
+    if (w < 20)  return '#38bdf8';
+    if (w < 30)  return '#2dd4bf';
+    if (w < 40)  return '#a3e635';
+    if (w < 55)  return '#fbbf24';
+    if (w < 70)  return '#fb923c';
+    if (w < 90)  return '#ef4444';
+    return '#dc2626';
+  }
+
+  function precipColor(p) {
+    if (p == null || isNaN(p)) return '#7dd3fc';
+    if (p <= 0)  return '#475569';
+    if (p < 1)   return '#7dd3fc';
+    if (p < 5)   return '#38bdf8';
+    if (p < 10)  return '#2dd4bf';
+    if (p < 15)  return '#4ade80';
+    if (p < 30)  return '#fbbf24';
+    if (p < 50)  return '#fb923c';
+    if (p < 80)  return '#ef4444';
+    return '#f472b6';
+  }
+
   function fmtTemp(t) {
-    if (t == null) return '—';
-    const r = Math.round(t);
-    return (r > 0 ? '+' : '') + r + '°C';
+    if (t == null || isNaN(t)) return '—';
+    var n = Math.abs(Number(t)).toFixed(1);
+    if (Number(t) > 0) return '+' + n + '°C';
+    if (Number(t) < 0) return '−' + n + '°C';
+    return n + '°C';
   }
 
   function fmtWind(speed, dir) {
@@ -206,9 +233,9 @@
       tempEl.style.color = data ? tempColor(data.temp) : '';
       tempEl.textContent = data ? fmtTemp(data.temp) : '—';
     }
-    if (spans[0]) spans[0].textContent = data ? fmtWind(data.wind, data.winddir) : '—';
-    if (spans[1]) spans[1].textContent = data ? fmtHum(data.humidity)            : '—';
-    if (spans[2]) spans[2].textContent = data ? fmtPrec(data.precipTotal)        : '—';
+    if (spans[0]) { spans[0].style.color = data ? windColor(data.wind) : '';    spans[0].textContent = data ? fmtWind(data.wind, data.winddir) : '—'; }
+    if (spans[1]) spans[1].textContent = data ? fmtHum(data.humidity) : '—';
+    if (spans[2]) { spans[2].style.color = data ? precipColor(data.precipTotal) : ''; spans[2].textContent = data ? fmtPrec(data.precipTotal) : '—'; }
   }
 
   function renderFull(card, data) {
@@ -221,12 +248,12 @@
       tempEl.style.color = data ? tempColor(data.temp) : '';
       tempEl.textContent = data ? fmtTemp(data.temp) : '—';
     }
-    if (spans[0]) spans[0].textContent = data ? fmtWind(data.wind, data.winddir)  : '—';
-    if (spans[1]) spans[1].textContent = data ? fmtGust(data.windGust)            : '—';
-    if (spans[2]) spans[2].textContent = data ? fmtHum(data.humidity)             : '—';
-    if (spans[3]) spans[3].textContent = data ? fmtPres(data.pressure)            : '—';
-    if (spans[4]) spans[4].textContent = data ? fmtPrec(data.precipTotal)         : '—';
-    if (spans[5]) spans[5].textContent = data ? fmtObsTime(data.obsTimeLocal)     : '—';
+    if (spans[0]) { spans[0].style.color = data ? windColor(data.wind) : '';      spans[0].textContent = data ? fmtWind(data.wind, data.winddir)  : '—'; }
+    if (spans[1]) { spans[1].style.color = data ? windColor(data.windGust) : '';  spans[1].textContent = data ? fmtGust(data.windGust)            : '—'; }
+    if (spans[2]) spans[2].textContent = data ? fmtHum(data.humidity)  : '—';
+    if (spans[3]) spans[3].textContent = data ? fmtPres(data.pressure) : '—';
+    if (spans[4]) { spans[4].style.color = data ? precipColor(data.precipTotal) : ''; spans[4].textContent = data ? fmtPrec(data.precipTotal)  : '—'; }
+    if (spans[5]) spans[5].textContent = data ? fmtObsTime(data.obsTimeLocal) : '—';
   }
 
   function renderCards() {
@@ -269,9 +296,9 @@
     const activeEl = qs('[data-stats-active]');
     const activeSub = qs('[data-stats-active-sub]');
 
-    if (minEl)   { minEl.className = 'stats-bar-value'; minEl.style.color = tempColor(minE.temp); minEl.textContent = Math.round(minE.temp) + '°'; }
+    if (minEl)   { minEl.className = 'stats-bar-value'; minEl.style.color = tempColor(minE.temp); minEl.textContent = (minE.temp > 0 ? '+' : minE.temp < 0 ? '−' : '') + Math.abs(Number(minE.temp)).toFixed(1) + '°'; }
     if (minName) minName.textContent = STATIONS_META[minE.id]?.name ?? minE.id;
-    if (maxEl)   { maxEl.className = 'stats-bar-value'; maxEl.style.color = tempColor(maxE.temp); maxEl.textContent = Math.round(maxE.temp) + '°'; }
+    if (maxEl)   { maxEl.className = 'stats-bar-value'; maxEl.style.color = tempColor(maxE.temp); maxEl.textContent = (maxE.temp > 0 ? '+' : maxE.temp < 0 ? '−' : '') + Math.abs(Number(maxE.temp)).toFixed(1) + '°'; }
     if (maxName) maxName.textContent = STATIONS_META[maxE.id]?.name ?? maxE.id;
 
     const n = Object.keys(cache).length;
@@ -288,6 +315,7 @@
       if (precipEntries.length) {
         const maxP = precipEntries.reduce((a, b) => b.precip > a.precip ? b : a);
         precipEl.textContent = maxP.precip.toFixed(1) + ' mm';
+        precipEl.style.color = precipColor(maxP.precip);
         precipName.textContent = maxP.precip === 0
           ? 'sense precipitació'
           : (STATIONS_META[maxP.id]?.name ?? maxP.id);
