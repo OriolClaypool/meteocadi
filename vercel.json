@@ -1,4 +1,7 @@
 {
   "cleanUrls": true,
-  "trailingSlash": false
+  "trailingSlash": false,
+  "crons": [
+    { "path": "/api/arxiva", "schedule": "0 4 * * *" }
+  ]
 }
