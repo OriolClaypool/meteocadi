@@ -3,19 +3,23 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Estació — Meteocadí</title>
-  <meta name="description" content="Dades detallades en temps real d'una estació meteorològica de la xarxa Meteocadí." />
+  <title>Estació meteorològica — Meteocadí</title>
+  <meta name="description" content="Dades en temps real de temperatura, vent, precipitació i humitat d'una estació de la xarxa Meteocadí al Cadí-Moixeró i el Berguedà." />
+  <link rel="canonical" href="https://meteocadi.cat/estacio" id="canonical-link" />
   <link rel="icon" type="image/png" href="imatges/logo.png">
   <link rel="apple-touch-icon" href="imatges/logo.png">
-  <meta property="og:title" content="Estació — Meteocadí" />
-  <meta property="og:description" content="Dades detallades en temps real d'una estació meteorològica de la xarxa Meteocadí." />
+  <meta property="og:title" content="Estació meteorològica — Meteocadí" id="og-title" />
+  <meta property="og:description" content="Dades en temps real de temperatura, vent, precipitació i humitat d'una estació de la xarxa Meteocadí al Cadí-Moixeró i el Berguedà." id="og-description" />
   <meta property="og:image" content="https://meteocadi.cat/imatges/logo.png">
   <meta property="og:image:width" content="1080">
   <meta property="og:image:height" content="1080">
-  <meta property="twitter:image" content="https://meteocadi.cat/imatges/logo.png">
-  <meta property="og:url" content="https://meteocadi.cat/estacio.html" />
+  <meta property="og:url" content="https://meteocadi.cat/estacio" id="og-url" />
   <meta property="og:type" content="website" />
+  <meta property="og:locale" content="ca_ES" />
   <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Estació meteorològica — Meteocadí" id="tw-title" />
+  <meta name="twitter:description" content="Dades en temps real de temperatura, vent, precipitació i humitat d'una estació de la xarxa Meteocadí al Cadí-Moixeró i el Berguedà." id="tw-description" />
+  <meta name="twitter:image" content="https://meteocadi.cat/imatges/logo.png">
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="css/style.css" />
@@ -295,7 +299,37 @@
 
   var meta = STATION_META[stationId];
 
-  document.title = meta.name + ' — Meteocadí';
+  var pageTitle = meta.name + ' (' + meta.alt + ' m) — Meteocadí';
+  var pageDesc  = 'Temperatura, vent, precipitació i humitat en temps real a ' + meta.name +
+                  ' (' + meta.alt + ' m s.n.m.), ' + meta.loc + '. Xarxa Meteocadí.';
+  var pageUrl   = 'https://meteocadi.cat/estacio?id=' + stationId;
+
+  document.title = pageTitle;
+  document.getElementById('og-title').setAttribute('content', pageTitle);
+  document.getElementById('og-description').setAttribute('content', pageDesc);
+  document.getElementById('og-url').setAttribute('content', pageUrl);
+  document.getElementById('tw-title').setAttribute('content', pageTitle);
+  document.getElementById('tw-description').setAttribute('content', pageDesc);
+  document.getElementById('canonical-link').setAttribute('href', pageUrl);
+  document.querySelector('meta[name="description"]').setAttribute('content', pageDesc);
+
+  var ldScript = document.createElement('script');
+  ldScript.type = 'application/ld+json';
+  ldScript.text = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'Place',
+    'name': meta.name,
+    'description': pageDesc,
+    'geo': {
+      '@type': 'GeoCoordinates',
+      'latitude': meta.lat,
+      'longitude': meta.lng,
+      'elevation': meta.alt
+    },
+    'url': pageUrl
+  });
+  document.head.appendChild(ldScript);
+
   var showLoc = !meta.loc.startsWith(meta.name) && !meta.name.startsWith(meta.loc);
   document.getElementById('station-eyebrow').textContent = (showLoc ? meta.loc + ' · ' : '') + 'Meteocadí';
   document.getElementById('station-name').textContent    = meta.name;

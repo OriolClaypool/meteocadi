@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+
+Disallow: /ranking
+Disallow: /ranking.html
+Disallow: /taula
+Disallow: /taula.html
+Disallow: /previsio
+Disallow: /previsio.html
+
+Sitemap: https://meteocadi.cat/sitemap.xml
