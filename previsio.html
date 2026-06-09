@@ -492,5 +492,6 @@ iconsReady=Promise.all(WK.map(k=>getIcon(k)));
 build();
 Promise.all([iconsReady, logoReady]).then(()=>draw());
 </script>
+<script defer src="/_vercel/insights/script.js"></script>
 </body>
 </html>
