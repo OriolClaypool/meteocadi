@@ -604,7 +604,7 @@
     console.log('[taula] Bagà group (' + varKey + '): selected', best.id,
       '(' + STATIONS_META[best.id].name + ') with value', best.value,
       '(' + mode + ' among available Bagà stations)');
-    return { id: 'BAGA', name: 'Bagà', alt: STATIONS_META[best.id].alt, value: best.value };
+    return { id: 'BAGA', name: STATIONS_META[best.id].name, alt: STATIONS_META[best.id].alt, value: best.value };
   }
 
   function buildRanking(varKey) {
