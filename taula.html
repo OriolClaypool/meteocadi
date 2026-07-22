@@ -577,19 +577,50 @@
   }
 
   // ── Ranking sort ──────────────────────────────
-  // For temp/wind: deduplicate Bagà — keep only Centre (IBAG73), drop Nord+Sud
-  var EXCL_NON_PRECIP = { IBAG65: 1, IBAG72: 1 };
+  // The three Bagà stations are the same locality and always collapse into a
+  // single "Bagà" row. Which station supplies the value depends on varKey.
+  var BAGA_IDS = ['IBAG65', 'IBAG72', 'IBAG73'];
+  var BAGA_CRITERIA = {
+    tempHigh:     'max',
+    tempLow:      'min',
+    windgustHigh: 'max',
+    precipTotal:  'max'
+  };
+
+  function buildBagaEntry(varKey) {
+    var mode = BAGA_CRITERIA[varKey] || 'max';
+    var best = null;
+    BAGA_IDS.forEach(function (id) {
+      if (!cache[id] || cache[id][varKey] == null) return;
+      var value = cache[id][varKey];
+      if (!best || (mode === 'min' ? value < best.value : value > best.value)) {
+        best = { id: id, value: value };
+      }
+    });
+    if (!best) {
+      console.log('[taula] Bagà group (' + varKey + '): no station online — omitted');
+      return null;
+    }
+    console.log('[taula] Bagà group (' + varKey + '): selected', best.id,
+      '(' + STATIONS_META[best.id].name + ') with value', best.value,
+      '(' + mode + ' among available Bagà stations)');
+    return { id: 'BAGA', name: 'Bagà', alt: STATIONS_META[best.id].alt, value: best.value };
+  }
 
   function buildRanking(varKey) {
-    var excl = varKey !== 'precipTotal' ? EXCL_NON_PRECIP : {};
-    return Object.keys(STATIONS_META)
+    var entries = Object.keys(STATIONS_META)
       .filter(function (id) {
-        if (excl[id]) return false;
+        if (BAGA_IDS.indexOf(id) !== -1) return false;
         return cache[id] && cache[id][varKey] != null;
       })
       .map(function (id) {
         return { id: id, name: STATIONS_META[id].name, alt: STATIONS_META[id].alt, value: cache[id][varKey] };
-      })
+      });
+
+    var baga = buildBagaEntry(varKey);
+    if (baga) entries.push(baga);
+
+    return entries
       .sort(function (a, b) {
         return varKey === 'tempLow' ? a.value - b.value : b.value - a.value;
       })
