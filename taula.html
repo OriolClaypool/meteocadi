@@ -290,10 +290,12 @@
       <button class="pill-btn var-btn" data-var="windgustHigh">Vent màxim</button>
       <button class="pill-btn var-btn" data-var="precipTotal">Precipitació</button>
     </div>
-    <div class="taula-controls" style="margin-top:-8px; margin-bottom:1.5rem;">
+    <div class="taula-controls" style="margin-top:-8px; margin-bottom:0.75rem;">
       <button class="pill-btn fmt-btn active" data-fmt="vertical">Vertical (1080×1920)</button>
       <button class="pill-btn fmt-btn" data-fmt="horizontal">Horitzontal (1920×1080)</button>
     </div>
+
+    <div id="tc-last-update" style="text-align:center; font-size:12px; color:rgba(255,255,255,0.45); margin-bottom:1.5rem;"></div>
 
     <div class="card-outer" id="card-outer">
       <div class="card-scaler" id="card-scaler">
@@ -540,7 +542,7 @@
         var precipTotal  = m.precipTotal  != null ? Number(m.precipTotal)  : null;
 
         console.log('[taula]', id, '→', { tempHigh: tempHigh, tempLow: tempLow, windgustHigh: windgustHigh, precipTotal: precipTotal });
-        return { id: id, tempHigh: tempHigh, tempLow: tempLow, windgustHigh: windgustHigh, precipTotal: precipTotal };
+        return { id: id, tempHigh: tempHigh, tempLow: tempLow, windgustHigh: windgustHigh, precipTotal: precipTotal, obsTimeLocal: entry.obsTimeLocal };
       })
       .catch(function (err) {
         console.warn('[taula]', id, 'fetch failed:', err.message);
@@ -576,15 +578,34 @@
       });
   }
 
+  // ── Last update timestamp (outside the exported card) ─────────
+  function updateLastUpdate(data) {
+    var el = document.getElementById('tc-last-update');
+    if (!el) return;
+    var latest = null;
+    Object.keys(data).forEach(function (id) {
+      var t = data[id].obsTimeLocal;
+      if (t && (!latest || t > latest)) latest = t;
+    });
+    if (!latest) {
+      el.textContent = '';
+      return;
+    }
+    var timePart = latest.indexOf(' ') !== -1 ? latest.split(' ')[1] : latest.split('T')[1];
+    var hhmm = (timePart || '').slice(0, 5);
+    el.textContent = 'Última actualització de les dades: ' + hhmm;
+  }
+
   // ── Ranking sort ──────────────────────────────
-  // The three Bagà stations are the same locality and always collapse into a
-  // single "Bagà" row. Which station supplies the value depends on varKey.
+  // The three Bagà stations are the same locality and collapse into a single
+  // "Bagà" row for temp/wind — the station holding the extreme value supplies
+  // it. Precipitació is the exception: Bagà stations are shown individually,
+  // since local rainfall can differ meaningfully between them.
   var BAGA_IDS = ['IBAG65', 'IBAG72', 'IBAG73'];
   var BAGA_CRITERIA = {
     tempHigh:     'max',
     tempLow:      'min',
-    windgustHigh: 'max',
-    precipTotal:  'max'
+    windgustHigh: 'max'
   };
 
   function buildBagaEntry(varKey) {
@@ -608,17 +629,21 @@
   }
 
   function buildRanking(varKey) {
+    var collapseBaga = varKey !== 'precipTotal';
+
     var entries = Object.keys(STATIONS_META)
       .filter(function (id) {
-        if (BAGA_IDS.indexOf(id) !== -1) return false;
+        if (collapseBaga && BAGA_IDS.indexOf(id) !== -1) return false;
         return cache[id] && cache[id][varKey] != null;
       })
       .map(function (id) {
         return { id: id, name: STATIONS_META[id].name, alt: STATIONS_META[id].alt, value: cache[id][varKey] };
       });
 
-    var baga = buildBagaEntry(varKey);
-    if (baga) entries.push(baga);
+    if (collapseBaga) {
+      var baga = buildBagaEntry(varKey);
+      if (baga) entries.push(baga);
+    }
 
     return entries
       .sort(function (a, b) {
@@ -697,6 +722,7 @@
     }
     fetchAllStations().then(function (data) {
       cache = data;
+      updateLastUpdate(data);
       renderTable(activeVar);
     }).catch(function (err) {
       console.error('[taula] fetchAllStations failed:', err);
