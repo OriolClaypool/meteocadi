@@ -39,7 +39,11 @@
       "Bash(pkill -f \"serve . -p 4901\")",
       "Bash(pkill -f \"npx.*serve\")",
       "Bash(npx vercel *)",
-      "Bash(jobs *)"
+      "Bash(jobs *)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); s=d.get\\('summaries',[]\\); print\\(len\\(s\\)\\); print\\(s[-1] if s else None\\)\")",
+      "Bash(python3 -c ' *)",
+      "Bash(npx --yes playwright --version)",
+      "Bash(FAKE_NOW=\"2026-08-08T22:30:00Z\" DEVICE_TZ=\"UTC\" node debug-taula-faketime.mjs)"
     ]
   }
 }

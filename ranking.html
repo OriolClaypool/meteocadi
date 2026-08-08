@@ -545,21 +545,39 @@
           throw new Error('no summaries');
         }
 
-        // Only accept an entry whose date matches today (local date, YYYY-MM-DD)
+        // "Today" must be the current date in the stations' own local timezone
+        // (Europe/Madrid), NOT the viewer's browser/device timezone — otherwise a
+        // viewer whose device isn't set to Europe/Madrid would compare against the
+        // wrong day and pick up a stale (previous-day) summary. See DEBUG block below.
         var _n = new Date();
-        var today = _n.getFullYear() + '-' +
+        var todayBrowser = _n.getFullYear() + '-' +
           String(_n.getMonth() + 1).padStart(2, '0') + '-' +
           String(_n.getDate()).padStart(2, '0');
+        var todayMadrid = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Madrid' });
+
+        // ── DEBUG (temporary) ──
+        var lastSummary = summaries[summaries.length - 1];
+        console.log('[ranking][DEBUG]', id,
+          '| latest obsTimeLocal:', lastSummary && lastSummary.obsTimeLocal,
+          '| todayBrowser (device TZ, buggy):', todayBrowser,
+          '| todayMadrid (explicit Europe/Madrid, fixed):', todayMadrid,
+          '| device TZ:', Intl.DateTimeFormat().resolvedOptions().timeZone);
+
         var entry = null;
         for (var i = 0; i < summaries.length; i++) {
-          if (summaries[i].obsTimeLocal && summaries[i].obsTimeLocal.slice(0, 10) === today) {
+          if (summaries[i].obsTimeLocal && summaries[i].obsTimeLocal.slice(0, 10) === todayMadrid) {
             entry = summaries[i];
             break;
           }
         }
+
+        console.log('[ranking][DEBUG]', id, entry
+          ? 'MATCH: entry date equals todayMadrid (' + todayMadrid + ')'
+          : 'NO MATCH: no entry for todayMadrid (' + todayMadrid + ') — latest entry is from a previous day');
+
         if (!entry) {
-          var lastDate = (summaries[summaries.length - 1] || {}).obsTimeLocal || '?';
-          console.log('[ranking] excluded:', id, '— no data for today (' + today + '), last entry:', lastDate);
+          var lastDate = (lastSummary || {}).obsTimeLocal || '?';
+          console.log('[ranking] excluded:', id, '— no data for today (' + todayMadrid + '), last entry:', lastDate);
           return { id: id, excluded: true };
         }
 
