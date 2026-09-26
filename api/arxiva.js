@@ -1,4 +1,6 @@
-// Daily archiving cron — runs at 04:00 UTC via Vercel Cron, archives yesterday's data.
+// Daily archiving cron — runs at 04:00 UTC via Vercel Cron. Self-healing: each run
+// scans the last 7 complete days and archives any that are still missing, so a
+// failed night gets backfilled automatically. ?backfill=N overrides the scan window.
 //
 // Required env vars in Vercel:
 //   WU_API_KEY    — Weather Underground API key
@@ -126,16 +128,18 @@ export default async function handler(req, res) {
   }
   console.log('[arxiva] token prefix', ghToken.slice(0, 4), 'length', ghToken.length);
 
-  // ?backfill=N archives the last N complete days instead of only yesterday (max 7).
-  let backfillDays = 1;
+  // By default, self-heal: scan the last 7 complete days and archive any that are
+  // still missing (so a failed night gets backfilled by the next run automatically).
+  // ?backfill=N overrides the scan window (max 7).
+  let daysToScan = 7;
   const backfillParam = Array.isArray(req.query?.backfill) ? req.query.backfill[0] : req.query?.backfill;
   if (backfillParam !== undefined) {
     const parsed = parseInt(backfillParam, 10);
-    if (Number.isFinite(parsed) && parsed > 0) backfillDays = Math.min(parsed, 7);
+    if (Number.isFinite(parsed) && parsed > 0) daysToScan = Math.min(parsed, 7);
   }
 
   const targetDates = [];
-  for (let i = 1; i <= backfillDays; i++) targetDates.push(dateNDaysAgo(i));
+  for (let i = 1; i <= daysToScan; i++) targetDates.push(dateNDaysAgo(i));
   targetDates.sort();
 
   const dateInfos = targetDates.map(date => {
@@ -154,11 +158,12 @@ export default async function handler(req, res) {
   const toArchive = dateInfos.filter((_, i) => existingChecks[i] === null);
   const skipped   = dateInfos.filter((_, i) => existingChecks[i] !== null).map(info => info.date);
 
-  if (backfillDays === 1 && toArchive.length === 0) {
+  if (targetDates.length === 1 && toArchive.length === 0) {
     console.log(`[arxiva] already archived ${targetDates[0]}, skipping`);
     return res.status(200).json({ status: 'skipped', date: targetDates[0], reason: 'already exists' });
   }
   if (toArchive.length === 0) {
+    console.log(`[arxiva] nothing to archive, all of ${targetDates.join(', ')} already exist`);
     return res.status(200).json({ status: 'skipped', dates: targetDates, reason: 'already exists' });
   }
 
@@ -237,7 +242,7 @@ export default async function handler(req, res) {
   }
 
   const archivedDates = toArchive.map(info => info.date);
-  if (backfillDays === 1) {
+  if (targetDates.length === 1) {
     const date = archivedDates[0];
     return res.status(200).json({
       status:   'archived',
