@@ -25,10 +25,10 @@ const GITHUB_REPO  = 'OriolClaypool/meteocadi';
 const GITHUB_BRANCH = 'main';
 const GITHUB_API   = 'https://api.github.com';
 
-// Returns "YYYY-MM-DD" for yesterday in UTC.
-function yesterday() {
+// Returns "YYYY-MM-DD" for N days ago in UTC (n=1 → yesterday).
+function dateNDaysAgo(n) {
   const d = new Date();
-  d.setUTCDate(d.getUTCDate() - 1);
+  d.setUTCDate(d.getUTCDate() - n);
   return d.toISOString().slice(0, 10);
 }
 
@@ -77,7 +77,10 @@ async function ghGet(path, token) {
     headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
   });
   if (res.status === 404) return null;
-  if (!res.ok) throw new Error(`GitHub GET ${path} → ${res.status}`);
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`GitHub GET ${path} → ${res.status}: ${body.slice(0, 300)}`);
+  }
   return res.json();
 }
 
@@ -106,7 +109,7 @@ async function ghPut(path, content, message, sha, token) {
 
 export default async function handler(req, res) {
   // Auth: accept Vercel Cron header or manual Bearer token.
-  const cronSecret = process.env.CRON_SECRET;
+  const cronSecret = (process.env.CRON_SECRET || '').trim();
   if (cronSecret) {
     const auth = req.headers['authorization'] ?? '';
     if (auth !== `Bearer ${cronSecret}`) {
@@ -115,86 +118,133 @@ export default async function handler(req, res) {
     }
   }
 
-  const apiKey = process.env.WU_API_KEY || 'b146442062ee4f8a86442062ee4f8acd';
-  const ghToken = process.env.GITHUB_TOKEN;
+  const apiKey  = (process.env.WU_API_KEY || '').trim() || 'b146442062ee4f8a86442062ee4f8acd';
+  const ghToken = (process.env.GITHUB_TOKEN || '').trim().replace(/^["']|["']$/g, '');
   if (!ghToken) {
     console.error('[arxiva] GITHUB_TOKEN not set');
     return res.status(500).json({ error: 'GITHUB_TOKEN not configured' });
   }
+  console.log('[arxiva] token prefix', ghToken.slice(0, 4), 'length', ghToken.length);
 
-  const date = yesterday();
-  const [year, month] = date.split('-');
-  const dailyPath   = `dades/${year}/${date}.json`;
-  const monthlyPath = `dades/${year}/resum-${year}-${month}.json`;
-
-  console.log(`[arxiva] archiving ${date}`);
-
-  // Idempotency: skip if daily file already exists.
-  const existing = await ghGet(dailyPath, ghToken);
-  if (existing) {
-    console.log(`[arxiva] already archived ${date}, skipping`);
-    return res.status(200).json({ status: 'skipped', date, reason: 'already exists' });
+  // ?backfill=N archives the last N complete days instead of only yesterday (max 7).
+  let backfillDays = 1;
+  const backfillParam = Array.isArray(req.query?.backfill) ? req.query.backfill[0] : req.query?.backfill;
+  if (backfillParam !== undefined) {
+    const parsed = parseInt(backfillParam, 10);
+    if (Number.isFinite(parsed) && parsed > 0) backfillDays = Math.min(parsed, 7);
   }
 
-  // Fetch all stations in parallel.
+  const targetDates = [];
+  for (let i = 1; i <= backfillDays; i++) targetDates.push(dateNDaysAgo(i));
+  targetDates.sort();
+
+  const dateInfos = targetDates.map(date => {
+    const [year, month] = date.split('-');
+    return {
+      date, year, month,
+      dailyPath:   `dades/${year}/${date}.json`,
+      monthlyPath: `dades/${year}/resum-${year}-${month}.json`,
+    };
+  });
+
+  console.log(`[arxiva] archiving ${targetDates.join(', ')}`);
+
+  // Idempotency: skip days whose daily file already exists.
+  const existingChecks = await Promise.all(dateInfos.map(info => ghGet(info.dailyPath, ghToken)));
+  const toArchive = dateInfos.filter((_, i) => existingChecks[i] === null);
+  const skipped   = dateInfos.filter((_, i) => existingChecks[i] !== null).map(info => info.date);
+
+  if (backfillDays === 1 && toArchive.length === 0) {
+    console.log(`[arxiva] already archived ${targetDates[0]}, skipping`);
+    return res.status(200).json({ status: 'skipped', date: targetDates[0], reason: 'already exists' });
+  }
+  if (toArchive.length === 0) {
+    return res.status(200).json({ status: 'skipped', dates: targetDates, reason: 'already exists' });
+  }
+
+  // Fetch all stations once — the 7day summary covers every date we might need.
   const stationIds = Object.keys(STATIONS_META);
   const results = await Promise.allSettled(
     stationIds.map(id => fetchDailySummary(id, apiKey))
   );
-
-  const stations = {};
   for (let i = 0; i < stationIds.length; i++) {
     const id = stationIds[i];
     const r  = results[i];
-    if (r.status === 'rejected') {
-      console.error(`[arxiva] ${id} fetch error:`, r.reason?.message ?? r.reason);
-      stations[id] = null;
-      continue;
-    }
-    const dayEntry = extractDay(r.value, date);
-    if (!dayEntry) {
-      console.warn(`[arxiva] ${id}: no entry for ${date}`);
-      stations[id] = null;
-      continue;
-    }
-    stations[id] = pickFields(dayEntry);
-    console.log(`[arxiva] ${id}: OK`);
+    if (r.status === 'rejected') console.error(`[arxiva] ${id} fetch error:`, r.reason?.message ?? r.reason);
+    else console.log(`[arxiva] ${id}: fetched OK`);
   }
 
-  const dailyDoc = { date, stations };
+  // Build a daily doc per date that needs archiving.
+  const dailyDocs = {};
+  for (const info of toArchive) {
+    const stations = {};
+    for (let i = 0; i < stationIds.length; i++) {
+      const id = stationIds[i];
+      const r  = results[i];
+      if (r.status === 'rejected') {
+        stations[id] = null;
+        continue;
+      }
+      const dayEntry = extractDay(r.value, info.date);
+      if (!dayEntry) {
+        console.warn(`[arxiva] ${id}: no entry for ${info.date}`);
+        stations[id] = null;
+        continue;
+      }
+      stations[id] = pickFields(dayEntry);
+    }
+    dailyDocs[info.date] = { date: info.date, stations };
+  }
 
-  // Write daily file.
-  await ghPut(dailyPath, dailyDoc, `dades: arxiva ${date}`, null, ghToken);
-  console.log(`[arxiva] wrote ${dailyPath}`);
+  // Write daily files.
+  for (const info of toArchive) {
+    await ghPut(info.dailyPath, dailyDocs[info.date], `dades: arxiva ${info.date}`, null, ghToken);
+    console.log(`[arxiva] wrote ${info.dailyPath}`);
+  }
 
-  // Update (or create) monthly aggregate.
-  const monthlyExisting = await ghGet(monthlyPath, ghToken);
-  let monthlyDoc;
-  if (monthlyExisting) {
-    const current = JSON.parse(Buffer.from(monthlyExisting.content, 'base64').toString('utf8'));
-    // Replace entry for this date if it exists, otherwise append.
-    const days = Array.isArray(current.days) ? current.days : [];
-    const idx  = days.findIndex(d => d.date === date);
-    if (idx >= 0) days[idx] = dailyDoc;
-    else days.push(dailyDoc);
+  // Update (or create) monthly aggregates, grouped by year-month so a
+  // backfill spanning a month boundary updates each file correctly.
+  const monthGroups = new Map();
+  for (const info of toArchive) {
+    const key = `${info.year}-${info.month}`;
+    if (!monthGroups.has(key)) {
+      monthGroups.set(key, { monthlyPath: info.monthlyPath, year: info.year, month: info.month, dates: [] });
+    }
+    monthGroups.get(key).dates.push(info.date);
+  }
+
+  for (const group of monthGroups.values()) {
+    const monthlyExisting = await ghGet(group.monthlyPath, ghToken);
+    const days = monthlyExisting
+      ? (JSON.parse(Buffer.from(monthlyExisting.content, 'base64').toString('utf8')).days ?? [])
+      : [];
+    for (const date of group.dates) {
+      const idx = days.findIndex(d => d.date === date);
+      if (idx >= 0) days[idx] = dailyDocs[date];
+      else days.push(dailyDocs[date]);
+    }
     days.sort((a, b) => a.date.localeCompare(b.date));
-    monthlyDoc = { year, month, days };
-  } else {
-    monthlyDoc = { year, month, days: [dailyDoc] };
+    const monthlyDoc = { year: group.year, month: group.month, days };
+
+    await ghPut(
+      group.monthlyPath,
+      monthlyDoc,
+      `dades: actualitza resum ${group.year}-${group.month}`,
+      monthlyExisting?.sha ?? null,
+      ghToken
+    );
+    console.log(`[arxiva] wrote ${group.monthlyPath}`);
   }
 
-  await ghPut(
-    monthlyPath,
-    monthlyDoc,
-    `dades: actualitza resum ${year}-${month}`,
-    monthlyExisting?.sha ?? null,
-    ghToken
-  );
-  console.log(`[arxiva] wrote ${monthlyPath}`);
+  const archivedDates = toArchive.map(info => info.date);
+  if (backfillDays === 1) {
+    const date = archivedDates[0];
+    return res.status(200).json({
+      status:   'archived',
+      date,
+      stations: Object.fromEntries(stationIds.map(id => [id, dailyDocs[date].stations[id] !== null ? 'ok' : 'missing'])),
+    });
+  }
 
-  return res.status(200).json({
-    status:   'archived',
-    date,
-    stations: Object.fromEntries(stationIds.map(id => [id, stations[id] !== null ? 'ok' : 'missing'])),
-  });
+  return res.status(200).json({ status: 'archived', archived: archivedDates, skipped });
 }
