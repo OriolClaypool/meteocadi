@@ -1,0 +1,64 @@
+---
+import Base from '../layouts/Base.astro';
+import { STATIONS } from '../lib/stations.js';
+---
+<Base
+  title="Radar de pluja en directe al Berguedà i el Cadí-Moixeró | Meteocadí"
+  description="Radar de precipitació del Meteocat en directe per al Berguedà, la Cerdanya i el Cadí-Moixeró, amb la pluja acumulada avui a cada estació de la xarxa Meteocadí."
+  path="/radar"
+  current="radar"
+>
+  <section class="sec sec--dark" style="padding:40px 0 72px;">
+    <div class="wrap" style="display:flex;flex-direction:column;gap:24px;">
+      <div class="sec__head" style="margin:0;">
+        <div>
+          <span class="eyebrow">RADAR · METEOCAT</span>
+          <h1 class="h2">Radar de pluja</h1>
+          <p class="sub" style="max-width:640px;">Imatge del radar del Servei Meteorològic de Catalunya, actualitzada cada pocs minuts. Al costat, la pluja que han recollit avui les estacions de la xarxa.</p>
+        </div>
+        <span class="tag tag--soft">Aviat: llamps en directe</span>
+      </div>
+      <div class="radar-grid">
+        <div class="radar-frame">
+          <iframe src="https://static-m.meteo.cat/ginys/mapaRadar?language=ca&color=3db8ff" title="Radar de precipitació del Meteocat" loading="lazy"></iframe>
+        </div>
+        <div class="panel" style="padding:22px 22px 12px;">
+          <span class="eyebrow">PLUJA AVUI A LA XARXA</span>
+          <ul class="rain-list" data-rain-list>
+            {STATIONS.map((s) => (
+              <li data-rain-row={s.id}><a href={`/estacions/${s.slug}`}>{s.name.split(' - ')[0]}</a><span class="mono" data-rain-v>—</span></li>
+            ))}
+          </ul>
+        </div>
+      </div>
+      <p style="font-size:13px;color:#7d8fa6;">Radar: <a href="https://www.meteo.cat/" rel="noopener" target="_blank" style="color:#7fd0ff;">Meteocat</a>. Pluja de les estacions: acumulada des de mitjanit.</p>
+    </div>
+  </section>
+</Base>
+<style>
+  .radar-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px; align-items: start; }
+  .radar-frame { border-radius: 16px; overflow: hidden; border: 1px solid rgba(61, 184, 255, 0.16); background: #0b1320; aspect-ratio: 4 / 3; }
+  .radar-frame iframe { width: 100%; height: 100%; border: 0; display: block; }
+  .rain-list { list-style: none; margin: 14px 0 0; padding: 0; }
+  .rain-list li { display: flex; justify-content: space-between; gap: 12px; padding: 11px 0; border-top: 1px solid rgba(255, 255, 255, 0.06); font-size: 15px; }
+  .rain-list a { color: #e6edf6; }
+  @media (max-width: 980px) { .radar-grid { grid-template-columns: 1fr; } .radar-frame { aspect-ratio: 1 / 1; } }
+</style>
+<script>
+  import { loadAra } from '../scripts/live.js';
+  import { num, precipColor } from '../lib/format.js';
+  loadAra().then((j: any) => {
+    const list = document.querySelector('[data-rain-list]');
+    if (!j || !list) return;
+    const rows = Array.from(list.querySelectorAll<HTMLElement>('[data-rain-row]'));
+    rows.forEach((li) => {
+      const d = j.stations?.[li.dataset.rainRow!];
+      const v = li.querySelector<HTMLElement>('[data-rain-v]')!;
+      const r = d?.rain;
+      v.textContent = r != null ? `${num(r)} mm` : '—';
+      v.style.color = precipColor(r);
+      li.dataset.v = String(r ?? -1);
+    });
+    rows.sort((a, b) => Number(b.dataset.v) - Number(a.dataset.v)).forEach((li) => list.appendChild(li));
+  });
+</script>

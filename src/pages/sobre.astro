@@ -1,0 +1,48 @@
+---
+import Base from '../layouts/Base.astro';
+import { STATIONS, fmtAlt } from '../lib/stations.js';
+const maxAlt = Math.max(...STATIONS.map((s) => s.alt));
+---
+<Base
+  title="Sobre Meteocadí: la xarxa meteorològica del Cadí-Moixeró"
+  description="Meteocadí és una xarxa ciutadana d'estacions meteorològiques al Cadí-Moixeró i el Berguedà, en col·laboració amb el Parc Natural del Cadí-Moixeró. Qui som, com funciona i d'on surten les dades."
+  path="/sobre"
+  current="sobre"
+>
+  <section class="phead">
+    <div class="wrap">
+      <h1>Una xarxa de <em>meteorologia ciutadana</em></h1>
+      <p>Dades meteorològiques fiables d'alta muntanya, a l'abast de tothom.</p>
+    </div>
+  </section>
+  <section class="sec">
+    <div class="wrap grid2" style="gap:72px;align-items:start;">
+      <div class="prose">
+        <h2 style="margin-top:0;">Qui som</h2>
+        <p>Meteocadí és una iniciativa de meteorologia ciutadana dedicada a la monitorització contínua de les condicions atmosfèriques al massís del Cadí-Moixeró i els seus encontorns. El projecte neix de la voluntat de posar a l'abast de tothom dades meteorològiques fiables d'alta muntanya, un territori on l'observació professional sovint té buits importants.</p>
+        <p>La xarxa es fonamenta en estacions automàtiques gestionades per col·laboradors del territori, integrades a Weather Underground. Totes les dades són públiques i de lliure accés.</p>
+        <h2>La xarxa d'estacions</h2>
+        <p>Avui la formen {STATIONS.length} estacions, des de les valls del Berguedà fins als {fmtAlt(maxAlt)} de Tancalaporta. Cada estació registra temperatura, vent i ratxes, humitat, pressió i precipitació.</p>
+        <p>La col·laboració amb el <strong>Parc Natural del Cadí-Moixeró</strong> permet ubicar estacions en punts estratègics de l'espai protegit, amb una cobertura que difícilment s'assoliria a títol individual.</p>
+        <h2>El territori</h2>
+        <p>El massís del Cadí-Moixeró és una de les serralades prepirinenques més singulars de Catalunya. Amb uns 50 km en sentit est-oest i cims que superen els 2.600 m, fa de barrera climàtica entre la Cerdanya, al nord, i el Berguedà i l'Alt Urgell, al sud.</p>
+        <p>Aquesta posició el fa molt sensible als fluxos del nord i als fronts atlàntics, i la complexitat del relleu crea microclimes molt marcats en pocs quilòmetres. Per això és tan valuós tenir estacions repartides per tot el territori, i una sèrie de dades llarga per documentar els efectes del canvi climàtic a l'alta muntanya.</p>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:16px;">
+        <div class="card"><span class="eyebrow">Estacions</span><p class="mono" style="font-size:40px;">{STATIONS.length}</p></div>
+        <div class="card"><span class="eyebrow">Altitud màxima</span><p class="mono" style="font-size:40px;">{fmtAlt(maxAlt)}</p></div>
+        <div class="card">
+          <span class="eyebrow">D'on surten les dades</span>
+          <ul style="margin:10px 0 0;padding-left:18px;color:var(--ink2);line-height:1.8;">
+            <li>Estacions: <a href="https://www.wunderground.com/" rel="noopener" target="_blank">Weather Underground</a></li>
+            <li>Previsió: <a href="https://open-meteo.com/" rel="noopener" target="_blank">Open-Meteo</a></li>
+            <li>Radar: <a href="https://www.meteo.cat/" rel="noopener" target="_blank">Servei Meteorològic de Catalunya</a></li>
+            <li>Mapes: © OpenStreetMap i CARTO</li>
+            <li>Icones del temps: Meteocons (llicència MIT)</li>
+          </ul>
+        </div>
+        <a class="btn btn--blue" href="/contacte" style="align-self:flex-start;">Vols col·laborar-hi?</a>
+      </div>
+    </div>
+  </section>
+</Base>

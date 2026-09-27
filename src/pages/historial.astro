@@ -1,0 +1,99 @@
+---
+import Base from '../layouts/Base.astro';
+import { months, latestDay, extremes, completeDays } from '../lib/archive.js';
+import { STATIONS, BY_ID, fmtAlt } from '../lib/stations.js';
+import { num, dayName, dayMonth, longDate, monthName, cap, tempColorLight, desDe } from '../lib/format.js';
+
+const ms = months();
+const last = latestDay();
+const all = completeDays();
+const first = all[0];
+const who = (e) => (e ? `${e.station?.name.split(' - ')[0] ?? ''}` : '');
+---
+<Base
+  title="Historial i rècords meteorològics del Cadí-Moixeró | Meteocadí"
+  description="Arxiu diari de les estacions de Meteocadí: màximes, mínimes, ratxes de vent i pluja de cada dia i resum de cada mes al Cadí-Moixeró i el Berguedà."
+  path="/historial"
+  current="historial"
+>
+  <section class="phead">
+    <div class="wrap">
+      <h1>Historial <em>i rècords</em></h1>
+      <p>Cada nit arxivem el resum del dia de totes les estacions de la xarxa. {first && <>Arxiu {desDe(first.date)} ({all.length} dies).</>}</p>
+    </div>
+  </section>
+
+  {last && (
+    <section class="sec" style="padding-bottom:40px;">
+      <div class="wrap">
+        <h2 class="h2" style="font-size:34px;margin-bottom:8px;">{cap(longDate(last.date))}</h2>
+        <p class="sub" style="margin-bottom:24px;">Darrer dia arxivat, estació per estació.</p>
+        <div class="tscroll">
+          <table class="dtable">
+            <thead><tr><th>Estació</th><th class="n">Altitud</th><th class="n">Màx.</th><th class="n">Mín.</th><th class="n">Ratxa</th><th class="n">Pluja</th><th class="n">Humitat</th></tr></thead>
+            <tbody>
+              {STATIONS.map((s) => {
+                const d = last.stations[s.id];
+                return (
+                  <tr>
+                    <td><a href={`/estacions/${s.slug}`}>{s.name}</a></td>
+                    <td class="n">{fmtAlt(s.alt)}</td>
+                    {d ? (
+                      <>
+                        <td class="n" style={`color:${tempColorLight(d.tempHigh)}`}>{num(d.tempHigh)}°</td>
+                        <td class="n" style={`color:${tempColorLight(d.tempLow)}`}>{num(d.tempLow)}°</td>
+                        <td class="n">{d.windgustHigh != null ? `${num(d.windgustHigh)} km/h` : '—'}</td>
+                        <td class="n">{num(d.precipTotal)} mm</td>
+                        <td class="n">{d.humidityAvg != null ? `${Math.round(d.humidityAvg)} %` : '—'}</td>
+                      </>
+                    ) : (
+                      <td class="n" colspan="5" style="color:var(--muted)">Sense dades</td>
+                    )}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  )}
+
+  {ms.map((m) => (
+    <section class="sec sec--pale" style="padding:64px 0;">
+      <div class="wrap" style="display:flex;flex-direction:column;gap:24px;">
+        <div>
+          <h2 class="h2" style="font-size:34px;">{cap(monthName(m.month))} de {m.year}</h2>
+          <p class="sub">{m.days} dies arxivats{m.days < 28 ? ` (del ${dayMonth(m.first)} al ${dayMonth(m.last)})` : ''}.</p>
+        </div>
+        <div class="recs">
+          <div class="card"><span class="eyebrow">Màxima del mes</span><p class="mono" style={`font-size:30px;color:${tempColorLight(m.max?.v)}`}>{num(m.max?.v)}°</p><p style="font-size:14px;color:var(--muted)">{who(m.max)} · {m.max && `${dayName(m.max.date)} ${dayMonth(m.max.date)}`}</p></div>
+          <div class="card"><span class="eyebrow">Mínima del mes</span><p class="mono" style={`font-size:30px;color:${tempColorLight(m.min?.v)}`}>{num(m.min?.v)}°</p><p style="font-size:14px;color:var(--muted)">{who(m.min)} · {m.min && `${dayName(m.min.date)} ${dayMonth(m.min.date)}`}</p></div>
+          <div class="card"><span class="eyebrow">Ratxa més forta</span><p class="mono" style="font-size:30px;">{num(m.gust?.v)} <small style="font-size:15px;color:var(--muted)">km/h</small></p><p style="font-size:14px;color:var(--muted)">{who(m.gust)} · {m.gust && `${dayName(m.gust.date)} ${dayMonth(m.gust.date)}`}</p></div>
+          <div class="card"><span class="eyebrow">Més pluja acumulada</span><p class="mono" style="font-size:30px;">{num(m.wettest?.v)} <small style="font-size:15px;color:var(--muted)">mm</small></p><p style="font-size:14px;color:var(--muted)">{m.wettest && m.wettest.v > 0 ? who(m.wettest) : 'Cap estació amb pluja'}</p></div>
+        </div>
+        <div class="tscroll" style="background:#fff;border-radius:12px;padding:8px 8px 0;">
+          <table class="dtable">
+            <thead><tr><th>Dia</th><th class="n">Màxima</th><th>On</th><th class="n">Mínima</th><th>On</th><th class="n">Ratxa</th><th class="n">Pluja màx.</th></tr></thead>
+            <tbody>
+              {[...m.daysList].reverse().map((d) => {
+                const e = extremes(d);
+                return (
+                  <tr>
+                    <td>{dayName(d.date)} {dayMonth(d.date)}</td>
+                    <td class="n" style={`color:${tempColorLight(e.max?.v)}`}>{num(e.max?.v)}°</td>
+                    <td>{who(e.max)}</td>
+                    <td class="n" style={`color:${tempColorLight(e.min?.v)}`}>{num(e.min?.v)}°</td>
+                    <td>{who(e.min)}</td>
+                    <td class="n">{e.gust ? `${num(e.gust.v)} km/h` : '—'}</td>
+                    <td class="n">{num(e.rain?.v ?? 0)} mm</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  ))}
+</Base>

@@ -1,0 +1,18 @@
+---
+// Línies de vent animades sobre el cel de la portada
+const lines = [];
+const durs = [14, 11, 13, 10, 15, 12, 13, 11, 14];
+const dels = [0, -2, -5, -7, -1, -9, -4, -6, -3];
+const ops = [0.34, 0.26, 0.3, 0.22, 0.32, 0.24, 0.28, 0.22, 0.26];
+let i = 0;
+for (let y = 70; y < 520; y += 52, i++) {
+  const d = `M-60 ${y} C320 ${y - 36} 720 ${y + 42} 1100 ${y - 18} S1480 ${y + 30} 1520 ${y + 8}`;
+  lines.push({ d, cls: 'w-dot', op: ops[i % 9], w: 1.7, dur: durs[i % 9], del: dels[i % 9] });
+  if (i % 2 === 0) lines.push({ d, cls: 'w-streak', op: +(ops[i % 9] * 0.7).toFixed(2), w: 1.3, dur: durs[i % 9] - 3, del: dels[i % 9] - 2 });
+}
+---
+<svg class="hero__wind" viewBox="0 0 1440 600" preserveAspectRatio="xMidYMin slice" fill="none" aria-hidden="true">
+  {lines.map((l) => (
+    <path class={l.cls} d={l.d} stroke="#ffffff" stroke-opacity={l.op} stroke-width={l.w} style={`animation-duration:${l.dur}s;animation-delay:${l.del}s`}></path>
+  ))}
+</svg>

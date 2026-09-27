@@ -1,0 +1,57 @@
+---
+import Base from '../layouts/Base.astro';
+import { PLACES } from '../lib/places.js';
+import { BY_ID, fmtAlt } from '../lib/stations.js';
+const groups = [
+  { title: 'Pobles', list: PLACES.filter((p) => p.kind === 'poble') },
+  { title: 'Cims i colls', list: PLACES.filter((p) => p.kind !== 'poble') },
+];
+const ld = [
+  {
+    '@type': 'ItemList',
+    name: 'El temps als pobles i cims del Cadí-Moixeró',
+    itemListElement: PLACES.map((p, i) => ({ '@type': 'ListItem', position: i + 1, name: `El temps ${p.a}`, url: `https://meteocadi.cat/temps/${p.slug}` })),
+  },
+];
+---
+<Base
+  title="El temps als pobles i cims del Cadí-Moixeró i el Berguedà | Meteocadí"
+  description="Temps actual i previsió per hores a Bagà, Gósol, Saldes, el Pedraforca, la serra del Cadí, el Coll de Pal, Guardiola de Berguedà, la Pobla de Lillet i més, amb dades de les estacions de la xarxa."
+  path="/temps"
+  jsonLd={ld}
+  current="temps"
+>
+  <section class="phead">
+    <div class="wrap">
+      <h1>El temps als <em>pobles i cims</em></h1>
+      <p>Cada lloc té les dades en directe de les estacions més properes, la previsió per hores calculada per a la seva altitud i l'historial de l'estació de referència.</p>
+      <p style="margin-top:14px;"><a class="btn btn--blue" href="/cap-de-setmana">Previsió per a aquest cap de setmana</a></p>
+    </div>
+  </section>
+  <section class="sec">
+    <div class="wrap" style="display:flex;flex-direction:column;gap:56px;">
+      {groups.map((g) => (
+        <div>
+          <h2 class="h2" style="font-size:34px;margin-bottom:20px;">{g.title}</h2>
+          <div class="places">
+            {g.list.map((p) => (
+              <a href={`/temps/${p.slug}`} class="place">
+                <span class="place__n">{p.name}</span>
+                <span class="place__a mono">{fmtAlt(p.alt)}</span>
+                <span class="place__s">Estació: {BY_ID[p.stations[0]].name}</span>
+              </a>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
+</Base>
+<style>
+  .places { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+  .place { display: flex; flex-direction: column; gap: 6px; padding: 22px 24px; border-radius: 14px; border: 1px solid var(--line); background: #fff; color: var(--ink); transition: border-color .15s, transform .2s; }
+  .place:hover { border-color: var(--blue); transform: translateY(-2px); color: var(--ink); }
+  .place__n { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+  .place__a { font-size: 14px; color: var(--blue); }
+  .place__s { font-size: 14px; color: var(--muted); }
+</style>

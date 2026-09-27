@@ -1,7 +1,344 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "astro",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
   "cleanUrls": true,
   "trailingSlash": false,
   "crons": [
-    { "path": "/api/arxiva", "schedule": "0 4 * * *" }
+    {
+      "path": "/api/arxiva",
+      "schedule": "0 4 * * *"
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/estacio",
+      "has": [
+        {
+          "type": "query",
+          "key": "id",
+          "value": "IGISCL6"
+        }
+      ],
+      "destination": "/estacions/tancalaporta",
+      "permanent": true
+    },
+    {
+      "source": "/estacio",
+      "has": [
+        {
+          "type": "query",
+          "key": "id",
+          "value": "IGSOL7"
+        }
+      ],
+      "destination": "/estacions/pedraforca",
+      "permanent": true
+    },
+    {
+      "source": "/estacio",
+      "has": [
+        {
+          "type": "query",
+          "key": "id",
+          "value": "IGUARD34"
+        }
+      ],
+      "destination": "/estacions/coll-de-pal",
+      "permanent": true
+    },
+    {
+      "source": "/estacio",
+      "has": [
+        {
+          "type": "query",
+          "key": "id",
+          "value": "IBAG67"
+        }
+      ],
+      "destination": "/estacions/refugi-de-rebost",
+      "permanent": true
+    },
+    {
+      "source": "/estacio",
+      "has": [
+        {
+          "type": "query",
+          "key": "id",
+          "value": "IGSOL4"
+        }
+      ],
+      "destination": "/estacions/gosol",
+      "permanent": true
+    },
+    {
+      "source": "/estacio",
+      "has": [
+        {
+          "type": "query",
+          "key": "id",
+          "value": "ISANTJ138"
+        }
+      ],
+      "destination": "/estacions/cerdanyola-forcat",
+      "permanent": true
+    },
+    {
+      "source": "/estacio",
+      "has": [
+        {
+          "type": "query",
+          "key": "id",
+          "value": "ISANTJ53"
+        }
+      ],
+      "destination": "/estacions/cerdanyola-poble",
+      "permanent": true
+    },
+    {
+      "source": "/estacio",
+      "has": [
+        {
+          "type": "query",
+          "key": "id",
+          "value": "ILANOU4"
+        }
+      ],
+      "destination": "/estacions/la-nou-de-bergueda",
+      "permanent": true
+    },
+    {
+      "source": "/estacio",
+      "has": [
+        {
+          "type": "query",
+          "key": "id",
+          "value": "IBAG65"
+        }
+      ],
+      "destination": "/estacions/baga-nord",
+      "permanent": true
+    },
+    {
+      "source": "/estacio",
+      "has": [
+        {
+          "type": "query",
+          "key": "id",
+          "value": "IBARCELO40"
+        }
+      ],
+      "destination": "/estacions/la-pobla-de-lillet",
+      "permanent": true
+    },
+    {
+      "source": "/estacio",
+      "has": [
+        {
+          "type": "query",
+          "key": "id",
+          "value": "IBAG73"
+        }
+      ],
+      "destination": "/estacions/baga-centre",
+      "permanent": true
+    },
+    {
+      "source": "/estacio",
+      "has": [
+        {
+          "type": "query",
+          "key": "id",
+          "value": "IBAG72"
+        }
+      ],
+      "destination": "/estacions/baga-sud",
+      "permanent": true
+    },
+    {
+      "source": "/estacio",
+      "destination": "/estacions",
+      "permanent": true
+    },
+    {
+      "source": "/estacio.html",
+      "has": [
+        {
+          "type": "query",
+          "key": "id",
+          "value": "IGISCL6"
+        }
+      ],
+      "destination": "/estacions/tancalaporta",
+      "permanent": true
+    },
+    {
+      "source": "/estacio.html",
+      "has": [
+        {
+          "type": "query",
+          "key": "id",
+          "value": "IGSOL7"
+        }
+      ],
+      "destination": "/estacions/pedraforca",
+      "permanent": true
+    },
+    {
+      "source": "/estacio.html",
+      "has": [
+        {
+          "type": "query",
+          "key": "id",
+          "value": "IGUARD34"
+        }
+      ],
+      "destination": "/estacions/coll-de-pal",
+      "permanent": true
+    },
+    {
+      "source": "/estacio.html",
+      "has": [
+        {
+          "type": "query",
+          "key": "id",
+          "value": "IBAG67"
+        }
+      ],
+      "destination": "/estacions/refugi-de-rebost",
+      "permanent": true
+    },
+    {
+      "source": "/estacio.html",
+      "has": [
+        {
+          "type": "query",
+          "key": "id",
+          "value": "IGSOL4"
+        }
+      ],
+      "destination": "/estacions/gosol",
+      "permanent": true
+    },
+    {
+      "source": "/estacio.html",
+      "has": [
+        {
+          "type": "query",
+          "key": "id",
+          "value": "ISANTJ138"
+        }
+      ],
+      "destination": "/estacions/cerdanyola-forcat",
+      "permanent": true
+    },
+    {
+      "source": "/estacio.html",
+      "has": [
+        {
+          "type": "query",
+          "key": "id",
+          "value": "ISANTJ53"
+        }
+      ],
+      "destination": "/estacions/cerdanyola-poble",
+      "permanent": true
+    },
+    {
+      "source": "/estacio.html",
+      "has": [
+        {
+          "type": "query",
+          "key": "id",
+          "value": "ILANOU4"
+        }
+      ],
+      "destination": "/estacions/la-nou-de-bergueda",
+      "permanent": true
+    },
+    {
+      "source": "/estacio.html",
+      "has": [
+        {
+          "type": "query",
+          "key": "id",
+          "value": "IBAG65"
+        }
+      ],
+      "destination": "/estacions/baga-nord",
+      "permanent": true
+    },
+    {
+      "source": "/estacio.html",
+      "has": [
+        {
+          "type": "query",
+          "key": "id",
+          "value": "IBARCELO40"
+        }
+      ],
+      "destination": "/estacions/la-pobla-de-lillet",
+      "permanent": true
+    },
+    {
+      "source": "/estacio.html",
+      "has": [
+        {
+          "type": "query",
+          "key": "id",
+          "value": "IBAG73"
+        }
+      ],
+      "destination": "/estacions/baga-centre",
+      "permanent": true
+    },
+    {
+      "source": "/estacio.html",
+      "has": [
+        {
+          "type": "query",
+          "key": "id",
+          "value": "IBAG72"
+        }
+      ],
+      "destination": "/estacions/baga-sud",
+      "permanent": true
+    },
+    {
+      "source": "/estacio.html",
+      "destination": "/estacions",
+      "permanent": true
+    },
+    {
+      "source": "/index",
+      "destination": "/",
+      "permanent": true
+    },
+    {
+      "source": "/sitemap.xml",
+      "destination": "/sitemap-index.xml",
+      "permanent": false
+    }
+  ],
+  "headers": [
+    {
+      "source": "/imatges/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=2592000, stale-while-revalidate=86400"
+        }
+      ]
+    },
+    {
+      "source": "/_astro/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    }
   ]
 }

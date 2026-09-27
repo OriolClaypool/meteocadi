@@ -1,0 +1,197 @@
+---
+import Base from '../layouts/Base.astro';
+---
+<Base
+  title="Mapa de les estacions i mapa tèrmic del Cadí-Moixeró | Meteocadí"
+  description="Mapa en directe de les estacions de Meteocadí al Cadí-Moixeró i el Berguedà: temperatura, màximes i mínimes, vent, ratxes, pluja i humitat, i mapa tèrmic interpolat."
+  path="/mapa"
+  current="mapa"
+>
+  <section class="sec sec--dark" style="padding:40px 0 64px;">
+    <div class="wrap" style="display:flex;flex-direction:column;gap:18px;">
+      <div class="sec__head" style="margin:0;">
+        <div>
+          <span class="eyebrow"><span class="live live--off" data-live-badge style="padding:6px 12px;"><span class="live__dot"><i></i><i></i></span><span data-live-text>CONNECTANT…</span></span></span>
+          <h1 class="h2">Mapa en directe</h1>
+        </div>
+        <div class="filters" role="group" aria-label="Variable del mapa" id="vars"></div>
+      </div>
+      <div id="map" aria-label="Mapa de les estacions"></div>
+      <p style="font-size:13px;color:#7d8fa6;">El mapa tèrmic és orientatiu: s'interpola a partir de les lectures de les estacions de la xarxa i no té en compte el relleu.</p>
+    </div>
+  </section>
+</Base>
+<style is:global>
+  #map { width: 100%; height: min(72vh, 760px); min-height: 460px; border-radius: 16px; border: 1px solid rgba(61, 184, 255, 0.16); background: #0b1320; }
+  .leaflet-container { font-family: var(--f-ui); }
+  .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #0f1a2b; color: #e6edf6; border: 1px solid rgba(61, 184, 255, 0.2); }
+  .leaflet-popup-content-wrapper { border-radius: 12px; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5); }
+  .leaflet-popup-close-button { color: #93a3b8 !important; }
+  .pp-n { font-size: 15px; font-weight: 600; }
+  .pp-a { font-family: var(--f-mono); font-size: 11.5px; color: #93a3b8; margin: 2px 0 8px; }
+  .pp-v { font-family: var(--f-mono); font-size: 26px; line-height: 1; }
+  .pp-l { font-size: 12px; color: #93a3b8; margin-top: 4px; }
+  .pp-go { display: block; margin-top: 10px; font-size: 13px; color: #7fd0ff !important; text-align: right; }
+  .leaflet-tooltip.stt { background: rgba(6, 10, 18, 0.9); border: 1px solid rgba(61, 184, 255, 0.2); border-radius: 6px; color: #e6edf6; padding: 3px 8px; box-shadow: none; font-family: var(--f-ui); }
+  .leaflet-tooltip.stt::before { border-top-color: rgba(61, 184, 255, 0.2) !important; }
+  .map-box { background: rgba(6, 10, 18, 0.88); border: 1px solid rgba(61, 184, 255, 0.18); border-radius: 10px; padding: 10px 12px; color: #c3cfde; font-family: var(--f-ui); min-width: 170px; }
+  .map-box b { display: block; font-family: var(--f-mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: #93a3b8; font-weight: 400; margin-bottom: 6px; }
+  .map-box button { width: 100%; height: 36px; border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.14); background: transparent; color: #c3cfde; cursor: pointer; font: inherit; font-size: 13px; }
+  .map-box button[aria-pressed='true'] { background: #3db8ff; border-color: #3db8ff; color: #04121f; font-weight: 600; }
+</style>
+<script>
+  import L from 'leaflet';
+  import 'leaflet/dist/leaflet.css';
+  import { loadAra } from '../scripts/live.js';
+  import { paint } from '../scripts/live.js';
+  import { tempColor, windColor, precipColor, num } from '../lib/format.js';
+  import { STATIONS as ST } from '../lib/stations.js';
+
+  const STATIONS = ST as any[];
+  const VARS = [
+    { key: 'temp', label: 'Temperatura ara', unit: '°' },
+    { key: 'max', label: 'Màxima avui', unit: '°' },
+    { key: 'min', label: 'Mínima avui', unit: '°' },
+    { key: 'rain', label: 'Pluja avui', unit: ' mm' },
+    { key: 'wind', label: 'Vent ara', unit: ' km/h' },
+    { key: 'gustMax', label: 'Ratxa màx. avui', unit: ' km/h' },
+    { key: 'hum', label: 'Humitat', unit: ' %' },
+  ];
+  const humColor = (h: number) => (h < 30 ? '#bfdbfe' : h < 50 ? '#93c5fd' : h < 70 ? '#60a5fa' : h < 85 ? '#3b82f6' : '#1d4ed8');
+  const color = (k: string, v: number | null) => {
+    if (v == null) return '#56677e';
+    if (k === 'temp' || k === 'max' || k === 'min') return tempColor(v);
+    if (k === 'rain') return precipColor(v);
+    if (k === 'wind' || k === 'gustMax') return windColor(v);
+    if (k === 'hum') return humColor(v);
+    return '#e6edf6';
+  };
+  const fmt = (k: string, v: number | null) => {
+    if (v == null) return '—';
+    const u = VARS.find((x) => x.key === k)!.unit;
+    return k === 'wind' || k === 'gustMax' || k === 'hum' ? `${Math.round(v)}${u}` : `${num(v)}${u}`;
+  };
+
+  let data: any = {};
+  let cur = 'temp';
+  const map = L.map('map', { zoomControl: true, scrollWheelZoom: false }).setView([42.245, 1.85], 11);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/">CARTO</a>',
+    subdomains: 'abcd',
+    maxZoom: 18,
+  }).addTo(map);
+  map.createPane('thermal').style.zIndex = '350';
+
+  const coords = (s: any) => {
+    const d = data[s.id];
+    return d && d.lat != null && d.lon != null ? [d.lat, d.lon] : [s.lat, s.lng];
+  };
+  const markers: Record<string, any> = {};
+  function draw() {
+    const vk = VARS.find((x) => x.key === cur)!;
+    for (const s of STATIONS) {
+      const d = data[s.id];
+      const v = d ? d[cur] : null;
+      const c = d && !d.stale ? color(cur, v) : '#fbbf24';
+      const pop = `<div class="pp-n">${s.name}</div><div class="pp-a">${String(s.alt).replace(/\B(?=(\d{3})+(?!\d))/g, '.')} m · ${s.loc}</div><div class="pp-v" style="color:${c}">${fmt(cur, v)}</div><div class="pp-l">${vk.label}${d?.stale ? ' · sense lectures recents' : ''}</div><a class="pp-go" href="/estacions/${s.slug}">Veure l'estació →</a>`;
+      const tip = `<span style="font-size:11px;color:#93a3b8">${s.name.split(' - ')[0]}</span> <b style="color:${c};font-weight:500">${fmt(cur, v)}</b>`;
+      if (markers[s.id]) {
+        markers[s.id].setLatLng(coords(s)).setStyle({ color: c, fillColor: c }).setPopupContent(pop);
+        markers[s.id].getTooltip().setContent(tip);
+      } else {
+        markers[s.id] = L.circleMarker(coords(s), { radius: 9, color: c, fillColor: c, fillOpacity: 0.85, weight: 2 })
+          .addTo(map)
+          .bindPopup(pop)
+          .bindTooltip(tip, { permanent: true, direction: 'top', className: 'stt', offset: [0, -8] });
+      }
+    }
+    thermal();
+  }
+
+  // Mapa tèrmic (IDW) — portat de la versió anterior
+  const B = [[42.10, 1.54], [42.38, 2.12]];
+  const TC = [[-10, 167, 139, 250], [-5, 129, 140, 248], [0, 96, 165, 250], [5, 56, 189, 248], [10, 45, 212, 191], [15, 74, 222, 128], [20, 163, 230, 53], [25, 251, 191, 36], [30, 251, 146, 60], [35, 239, 68, 68], [40, 220, 38, 38]];
+  const rgb = (t: number) => {
+    if (t <= TC[0][0]) return TC[0];
+    for (let i = 0; i < TC.length - 1; i++) {
+      const a = TC[i], b = TC[i + 1];
+      if (t >= a[0] && t < b[0]) { const f = (t - a[0]) / (b[0] - a[0]); return [0, a[1] + f * (b[1] - a[1]), a[2] + f * (b[2] - a[2]), a[3] + f * (b[3] - a[3])]; }
+    }
+    return TC[TC.length - 1];
+  };
+  let thermalOn = new URLSearchParams(location.search).get('capa') === 'termica';
+  let layer: any = null;
+  function thermal() {
+    if (!thermalOn) { layer?.remove(); layer = null; return; }
+    const key = cur === 'max' || cur === 'min' ? cur : 'temp';
+    const pts = STATIONS.map((s) => ({ c: coords(s), t: data[s.id]?.[key] })).filter((p) => p.t != null && !isNaN(p.t));
+    if (pts.length < 2) return;
+    const W = 300, H = 180, cv = document.createElement('canvas');
+    cv.width = W; cv.height = H;
+    const ctx = cv.getContext('2d')!;
+    const img = ctx.createImageData(W, H);
+    for (let py = 0; py < H; py++) {
+      const lat = B[1][0] - (py / (H - 1)) * (B[1][0] - B[0][0]);
+      const cl = Math.cos((lat * Math.PI) / 180);
+      const fy = Math.min(py, H - 1 - py) / (0.1 * H);
+      for (let px = 0; px < W; px++) {
+        const lng = B[0][1] + (px / (W - 1)) * (B[1][1] - B[0][1]);
+        const fx = Math.min(px, W - 1 - px) / (0.1 * W);
+        let sw = 0, st = 0;
+        for (const p of pts) {
+          const dy = (lat - p.c[0]) * 111, dx = (lng - p.c[1]) * 111 * cl;
+          const w = 1 / (dx * dx + dy * dy + 0.01);
+          sw += w; st += w * p.t;
+        }
+        const c = rgb(st / sw);
+        const e = Math.min(1, Math.min(fx, fy));
+        const i = (py * W + px) * 4;
+        img.data[i] = c[1]; img.data[i + 1] = c[2]; img.data[i + 2] = c[3];
+        img.data[i + 3] = Math.round((0.5 - 0.5 * Math.cos(e * Math.PI)) * 0.55 * 255);
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    const url = cv.toDataURL();
+    if (layer) layer.setUrl(url);
+    else layer = L.imageOverlay(url, B, { interactive: false, pane: 'thermal' }).addTo(map);
+  }
+
+  const Ctrl = L.Control.extend({
+    options: { position: 'bottomleft' },
+    onAdd() {
+      const div = L.DomUtil.create('div', 'map-box');
+      L.DomEvent.disableClickPropagation(div);
+      div.innerHTML = `<b>Capa</b><button type="button" aria-pressed="${thermalOn}">Mapa tèrmic</button>`;
+      const btn = div.querySelector('button');
+      btn.addEventListener('click', () => { thermalOn = !thermalOn; btn.setAttribute('aria-pressed', String(thermalOn)); thermal(); });
+      return div;
+    },
+  });
+  new Ctrl().addTo(map);
+
+  const bar = document.getElementById('vars')!;
+  VARS.forEach((v) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'fbtn';
+    b.textContent = v.label;
+    b.setAttribute('aria-pressed', String(v.key === cur));
+    b.addEventListener('click', () => {
+      cur = v.key;
+      bar.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      draw();
+    });
+    bar.appendChild(b);
+  });
+
+  draw();
+  const refresh = (force = false) =>
+    loadAra(force).then((j: any) => {
+      if (!j) return;
+      data = j.stations || {};
+      paint(j);
+      draw();
+    });
+  refresh();
+  setInterval(() => refresh(true), 10 * 60 * 1000);
+</script>

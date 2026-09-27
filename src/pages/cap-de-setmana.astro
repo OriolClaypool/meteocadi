@@ -1,0 +1,61 @@
+---
+import Base from '../layouts/Base.astro';
+import { weekendDays, fetchWeekend, summaryHTML, tableHTML, rangeText } from '../lib/weekend.js';
+
+const days = weekendDays();
+const data = await fetchWeekend();
+---
+<Base
+  title="El temps aquest cap de setmana al Cadí-Moixeró i el Berguedà | Meteocadí"
+  description="Previsió per a dissabte i diumenge a Bagà, Gósol, Saldes, el Pedraforca, la serra del Cadí, el Coll de Pal i la resta de pobles del Berguedà: temperatures, pluja i vent, lloc per lloc."
+  path="/cap-de-setmana"
+  current="temps"
+>
+  <section class="phead">
+    <div class="wrap">
+      <nav class="crumbs" aria-label="Ruta"><a href="/">Inici</a><span>›</span><a href="/temps">Pobles i cims</a><span>›</span><span>Cap de setmana</span></nav>
+      <h1>Aquest cap de setmana <em>al Cadí-Moixeró</em></h1>
+      <p data-we-range>{rangeText(days)}</p>
+      <div class="prose" style="margin-top:22px;font-size:17px;" data-we-summary set:html={summaryHTML(data, days)} />
+    </div>
+  </section>
+  <section class="sec">
+    <div class="wrap">
+      <div class="tscroll">
+        <table class="dtable wetable" data-we-table set:html={tableHTML(data, days)} />
+      </div>
+      {!data && <p data-we-empty style="color:var(--muted);margin-top:16px;">Carregant la previsió…</p>}
+      <p style="color:var(--muted);font-size:14px;margin-top:20px;">Previsió: <a href="https://open-meteo.com/" rel="noopener" target="_blank">Open-Meteo</a>. Per a cada lloc, també tens la previsió per hores a la seva pàgina.</p>
+    </div>
+  </section>
+</Base>
+<style is:global>
+  .wetable { min-width: 640px; }
+  .wetable th[scope='row'] { display: flex; flex-direction: column; gap: 2px; padding: 16px 12px; font-size: 17px; font-weight: 700; letter-spacing: 0; text-transform: none; color: var(--ink); font-family: var(--f-head); border-bottom: 1px solid var(--line); }
+  .wetable th[scope='row'] span { font-size: 12.5px; font-weight: 400; color: var(--muted); }
+  .wetable thead th { font-size: 12px; }
+  .we { display: flex; align-items: center; gap: 12px; }
+  .we img { width: 48px; height: 48px; flex-shrink: 0; }
+  .we-t { display: block; font-size: 17px; }
+  .we-x { display: block; font-size: 13.5px; color: var(--muted); }
+</style>
+<script>
+  import { weekendDays, multiUrl, byPlace, summaryHTML, tableHTML, rangeText } from '../lib/weekend.js';
+  const days = weekendDays();
+  const rg = document.querySelector('[data-we-range]');
+  if (rg) rg.textContent = rangeText(days);
+  fetch(multiUrl())
+    .then((r) => (r.ok ? r.json() : Promise.reject()))
+    .then((j) => {
+      const data = byPlace(j);
+      const t = document.querySelector('[data-we-table]');
+      const s = document.querySelector('[data-we-summary]');
+      if (t) t.innerHTML = tableHTML(data, days);
+      if (s) s.innerHTML = summaryHTML(data, days);
+      document.querySelector('[data-we-empty]')?.remove();
+    })
+    .catch(() => {
+      const e = document.querySelector('[data-we-empty]');
+      if (e) e.textContent = "No s'ha pogut carregar la previsió. Torna-ho a provar d'aquí a una estona.";
+    });
+</script>

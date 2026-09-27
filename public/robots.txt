@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+Disallow: /ranking
+Disallow: /taula
+Disallow: /previsio
+Disallow: /api/
+
+Sitemap: https://meteocadi.cat/sitemap-index.xml

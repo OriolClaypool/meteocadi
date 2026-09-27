@@ -1,0 +1,41 @@
+---
+import Base from '../layouts/Base.astro';
+// Correu de contacte: variable d'entorn CONTACT_EMAIL a Vercel (si no hi és, només es mostra X)
+const email = import.meta.env.CONTACT_EMAIL || process.env.CONTACT_EMAIL || '';
+---
+<Base
+  title="Contacte | Meteocadí"
+  description="Contacta amb Meteocadí per col·laborar amb la xarxa, afegir-hi una estació, avisar d'una incidència o qualsevol consulta sobre el projecte."
+  path="/contacte"
+  current="contacte"
+>
+  <section class="phead">
+    <div class="wrap">
+      <h1>Contacte</h1>
+      <p>Escriu-nos per col·laborar, per avisar d'una incidència en alguna estació, per proposar noves ubicacions o per qualsevol consulta sobre el projecte.</p>
+    </div>
+  </section>
+  <section class="sec">
+    <div class="wrap grid2" style="gap:48px;align-items:start;">
+      <div style="display:flex;flex-direction:column;gap:16px;">
+        {email && (
+          <a class="card" href={`mailto:${email}`} style="display:flex;flex-direction:column;gap:6px;color:var(--ink);">
+            <span class="eyebrow">Correu electrònic</span>
+            <span style="font-size:22px;font-weight:700;color:var(--blue);">{email}</span>
+          </a>
+        )}
+        <a class="card" href="https://x.com/meteocadi" rel="noopener" target="_blank" style="display:flex;flex-direction:column;gap:6px;color:var(--ink);">
+          <span class="eyebrow">X (Twitter)</span>
+          <span style="font-size:22px;font-weight:700;color:var(--blue);">@meteocadi</span>
+          <span style="color:var(--muted);font-size:15px;">Envia'ns un missatge directe.</span>
+        </a>
+      </div>
+      <div class="prose">
+        <h2 style="margin-top:0;">Col·laboració</h2>
+        <p>Si tens una estació meteorològica al Berguedà, la Cerdanya o qualsevol zona del Cadí-Moixeró i vols formar part de la xarxa, posa't en contacte amb nosaltres.</p>
+        <h2>Incidències</h2>
+        <p>Si veus que alguna estació fa estona que no s'actualitza o que les dades semblen incorrectes, digues-nos el nom de l'estació i el dia.</p>
+      </div>
+    </div>
+  </section>
+</Base>

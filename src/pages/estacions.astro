@@ -1,0 +1,71 @@
+---
+import Base from '../layouts/Base.astro';
+import StationTable from '../components/StationTable.astro';
+import { STATIONS, fmtAlt } from '../lib/stations.js';
+
+const ld = [
+  {
+    '@type': 'ItemList',
+    name: 'Estacions de la xarxa Meteocadí',
+    itemListElement: STATIONS.map((s, i) => ({ '@type': 'ListItem', position: i + 1, name: `${s.name} (${fmtAlt(s.alt)})`, url: `https://meteocadi.cat/estacions/${s.slug}` })),
+  },
+];
+const CONT = 'M-200 -20C-190 -140 -40 -190 80 -160C200 -130 260 -40 230 60C200 160 60 190 -60 170C-170 150 -210 80 -200 -20Z';
+const contours = [...Array(10).keys()].map((j) => `translate(1180 260) rotate(${-8 + 3 * j}) scale(${(0.35 + 0.34 * j + 0.03 * j * j).toFixed(2)})`);
+---
+<Base
+  title="Estacions meteorològiques del Cadí-Moixeró en directe | Meteocadí"
+  description={`Les ${STATIONS.length} estacions de la xarxa Meteocadí, de ${fmtAlt(770)} a ${fmtAlt(2440)}: temperatura, màximes i mínimes, vent, ratxes i pluja en directe a Bagà, Gósol, el Pedraforca, Tancalaporta i el Coll de Pal.`}
+  path="/estacions"
+  jsonLd={ld}
+  current="estacions"
+>
+  <section class="sec sec--dark" style="padding-top:72px;">
+    <svg class="contours" viewBox="0 0 1440 900" aria-hidden="true"><g fill="none" stroke="#3db8ff" stroke-opacity="0.07">{contours.map((t) => <path vector-effect="non-scaling-stroke" transform={t} d={CONT}></path>)}</g></svg>
+    <div class="wrap" style="position:relative;">
+      <div class="sec__head">
+        <div>
+          <span class="eyebrow"><span class="live live--off" data-live-badge style="padding:6px 12px;"><span class="live__dot"><i></i><i></i></span><span data-live-text>CONNECTANT…</span></span></span>
+          <h1 class="h2" style="font-size:clamp(38px,5vw,60px);">Estacions en directe</h1>
+          <p class="sub" style="max-width:640px;">{STATIONS.length} estacions automàtiques des del fons de les valls del Berguedà fins a la carena del Cadí. Toca'n una per veure'n els gràfics d'avui, la previsió i l'historial.</p>
+        </div>
+        <div class="filters" role="group" aria-label="Filtra les estacions">
+          <button type="button" class="fbtn" aria-pressed="true" data-filter="totes">Totes</button>
+          <button type="button" class="fbtn" aria-pressed="false" data-filter="alta">Alta muntanya</button>
+          <button type="button" class="fbtn" aria-pressed="false" data-filter="vall">Vall i Prepirineu</button>
+        </div>
+      </div>
+      <StationTable />
+      <p class="st-note">Dades via Weather Underground, actualitzades cada 15 minuts. La corba mostra la temperatura de les últimes hores.</p>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="wrap grid2" style="align-items:start;">
+      <div class="prose">
+        <h2 style="margin-top:0;">Com funciona la xarxa</h2>
+        <p>Les estacions són automàtiques i envien una lectura cada pocs minuts a Weather Underground. Meteocadí les agrupa, les mostra juntes i n'arxiva cada nit el resum del dia: màxima, mínima, ratxa de vent, pluja i humitat.</p>
+        <p>Les estacions d'<strong>alta muntanya</strong> s'han instal·lat en col·laboració amb el Parc Natural del Cadí-Moixeró. Les de <strong>vall i Prepirineu</strong> són de Meteocadí i de col·laboradors del territori.</p>
+      </div>
+      <div class="prose">
+        <h2 style="margin-top:0;">Vols afegir-hi la teva estació?</h2>
+        <p>Si tens una estació al Berguedà, la Cerdanya o el Cadí-Moixeró i vols que formi part de la xarxa, escriu-nos.</p>
+        <p><a class="btn btn--blue" href="/contacte">Contacta amb nosaltres</a></p>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<script>
+  import { startLive } from '../scripts/live.js';
+  startLive();
+  const btns = document.querySelectorAll<HTMLButtonElement>('[data-filter]');
+  btns.forEach((b) =>
+    b.addEventListener('click', () => {
+      btns.forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      document.querySelectorAll<HTMLElement>('[data-group]').forEach((g) => {
+        g.hidden = b.dataset.filter !== 'totes' && g.dataset.group !== b.dataset.filter;
+      });
+    }),
+  );
+</script>

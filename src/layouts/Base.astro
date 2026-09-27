@@ -1,0 +1,88 @@
+---
+import '@fontsource-variable/schibsted-grotesk';
+import '@fontsource-variable/schibsted-grotesk/wght-italic.css';
+import '@fontsource-variable/geist';
+import '@fontsource-variable/geist-mono';
+import '../styles/global.css';
+import Header from '../components/Header.astro';
+import Footer from '../components/Footer.astro';
+
+interface Props {
+  title: string;
+  description: string;
+  path: string; // "/", "/estacions", ...
+  image?: string;
+  jsonLd?: object[];
+  noindex?: boolean;
+  header?: 'overlay' | 'solid';
+  current?: string;
+  preload?: string;
+}
+
+const { title, description, path, image = '/imatges/og-meteocadi.jpg', jsonLd = [], noindex = false, header = 'solid', current = '', preload } = Astro.props;
+const site = 'https://meteocadi.cat';
+const url = site + (path === '/' ? '/' : path);
+const img = image.startsWith('http') ? image : site + image;
+
+const graph = [
+  {
+    '@type': 'Organization',
+    '@id': `${site}/#org`,
+    name: 'Meteocadí',
+    url: `${site}/`,
+    logo: `${site}/imatges/logo-256.png`,
+    sameAs: ['https://x.com/meteocadi'],
+    description: "Xarxa d'estacions meteorològiques al Cadí-Moixeró i el Berguedà, en col·laboració amb el Parc Natural del Cadí-Moixeró.",
+  },
+  { '@type': 'WebSite', '@id': `${site}/#web`, name: 'Meteocadí', url: `${site}/`, inLanguage: 'ca', publisher: { '@id': `${site}/#org` } },
+  ...jsonLd,
+];
+---
+<!doctype html>
+<html lang="ca">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={url} />
+    {noindex && <meta name="robots" content="noindex, follow" />}
+    <meta name="theme-color" content="#10233b" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="ca_ES" />
+    <meta property="og:site_name" content="Meteocadí" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={url} />
+    <meta property="og:image" content={img} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@meteocadi" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={img} />
+    {preload && <link rel="preload" as="image" href={preload} fetchpriority="high" />}
+    <script type="application/ld+json" set:html={JSON.stringify({ '@context': 'https://schema.org', '@graph': graph })} />
+    <slot name="head" />
+  </head>
+  <body>
+    <div class="strip" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    <Header variant={header} current={current} />
+    <main>
+      <slot />
+    </main>
+    <Footer />
+    <script>
+      const hdr = document.querySelector('.hdr');
+      const btn = document.querySelector('.nav-btn');
+      btn?.addEventListener('click', () => {
+        const open = hdr?.classList.toggle('is-open');
+        btn.setAttribute('aria-expanded', String(!!open));
+      });
+    </script>
+    <script is:inline defer src="/_vercel/insights/script.js"></script>
+  </body>
+</html>

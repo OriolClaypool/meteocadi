@@ -1,0 +1,89 @@
+---
+// Targetes "Explora" (radar, mapa tèrmic, historial) amb animacions
+import { stationHistory } from '../lib/archive.js';
+import { tempColor, num, dayShort, parseDay } from '../lib/format.js';
+import { BY_ID } from '../lib/stations.js';
+
+// Barres reals: màximes dels darrers dies a l'estació amb més dies arxivats (Bagà Nord per defecte)
+const REF = 'IBAG65';
+const hist = stationHistory(REF).slice(0, 7).reverse();
+const hv = hist.map((d) => d.tempHigh);
+const lo = hv.length ? Math.floor(Math.min(...hv) - 6) : 0;
+const hi = hv.length ? Math.ceil(Math.max(...hv) + 1) : 1;
+const bw = hist.length ? Math.min(30, Math.floor(236 / hist.length) - 8) : 30;
+const gap = hist.length ? Math.floor(236 / hist.length) : 40;
+const ARROW = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg>';
+const dots = [[138, 106], [170, 138], [202, 120], [230, 178], [152, 200], [260, 224], [116, 160], [216, 246], [180, 216], [246, 150]];
+---
+<section class="sec sec--deep">
+  <div class="wrap">
+    <div class="sec__head">
+      <div>
+        <h2 class="h2">Explora el cel del Cadí</h2>
+        <p class="sub">Eines per seguir el temps de la zona, amb les dades de la xarxa al centre.</p>
+      </div>
+    </div>
+    <div class="xgrid">
+      <a href="/radar" class="xcard xcard--big">
+        <svg class="xradar" viewBox="0 0 360 360" aria-hidden="true">
+          <defs>
+            <filter id="rblur"><feGaussianBlur stdDeviation="9"></feGaussianBlur></filter>
+            <radialGradient id="swg" cx="180" cy="180" r="160" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#7fd0ff" stop-opacity="0"></stop><stop offset="1" stop-color="#7fd0ff" stop-opacity="0.35"></stop></radialGradient>
+          </defs>
+          <g fill="none" stroke="#fff" stroke-opacity="0.16"><circle cx="180" cy="180" r="160"></circle><circle cx="180" cy="180" r="112"></circle><circle cx="180" cy="180" r="64"></circle><line x1="20" y1="180" x2="340" y2="180"></line><line x1="180" y1="20" x2="180" y2="340"></line></g>
+          <g filter="url(#rblur)">
+            <ellipse class="a-cell" cx="236" cy="118" rx="44" ry="30" fill="#4ade80" fill-opacity="0.55"></ellipse>
+            <ellipse class="a-cell" cx="246" cy="112" rx="22" ry="15" fill="#facc15" fill-opacity="0.75" style="animation-delay:-1.5s"></ellipse>
+            <ellipse class="a-cell" cx="250" cy="110" rx="9" ry="7" fill="#f97316" fill-opacity="0.9" style="animation-delay:-0.8s"></ellipse>
+            <ellipse class="a-cell" cx="262" cy="262" rx="34" ry="22" fill="#4ade80" fill-opacity="0.45" style="animation-delay:-2.4s"></ellipse>
+          </g>
+          <g class="a-sweep"><path d="M180 180 L180 20 A160 160 0 0 1 318.6 100 Z" fill="url(#swg)"></path><line x1="180" y1="180" x2="180" y2="20" stroke="#bfe6ff" stroke-width="1.6"></line></g>
+          {dots.map(([x, y]) => <circle cx={x} cy={y} r="3.2" fill="#fff" fill-opacity="0.9"></circle>)}
+        </svg>
+        <div class="xcard__txt">
+          <span class="tag">Nou</span>
+          <h3>Radar<br /><em>de pluja</em></h3>
+          <p>La precipitació en directe amb el radar del Meteocat, al costat de les lectures de la xarxa. Aviat, també els llamps.</p>
+          <span class="go">Obrir el radar <Fragment set:html={ARROW} /></span>
+        </div>
+      </a>
+      <a href="/mapa?capa=termica" class="xcard xcard--s">
+        <svg viewBox="0 0 246 176" style="width:100%;height:auto;border-radius:10px;" aria-hidden="true">
+          <defs><filter id="tblur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="22"></feGaussianBlur></filter><clipPath id="tclip"><rect width="246" height="176" rx="10"></rect></clipPath></defs>
+          <g clip-path="url(#tclip)"><rect width="246" height="176" fill="#2dd4bf" fill-opacity="0.5"></rect>
+            <g filter="url(#tblur)">
+              <circle class="a-drift1" cx="190" cy="140" r="70" fill="#fb923c"></circle>
+              <circle class="a-drift2" cx="120" cy="120" r="52" fill="#fbbf24"></circle>
+              <circle class="a-drift1" cx="70" cy="80" r="56" fill="#a3e635" style="animation-delay:-4s"></circle>
+              <circle class="a-drift2" cx="40" cy="20" r="60" fill="#38bdf8" style="animation-delay:-6s"></circle>
+              <circle class="a-drift1" cx="150" cy="30" r="44" fill="#4ade80" style="animation-delay:-2s"></circle>
+            </g>
+            <g fill="#fff"><circle cx="60" cy="38" r="3"></circle><circle cx="96" cy="70" r="3"></circle><circle cx="150" cy="92" r="3"></circle><circle cx="188" cy="128" r="3"></circle><circle cx="120" cy="136" r="3"></circle><circle cx="206" cy="150" r="3"></circle><circle cx="40" cy="104" r="3"></circle></g>
+          </g>
+        </svg>
+        <div class="xcard__txt"><h3>Mapa tèrmic</h3><p>La temperatura de tot el territori, interpolada entre les estacions.</p></div>
+      </a>
+      <a href="/historial" class="xcard xcard--s">
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <span style="font-size:13px;color:#b9c7d8;">Màximes a {BY_ID[REF].name}, darrers dies</span>
+          <svg viewBox="0 0 246 176" style="width:100%;height:auto;" aria-hidden="true">
+            {hist.map((d, i) => {
+              const h = ((d.tempHigh - lo) / (hi - lo)) * 112;
+              const x = 6 + i * gap;
+              const y = 140 - h;
+              return (
+                <g>
+                  <rect class="a-grow" x={x} y={y.toFixed(1)} width={bw} height={h.toFixed(1)} rx="3" fill={tempColor(d.tempHigh)} style={`animation-delay:${(0.3 + i * 0.12).toFixed(2)}s`}></rect>
+                  <text x={x + bw / 2} y={(y - 7).toFixed(1)} text-anchor="middle" font-size="12" font-weight="500" fill="#fff" font-family="Geist Mono Variable, monospace">{num(d.tempHigh)}</text>
+                  <text x={x + bw / 2} y="160" text-anchor="middle" font-size="12" fill="#b9c7d8">{dayShort(d.date)} {parseDay(d.date).getUTCDate()}</text>
+                </g>
+              );
+            })}
+            <line x1="2" y1="140.5" x2="244" y2="140.5" stroke="#fff" stroke-opacity="0.25"></line>
+          </svg>
+        </div>
+        <div class="xcard__txt"><h3>Historial i rècords</h3><p>Cada dia s'arxiven màximes, mínimes, ratxes i pluja de totes les estacions.</p></div>
+      </a>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,39 @@
+---
+// Taula d'estacions en directe (estil instrument). Les dades les pinta src/scripts/live.js.
+import { STATIONS, GROUPS, BY_ID, subLine } from '../lib/stations.js';
+interface Props { ids?: string[] }
+const { ids } = Astro.props;
+const groups = ids ? ['sel'] : ['alta', 'vall'];
+const listFor = (g) => (g === 'sel' ? ids.map((i) => BY_ID[i]) : STATIONS.filter((s) => s.group === g));
+---
+<div class="st-table" data-st-table>
+  <div class="st-head" aria-hidden="true">
+    <span>ESTACIÓ</span><span class="r">ARA</span><span class="r">MÀX.</span><span class="r">MÍN.</span><span>VENT</span><span class="r">RATXA</span><span class="r c-rain">PLUJA</span><span class="c-spark">ÚLTIMES HORES</span>
+  </div>
+  {groups.map((g) => {
+    const list = listFor(g);
+    return (
+      <div data-group={g}>
+        {g !== 'sel' && <div class="st-group"><span>{GROUPS[g].title}</span><span>· {GROUPS[g].sub}</span><span>{list.length} estacions</span></div>}
+        {list.map((s) => (
+          <a class="st-row" href={`/estacions/${s.slug}`} data-row={s.id}>
+            <span class="st-name"><b>{s.name}</b><small>{subLine(s)}</small></span>
+            <span class="st-now r" data-f="now">—</span>
+            <span class="st-v r c-max" data-f="max">—</span>
+            <span class="st-v r c-min" data-f="min">—</span>
+            <span class="st-wind">
+              <svg data-f="arrow" width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" style="opacity:0"><path d="M12 3 L18.5 19 L12 15.2 L5.5 19 Z" fill="#93a3b8"></path></svg>
+              <span data-f="windv">—</span><span class="st-unit">km/h</span>
+            </span>
+            <span class="st-v r c-gust"><span data-f="gust">—</span><span class="st-unit"> km/h</span></span>
+            <span class="st-rain r" data-f="rain">—</span>
+            <span class="st-spark">
+              <svg data-f="spark" width="190" height="30" viewBox="0 0 190 30" aria-hidden="true"><path d="" fill="#3db8ff" fill-opacity="0.07"></path><path class="a-spark" d="" fill="none" stroke="#3db8ff" stroke-opacity="0.85" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"></path><circle r="0"></circle></svg>
+            </span>
+            <span class="st-mob" data-f="mob">Carregant…</span>
+          </a>
+        ))}
+      </div>
+    );
+  })}
+</div>

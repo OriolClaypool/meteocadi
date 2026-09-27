@@ -1,0 +1,44 @@
+---
+import { PLACES } from '../lib/places.js';
+const SITE = [
+  ['/estacions', 'Estacions'],
+  ['/mapa', 'Mapa en directe'],
+  ['/radar', 'Radar de pluja'],
+  ['/historial', 'Historial i rècords'],
+  ['/cap-de-setmana', 'Aquest cap de setmana'],
+  ['/webcams', 'Webcams'],
+  ['/sobre', 'Sobre el projecte'],
+  ['/contacte', 'Contacte'],
+];
+---
+<footer class="foot">
+  <div class="strip" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+  <div class="wrap foot__in">
+    <div style="display:flex;flex-direction:column;gap:18px;">
+      <a href="/" class="brand" style="color:#fff;"><img src="/imatges/logo-256.png" alt="" width="44" height="44" /><span>Meteocadí</span></a>
+      <p>Xarxa d'estacions meteorològiques al Cadí-Moixeró i el Berguedà, en col·laboració amb el Parc Natural del Cadí-Moixeró.</p>
+      <a href="https://x.com/meteocadi" rel="me noopener" target="_blank" style="display:inline-flex;align-items:center;gap:10px;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.8 3h3.1l-6.8 7.7L22 21h-6.2l-4.9-6.3L5.3 21H2.2l7.2-8.3L1.8 3h6.4l4.4 5.8zm-1.1 16.2h1.7L7.4 4.7H5.6z"></path></svg>
+        @meteocadi
+      </a>
+    </div>
+    <div>
+      <h2>El temps a la zona</h2>
+      <ul class="cols">
+        {PLACES.map((p) => <li><a href={`/temps/${p.slug}`}>El temps {p.a}</a></li>)}
+      </ul>
+    </div>
+    <div>
+      <h2>Meteocadí</h2>
+      <ul>
+        {SITE.map(([h, l]) => <li><a href={h}>{l}</a></li>)}
+      </ul>
+    </div>
+  </div>
+  <div class="wrap">
+    <div class="foot__bot">
+      <span>© {new Date().getFullYear()} Meteocadí · Dades de les estacions: Weather Underground · Previsió: Open-Meteo</span>
+      <a href="/">meteocadi.cat</a>
+    </div>
+  </div>
+</footer>

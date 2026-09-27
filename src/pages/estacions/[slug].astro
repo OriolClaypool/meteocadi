@@ -1,0 +1,134 @@
+---
+import Base from '../../layouts/Base.astro';
+import Forecast from '../../components/Forecast.astro';
+import { STATIONS, BY_SLUG, GROUPS, fmtAlt } from '../../lib/stations.js';
+import { PLACES } from '../../lib/places.js';
+import { stationHistory, stationRecords } from '../../lib/archive.js';
+import { tempColorLight, num, dayMonth, dayName, longDate, desDe } from '../../lib/format.js';
+
+export function getStaticPaths() {
+  return STATIONS.map((s) => ({ params: { slug: s.slug } }));
+}
+
+const s = BY_SLUG[Astro.params.slug];
+const hist = stationHistory(s.id);
+const rec = stationRecords(s.id);
+const places = PLACES.filter((p) => p.stations.includes(s.id));
+const near = STATIONS.filter((x) => x.id !== s.id)
+  .map((x) => ({ x, d: Math.hypot(x.lat - s.lat, (x.lng - s.lng) * 0.74) }))
+  .sort((a, b) => a.d - b.d)
+  .slice(0, 4)
+  .map((o) => o.x);
+const title = `${s.name} (${fmtAlt(s.alt)}): temps en directe i historial | Meteocadí`;
+const description = `Estació meteorològica ${s.name}, a ${fmtAlt(s.alt)} (${s.loc}). Temperatura, vent, pluja i humitat en directe, gràfics d'avui, previsió per hores i historial diari.`;
+const ld = [
+  {
+    '@type': 'Place',
+    name: `Estació meteorològica ${s.name}`,
+    description,
+    geo: { '@type': 'GeoCoordinates', latitude: s.lat, longitude: s.lng, elevation: s.alt },
+    containedInPlace: { '@type': 'AdministrativeArea', name: `${s.loc}, ${s.comarca}` },
+    url: `https://meteocadi.cat/estacions/${s.slug}`,
+  },
+  {
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Inici', item: 'https://meteocadi.cat/' },
+      { '@type': 'ListItem', position: 2, name: 'Estacions', item: 'https://meteocadi.cat/estacions' },
+      { '@type': 'ListItem', position: 3, name: s.name, item: `https://meteocadi.cat/estacions/${s.slug}` },
+    ],
+  },
+];
+const VARS = [
+  ['feels', 'Sensació tèrmica'], ['dew', 'Punt de rosada'], ['hum', 'Humitat'], ['pres', 'Pressió'],
+  ['wind', 'Vent ara'], ['gust', 'Ratxa ara'], ['gustmax', 'Ratxa màx. avui'], ['rain', 'Pluja avui'],
+];
+---
+<Base title={title} description={description} path={`/estacions/${s.slug}`} jsonLd={ld} current="estacions">
+  <section class="phead">
+    <div class="wrap">
+      <nav class="crumbs" aria-label="Ruta"><a href="/">Inici</a><span>›</span><a href="/estacions">Estacions</a><span>›</span><span>{s.name}</span></nav>
+      <h1>{s.name}</h1>
+      <p>Estació meteorològica a <strong>{fmtAlt(s.alt)}</strong> d'altitud · {s.loc} ({s.comarca}) · {GROUPS[s.group].title}.
+        {places.length > 0 && <> Previsió i context del lloc a {places.map((p, i) => <>{i > 0 && ' i '}<a href={`/temps/${p.slug}`}>el temps {p.a}</a></>)}.</>}
+      </p>
+    </div>
+  </section>
+
+  <section class="sec sec--dark" style="padding:72px 0;" data-station={s.id}>
+    <div class="wrap" style="display:flex;flex-direction:column;gap:24px;">
+      <div class="panel now-panel">
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <span class="eyebrow" data-badge>CARREGANT…</span>
+          <span class="now-big" data-v="temp">—</span>
+          <span class="mono" style="font-size:15px;color:#93a3b8;">Màx. avui <span data-v="max" style="font-size:18px;">—</span> · Mín. <span data-v="min" style="font-size:18px;">—</span></span>
+        </div>
+        <div class="vars">
+          {VARS.map(([k, l]) => <div class="var"><span>{l}</span><span data-v={k}>—</span></div>)}
+        </div>
+      </div>
+      <div class="charts">
+        <div class="chart"><span class="eyebrow">Temperatura · últimes hores (°C)</span><div data-chart="temp"></div></div>
+        <div class="chart"><span class="eyebrow">Vent i ratxa · últimes hores (km/h)</span><div data-chart="wind"></div></div>
+        <div class="chart"><span class="eyebrow">Pluja acumulada des de mitjanit (mm)</span><div data-chart="rain"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec sec--pale">
+    <div class="wrap">
+      <Forecast place={{ name: s.name.split(' - ')[0], lat: s.lat, lng: s.lng, alt: s.alt }} title={`Previsió a ${s.name.split(' - ')[0]}`} sub={`Calculada per a l'altitud de l'estació (${fmtAlt(s.alt)}).`} />
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="wrap" style="display:flex;flex-direction:column;gap:40px;">
+      <div class="sec__head" style="margin:0;">
+        <div>
+          <h2 class="h2">Historial de l'estació</h2>
+          <p class="sub">{rec ? `Dades arxivades ${desDe(rec.from)}: ${rec.days} dies.` : "L'arxiu d'aquesta estació encara no té dies complets."}</p>
+        </div>
+      </div>
+      {rec && (
+        <div class="recs">
+          <div class="card"><span class="eyebrow" style="color:var(--muted)">Màxima més alta</span><p class="mono" style={`font-size:32px;color:${tempColorLight(rec.maxHigh?.tempHigh)}`}>{num(rec.maxHigh?.tempHigh)}°</p><p style="color:var(--muted);font-size:14px;">{rec.maxHigh && longDate(rec.maxHigh.date)}</p></div>
+          <div class="card"><span class="eyebrow" style="color:var(--muted)">Mínima més baixa</span><p class="mono" style={`font-size:32px;color:${tempColorLight(rec.minLow?.tempLow)}`}>{num(rec.minLow?.tempLow)}°</p><p style="color:var(--muted);font-size:14px;">{rec.minLow && longDate(rec.minLow.date)}</p></div>
+          <div class="card"><span class="eyebrow" style="color:var(--muted)">Ratxa més forta</span><p class="mono" style="font-size:32px;">{num(rec.maxGust?.windgustHigh)} <small style="font-size:16px;color:var(--muted)">km/h</small></p><p style="color:var(--muted);font-size:14px;">{rec.maxGust && longDate(rec.maxGust.date)}</p></div>
+          <div class="card"><span class="eyebrow" style="color:var(--muted)">Pluja total</span><p class="mono" style="font-size:32px;">{num(rec.rainTotal)} <small style="font-size:16px;color:var(--muted)">mm</small></p><p style="color:var(--muted);font-size:14px;">Mitjana de màximes {num(rec.avgHigh)}° · mínimes {num(rec.avgLow)}°</p></div>
+        </div>
+      )}
+      {hist.length > 0 && (
+        <div class="tscroll">
+          <table class="dtable">
+            <thead><tr><th>Dia</th><th class="n">Màx.</th><th class="n">Mín.</th><th class="n">Mitjana</th><th class="n">Ratxa</th><th class="n">Pluja</th><th class="n">Humitat</th></tr></thead>
+            <tbody>
+              {hist.slice(0, 31).map((d) => (
+                <tr>
+                  <td>{dayName(d.date)} {dayMonth(d.date)}</td>
+                  <td class="n" style={`color:${tempColorLight(d.tempHigh)}`}>{num(d.tempHigh)}°</td>
+                  <td class="n" style={`color:${tempColorLight(d.tempLow)}`}>{num(d.tempLow)}°</td>
+                  <td class="n">{num(d.tempAvg)}°</td>
+                  <td class="n">{d.windgustHigh != null ? `${num(d.windgustHigh)} km/h` : '—'}</td>
+                  <td class="n">{num(d.precipTotal)} mm</td>
+                  <td class="n">{d.humidityAvg != null ? `${Math.round(d.humidityAvg)} %` : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <div>
+        <h2 style="font-size:24px;font-weight:800;margin-bottom:14px;">Estacions properes</h2>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;">
+          {near.map((x) => <a class="btn btn--line" style="height:44px;font-size:15px;" href={`/estacions/${x.slug}`}>{x.name} · {fmtAlt(x.alt)}</a>)}
+        </div>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<script>
+  import { mountStation } from '../../scripts/station.js';
+  const root = document.querySelector<HTMLElement>('[data-station]');
+  if (root) mountStation(root);
+</script>
