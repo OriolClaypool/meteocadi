@@ -4,6 +4,8 @@
 import Base from '../../layouts/Base.astro';
 import { months, extremes, monthStations } from '../../lib/archive.js';
 import { fmtAlt } from '../../lib/stations.js';
+import { episodesInMonth } from '../../lib/episodes.js';
+import EpisodeCards from '../../components/EpisodeCards.astro';
 import { num, dayName, dayMonth, monthName, deMonth, cap, tempColorLight, todayMadrid } from '../../lib/format.js';
 
 export function getStaticPaths() {
@@ -13,6 +15,7 @@ export function getStaticPaths() {
 
 const { m, newer, older } = Astro.props;
 const st = monthStations(m);
+const eps = episodesInMonth(m.key);
 const nm = monthName(m.month);
 const deMes = deMonth(m.month); // "de setembre" / "d'octubre"
 const lastDay = new Date(Date.UTC(m.year, m.month, 0)).getUTCDate();
@@ -81,6 +84,13 @@ const ld = [
         <div class="card"><span class="eyebrow">Ratxa més forta</span><p class="mono" style="font-size:30px;">{num(m.gust?.v)} <small style="font-size:15px;color:var(--muted)">km/h</small></p><p style="font-size:14px;color:var(--muted)">{who(m.gust)} · {m.gust && dia(m.gust.date)}</p></div>
         <div class="card"><span class="eyebrow">Més pluja acumulada</span><p class="mono" style="font-size:30px;">{num(m.wettest?.v)} <small style="font-size:15px;color:var(--muted)">mm</small></p><p style="font-size:14px;color:var(--muted)">{m.wettest && m.wettest.v > 0 ? who(m.wettest) : 'Cap estació amb pluja'}</p></div>
       </div>
+
+      {eps.length > 0 && (
+        <div>
+          <h2 class="h2" style="font-size:30px;margin-bottom:14px;">Episodis destacats</h2>
+          <EpisodeCards list={eps} />
+        </div>
+      )}
 
       <div>
         <h2 class="h2" style="font-size:30px;margin-bottom:14px;">Estació per estació</h2>

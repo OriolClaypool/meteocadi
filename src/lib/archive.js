@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { STATIONS, BY_ID } from './stations.js';
 
-const ROOT = path.resolve('dades');
+const ROOT = path.resolve(process.env.DADES_DIR || 'dades'); // DADES_DIR: només per a proves amb dades inventades
 let _cache = null;
 
 export function loadDays() {

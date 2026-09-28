@@ -1,0 +1,16 @@
+---
+// Targetes d'episodis destacats (llista, historial i resum del mes)
+import { cap } from '../lib/format.js';
+interface Props { list: any[] }
+const { list } = Astro.props;
+---
+<div class="eps">
+  {list.map((e) => (
+    <a class={`ep ep--${e.type}`} href={`/episodis/${e.slug}`}>
+      <span class="ep__k">{e.label}</span>
+      <span class="ep__d">{cap(e.rangeText)}</span>
+      <span class="ep__v mono">{e.headline.v} <small>{e.headline.u}</small></span>
+      <span class="ep__w">{e.headline.where}{e.open ? ' · en curs' : ''}</span>
+    </a>
+  ))}
+</div>

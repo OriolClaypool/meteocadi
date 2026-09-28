@@ -9,10 +9,13 @@ import Perfil from '../components/Perfil.astro';
 import { STATIONS, fmtAlt } from '../lib/stations.js';
 import { PLACE_BY_SLUG, FORECAST_CHIPS } from '../lib/places.js';
 import { latestDay, extremes } from '../lib/archive.js';
+import { episodes } from '../lib/episodes.js';
 import { tempColor, num, dayShort, dayMonthShort } from '../lib/format.js';
 
 const day = latestDay();
 const ex = extremes(day);
+// Episodi destacat recent (acabat fa com a molt 6 dies respecte del darrer dia arxivat)
+const recent = episodes().find((e) => day && (Date.parse(day.date) - Date.parse(e.end)) / 864e5 <= 6);
 const chips = FORECAST_CHIPS.map((s) => PLACE_BY_SLUG[s]).map((p) => ({ name: p.name, lat: p.lat, lng: p.lng, alt: p.alt }));
 const ARROW = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg>';
 const altRange = `${fmtAlt(Math.min(...STATIONS.map((s) => s.alt))).replace(' m', '')} i els ${fmtAlt(Math.max(...STATIONS.map((s) => s.alt))).replace(' m', '')} metres`;
@@ -108,6 +111,16 @@ const contours = [...Array(10).keys()].map((j) => `translate(1180 260) rotate(${
       </div>
     </div>
   </div>
+
+  {recent && (
+    <a class={`epstrip ep--${recent.type}`} href={`/episodis/${recent.slug}`}>
+      <div class="wrap">
+        <b>{recent.label}</b>
+        <span>{recent.rangeText.charAt(0).toUpperCase() + recent.rangeText.slice(1)}: {recent.headline.v} {recent.headline.u} a {recent.headline.where}</span>
+        <u>Llegeix el resum ›</u>
+      </div>
+    </a>
+  )}
 
   <section class="sec sec--dark" id="estacions">
     <svg class="contours" viewBox="0 0 1440 900" aria-hidden="true"><g fill="none" stroke="#3db8ff" stroke-opacity="0.07">{contours.map((t) => <path vector-effect="non-scaling-stroke" transform={t} d={CONT}></path>)}</g></svg>

@@ -2,11 +2,14 @@
 import Base from '../layouts/Base.astro';
 import { months, latestDay, extremes, completeDays } from '../lib/archive.js';
 import { STATIONS, BY_ID, fmtAlt } from '../lib/stations.js';
+import { episodes } from '../lib/episodes.js';
+import EpisodeCards from '../components/EpisodeCards.astro';
 import { num, dayName, dayMonth, longDate, monthName, cap, tempColorLight, desDe } from '../lib/format.js';
 
 const ms = months();
 const last = latestDay();
 const all = completeDays();
+const eps = episodes();
 const first = all[0];
 const who = (e) => (e ? `${e.station?.name.split(' - ')[0] ?? ''}` : '');
 ---
@@ -20,6 +23,7 @@ const who = (e) => (e ? `${e.station?.name.split(' - ')[0] ?? ''}` : '');
     <div class="wrap">
       <h1>Historial <em>i rècords</em></h1>
       <p>Cada nit arxivem el resum del dia de totes les estacions de la xarxa. {first && <>Arxiu {desDe(first.date)} ({all.length} dies).</>}</p>
+      <p style="margin-top:10px;"><a href="/episodis" style="font-weight:600;">Episodis destacats ›</a> Pluja intensa, vent fort, calor, fred i primera glaçada.</p>
     </div>
   </section>
 
@@ -55,6 +59,16 @@ const who = (e) => (e ? `${e.station?.name.split(' - ')[0] ?? ''}` : '');
             </tbody>
           </table>
         </div>
+      </div>
+    </section>
+  )}
+
+  {eps.length > 0 && (
+    <section class="sec" style="padding-top:0;padding-bottom:48px;">
+      <div class="wrap">
+        <h2 class="h2" style="font-size:34px;margin-bottom:8px;">Episodis <em>destacats</em></h2>
+        <p class="sub" style="margin-bottom:24px;">Resums automàtics quan alguna estació registra una xifra fora del normal. <a href="/episodis" style="font-weight:600;">Tots els episodis ›</a></p>
+        <EpisodeCards list={eps.slice(0, 3)} />
       </div>
     </section>
   )}

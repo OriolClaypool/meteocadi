@@ -23,6 +23,12 @@ Weather-station network site for Cadí-Moixeró / Berguedà. **All user-facing c
 - `/muntanya` is the hub (high stations live + summary table); `/avis-legal` holds the full disclaimer. Keep both linked from the footer.
 - Facts in place intros must be verifiable (altitudes, municipalities, routes); don't add claims without a source.
 
+## Episodes (automatic reports)
+- `src/lib/episodes.js` scans the daily archive at build time for heavy rain, strong wind, heat, cold and the first valley frost of the autumn (thresholds in `LLINDARS`; another station must corroborate). Consecutive days merge into one episode; slug `/episodis/YYYY-MM-DD-type` (start date, stable while the episode grows).
+- Measured data only, never forecasts; never claim snow amounts (gauges don't measure snow).
+- `/episodis` is noindex and left out of the sitemap while there are no episodes (see `astro.config.mjs`). The home shows a strip for an episode that ended ≤ 6 days before the last archived day; month pages list their episodes.
+- Test with fake data: `DADES_DIR=<dir> npm run build` (overrides the `dades/` folder read by `archive.js`).
+
 ## Road status (Servei Català de Trànsit, open data)
 - Places with `roads` (and optional `cameras`) in `places.js` show `RoadStatus` (tunnel, Coll de Pal).
 - `api/transit.js` reads the SCT incidents GML feed (updated hourly) and filters by road and km range: `/api/transit?roads=C-16:110-135,BV-4024`. CDN cache 10 min.

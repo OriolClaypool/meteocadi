@@ -1,0 +1,106 @@
+---
+// Resum automàtic d'un episodi destacat (pluja intensa, vent fort, calor, fred o primera glaçada).
+// El genera src/lib/episodes.js a partir de l'arxiu diari; es regenera cada nit.
+import Base from '../../layouts/Base.astro';
+import { episodes } from '../../lib/episodes.js';
+import { monthName, cap } from '../../lib/format.js';
+
+export function getStaticPaths() {
+  const all = episodes(); // del més recent al més antic
+  return all.map((e, i) => ({ params: { slug: e.slug }, props: { e, newer: all[i - 1] || null, older: all[i + 1] || null } }));
+}
+
+const { e, newer, older } = Astro.props;
+const DAYNOTE = {
+  pluja: "Total de l'episodi i pluja de cada dia, en mil·límetres.",
+  vent: "Ratxa més forta de l'episodi i de cada dia, en km/h.",
+  calor: "Màxima més alta de l'episodi i màxima de cada dia.",
+  fred: "Mínima més baixa de l'episodi i mínima de cada dia.",
+};
+const url = `https://www.meteocadi.cat/episodis/${e.slug}`;
+const title = `${e.label} ${e.rangeText} al Cadí-Moixeró | Meteocadí`;
+const description = e.paras[0];
+const monthLinks = e.months.map((k) => ({ href: `/historial/${k}`, label: `${cap(monthName(Number(k.slice(5, 7))))} de ${k.slice(0, 4)}` }));
+const ld = [
+  {
+    '@type': 'Article',
+    headline: `${e.label} ${e.rangeText} al Cadí-Moixeró`,
+    description,
+    url,
+    datePublished: e.published,
+    dateModified: e.published,
+    inLanguage: 'ca',
+    author: { '@id': 'https://www.meteocadi.cat/#org' },
+    publisher: { '@id': 'https://www.meteocadi.cat/#org' },
+    about: { '@type': 'Place', name: 'Cadí-Moixeró i Berguedà' },
+  },
+  {
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Inici', item: 'https://www.meteocadi.cat/' },
+      { '@type': 'ListItem', position: 2, name: 'Episodis', item: 'https://www.meteocadi.cat/episodis' },
+      { '@type': 'ListItem', position: 3, name: `${e.label} ${e.rangeText}`, item: url },
+    ],
+  },
+];
+---
+<Base title={title} description={description} path={`/episodis/${e.slug}`} jsonLd={ld} current="historial">
+  <section class="phead">
+    <div class="wrap">
+      <nav class="crumbs" aria-label="Ruta"><a href="/">Inici</a><span>›</span><a href="/historial">Historial</a><span>›</span><a href="/episodis">Episodis</a><span>›</span><span>{cap(e.rangeText)}</span></nav>
+      <span class={`ep-type ep-type--${e.type}`}>Episodi destacat · {e.start.slice(0, 4)}</span>
+      <h1>{e.h1.main} <em>{e.h1.em}</em></h1>
+      <div class="prose" style="margin-top:22px;font-size:17px;">
+        <p>{e.paras.slice(0, 2).join(' ')}</p>
+        {e.paras.length > 2 && <p>{e.paras.slice(2).join(' ')}</p>}
+      </div>
+      {e.open && <p class="ep-open">L'episodi podria continuar: aquesta pàgina s'actualitza cada nit amb el nou dia arxivat.</p>}
+    </div>
+  </section>
+
+  <section class="sec" style="padding:56px 0;">
+    <div class="wrap" style="display:flex;flex-direction:column;gap:28px;">
+      <div class="recs">
+        {e.cards.map((c) => (
+          <div class="card">
+            <span class="eyebrow">{c.k}</span>
+            <p class="mono" style="font-size:30px;">{c.v} <small style="font-size:15px;color:var(--muted)">{c.u}</small></p>
+            {c.sub && <p style="font-size:14px;color:var(--muted)">{c.sub}</p>}
+          </div>
+        ))}
+      </div>
+
+      <div>
+        <h2 class="h2" style="font-size:30px;margin-bottom:14px;">{e.tableTitle}</h2>
+        {e.ndays > 1 && e.ndays <= 7 && <p class="ep-note" style="margin:-4px 0 12px;">{DAYNOTE[e.type]}</p>}
+        <div class="tscroll">
+          <table class="dtable">
+            <thead><tr>{e.table.head.map((h) => <th class={h.n ? 'n' : undefined}>{h.t}</th>)}</tr></thead>
+            <tbody>
+              {e.table.body.map((row) => (
+                <tr>
+                  {row.map((c) => (
+                    <td class={c.n ? 'n' : undefined} style={c.color ? `color:${c.color}` : undefined}>
+                      {c.href ? <a href={c.href}>{c.t}</a> : c.b ? <b>{c.t}</b> : c.t}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {e.note && <p class="ep-note">{e.note}</p>}
+      </div>
+
+      <nav class="ep-nav">
+        {older ? <a href={`/episodis/${older.slug}`}>‹ {older.label}, {older.rangeText}</a> : <span></span>}
+        <a href="/episodis">Tots els episodis</a>
+        {newer ? <a href={`/episodis/${newer.slug}`}>{newer.label}, {newer.rangeText} ›</a> : <span></span>}
+      </nav>
+      <p style="font-size:14px;color:var(--muted);">
+        Resum generat automàticament amb les dades arxivades de les estacions de la xarxa Meteocadí (Weather Underground), sense cap revisió manual. Si hi veus alguna dada estranya, <a href="/contacte">escriu-nos</a>.
+        Més dades: {monthLinks.map((m, i) => <>{i > 0 && ' · '}<a href={m.href}>{m.label}</a></>)}.
+      </p>
+    </div>
+  </section>
+</Base>

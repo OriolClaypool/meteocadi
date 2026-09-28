@@ -1,0 +1,53 @@
+---
+// Llista d'episodis destacats, detectats automàticament a l'arxiu diari (vegeu src/lib/episodes.js).
+import Base from '../layouts/Base.astro';
+import { episodes, LLINDARS, elDia } from '../lib/episodes.js';
+import { completeDays } from '../lib/archive.js';
+import EpisodeCards from '../components/EpisodeCards.astro';
+import { num } from '../lib/format.js';
+
+const list = episodes();
+const first = completeDays()[0];
+const L = LLINDARS;
+const since = first ? `${elDia(first.date)} de ${first.date.slice(0, 4)}` : '';
+---
+<Base
+  title="Episodis destacats: pluja intensa, vent fort, calor i fred al Cadí-Moixeró | Meteocadí"
+  description="Resums automàtics dels episodis de pluja intensa, vent fort, calor, fred i primera glaçada a les estacions de Meteocadí, al Cadí-Moixeró i el Berguedà."
+  path="/episodis"
+  current="historial"
+  noindex={list.length === 0}
+>
+  <section class="phead">
+    <div class="wrap">
+      <nav class="crumbs" aria-label="Ruta"><a href="/">Inici</a><span>›</span><a href="/historial">Historial</a><span>›</span><span>Episodis</span></nav>
+      <h1>Episodis <em>destacats</em></h1>
+      <p>Quan alguna estació de la xarxa registra una xifra fora del normal, en fem un resum amb les dades de totes les estacions. Es genera sol la nit després, quan s'arxiva el dia.</p>
+    </div>
+  </section>
+
+  <section class="sec" style="padding:56px 0;">
+    <div class="wrap" style="display:flex;flex-direction:column;gap:40px;">
+      {list.length > 0 ? (
+        <EpisodeCards list={list} />
+      ) : (
+        <div class="card" style="max-width:760px;">
+          <p style="font-size:17px;line-height:1.6;">Encara no hi ha cap episodi.{since && ` L'arxiu comença ${since} i, de moment, cap estació ha superat els llindars de sota.`} Quan passi, el resum apareixerà aquí automàticament.</p>
+        </div>
+      )}
+
+      <div class="prose" style="max-width:760px;">
+        <h2 style="margin-top:0;">Com es detecten</h2>
+        <p>Cada nit es revisen les dades del dia arxivat de totes les estacions. Els dies seguits que compleixen el mateix criteri formen un sol episodi. Perquè una estació espatllada no en generi cap, cal que alguna altra estació també ho noti.</p>
+        <ul>
+          <li><b>Pluja intensa:</b> {L.pluja.dia} mm o més en un dia, o {L.pluja.total} mm o més acumulats en dies seguits de pluja, en alguna estació.</li>
+          <li><b>Vent fort:</b> una ratxa de {L.vent.alta} km/h o més en una estació d'alta muntanya, o de {L.vent.vall} km/h o més en una de vall.</li>
+          <li><b>Calor intensa:</b> una màxima de {L.calor.max} °C o més.</li>
+          <li><b>Fred intens:</b> una mínima de {num(L.fred.alta, 0)} °C o menys a alta muntanya, o de {num(L.fred.vall, 0)} °C o menys a la vall.</li>
+          <li><b>Primera glaçada:</b> el primer dia de la tardor que una estació de vall baixa de 0 °C.</li>
+        </ul>
+        <p>Només es fan servir dades mesurades per les estacions, mai previsions, i no hi ha cap revisió manual. Els pluviòmetres no mesuren bé la neu, així que no en donem xifres.</p>
+      </div>
+    </div>
+  </section>
+</Base>

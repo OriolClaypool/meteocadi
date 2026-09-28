@@ -463,3 +463,30 @@ button { font: inherit; }
 .road__cam figcaption { padding: 10px 14px; font-size: 13px; color: #c3cfde; }
 .road__cam.is-off img { display: none; }
 .road__cam.is-off figcaption::before { content: 'Imatge no disponible ara mateix · '; }
+
+/* Episodis destacats */
+.ep-type { display: inline-block; margin: 18px 0 12px; font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ep, var(--accent)); font-weight: 600; }
+.ep-type--pluja, .ep--pluja { --ep: #1f6fd1; }
+.ep-type--vent, .ep--vent { --ep: #0f766e; }
+.ep-type--calor, .ep--calor { --ep: #c2410c; }
+.ep-type--fred, .ep--fred { --ep: #6d28d9; }
+.ep-type--glacada, .ep--glacada { --ep: #0369a1; }
+.ep-open { margin-top: 18px; font-size: 15px; color: var(--ink2); border-left: 3px solid var(--accent); padding-left: 12px; }
+.ep-note { margin-top: 14px; font-size: 14px; color: var(--muted); max-width: 820px; }
+.ep-nav { display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap; font-weight: 600; }
+.eps { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.ep { display: flex; flex-direction: column; gap: 6px; background: #fff; border: 1px solid var(--line); border-top: 4px solid var(--ep); border-radius: 14px; padding: 20px 22px; color: var(--ink); transition: border-color 0.15s, transform 0.15s; }
+.ep:hover { border-color: var(--ep); transform: translateY(-2px); }
+.ep__k { font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ep); font-weight: 600; }
+.ep__d { font-family: var(--f-head); font-size: 19px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.25; }
+.ep__v { font-size: 30px; margin-top: 6px; }
+.ep__v small { font-size: 15px; color: var(--muted); }
+.ep__w { font-size: 14px; color: var(--muted); }
+.epstrip { display: block; background: #fff; border-bottom: 1px solid var(--line); color: var(--ink); }
+.epstrip .wrap { display: flex; align-items: center; gap: 10px 18px; flex-wrap: wrap; padding-top: 14px; padding-bottom: 14px; font-size: 15px; }
+.epstrip b { font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ep); }
+.epstrip span { color: var(--ink2); }
+.epstrip u { margin-left: auto; font-weight: 600; color: var(--accent); text-decoration: none; }
+.epstrip:hover u { text-decoration: underline; text-underline-offset: 3px; }
+@media (max-width: 640px) { .epstrip u { margin-left: 0; } }
+.dtable td.n { white-space: nowrap; }
