@@ -7,7 +7,7 @@ const DIRS = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
 const dir8 = (deg) => (deg == null || isNaN(deg) ? '' : DIRS[Math.round(deg / 45) % 8]);
 const DIR_NAMES = { N: 'nord', NE: 'nord-est', E: 'est', SE: 'sud-est', S: 'sud', SO: 'sud-oest', O: 'oest', NO: 'nord-oest' };
 // "Cim de la Tosa d'Alp" → "cim de la Tosa d'Alp" (els noms propis es queden igual)
-export const lowerCommon = (s) => (/^(Cim|Carena|Base|Estació)\s/.test(s) ? s[0].toLowerCase() + s.slice(1) : s);
+export const lowerCommon = (s) => (/^(Cim|Carena|Base|Estació|Boca)\s/.test(s) ? s[0].toLowerCase() + s.slice(1) : s);
 const r0 = (v) => (v == null || isNaN(v) ? null : Math.round(v));
 const thousands = (v) => String(v).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 

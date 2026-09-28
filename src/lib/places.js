@@ -79,6 +79,7 @@ export const PLACES = [
     intro: [
       'El Coll de Pal és el pas de muntanya entre el Berguedà i la Cerdanya per la carretera de Bagà a la Molina, a la zona de l\'antiga estació d\'esquí de Puigllançada. L\'estació de la xarxa és a 2.090 m.',
       'Com a coll obert entre dues valls, és un punt molt exposat al vent, i una bona referència per saber quina temperatura fa a la carretera els mesos freds.',
+      "La carretera BV-4024, que puja de Bagà al Coll de Pal, es talla de vegades per la neu a la part alta, a prop del coll. Abans d'agafar-la a l'hivern, consulta l'estat de la carretera al Servei Català de Trànsit.",
     ],
   },
   {
@@ -217,14 +218,34 @@ export const PLACES = [
       "L'estació Refugi de Rebost de la xarxa és al mateix refugi i dona en directe la temperatura, el vent i la pluja del punt de sortida de moltes excursions, com la pujada a la Tosa d'Alp.",
     ],
   },
+  // ------------------------------------------------------------------ carreteres
+  {
+    slug: 'tunel-del-cadi',
+    name: 'Túnel del Cadí',
+    a: 'al túnel del Cadí',
+    kind: 'carretera',
+    lat: 42.2947, lng: 1.8631, alt: 1175,
+    stations: ['IBAG67', 'IBAG65'],
+    points: [
+      { label: 'Boca nord, a Urús', lat: 42.3350, lng: 1.8375, alt: 1236 },
+      { label: 'Boca sud, a Guardiola de Berguedà', lat: 42.2947, lng: 1.8631, alt: 1175 },
+    ],
+    intro: [
+      "El túnel del Cadí, a la C-16, travessa la serra del Cadí entre el Berguedà i la Cerdanya. Fa 5.026 metres i es va inaugurar el 30 d'octubre de 1984. La boca sud és al terme de Guardiola de Berguedà, a 1.175 m, i la boca nord, al d'Urús, a 1.236 m.",
+      "A cada banda del túnel el temps pot ser molt diferent, i per això la previsió d'aquesta pàgina està calculada per a totes dues boques. Fixa't sobretot en la isoterma de 0 °C: si baixa a prop de l'altitud de les boques, a la carretera hi pot haver neu o gel.",
+      "Les estacions de la xarxa més properes són la del Refugi de Rebost (1.650 m), a uns 2 km de la boca sud, i la de Bagà Nord (865 m), a la vall. Aquesta pàgina no informa de l'estat de la carretera: per saber si és oberta, si calen cadenes o si hi ha incidències, consulta sempre el Servei Català de Trànsit.",
+    ],
+  },
 ];
 
 export const PLACE_BY_SLUG = Object.fromEntries(PLACES.map((p) => [p.slug, p]));
 
 // Llocs de muntanya (tenen la secció de condicions de muntanya i surten a /muntanya)
 export const MOUNTAIN_KINDS = ['cim', 'coll', 'esqui', 'refugi'];
-export const isMountain = (p) => MOUNTAIN_KINDS.includes(p.kind);
-export const MOUNTAINS = PLACES.filter(isMountain);
+// Llocs amb previsió per altitud (muntanya i carreteres de port)
+export const isMountain = (p) => MOUNTAIN_KINDS.includes(p.kind) || p.kind === 'carretera';
+export const isRoad = (p) => p.kind === 'carretera';
+export const MOUNTAINS = PLACES.filter((p) => MOUNTAIN_KINDS.includes(p.kind));
 
 // Distància en línia recta (km) entre un lloc i una estació
 export function distanceKm(a, b) {

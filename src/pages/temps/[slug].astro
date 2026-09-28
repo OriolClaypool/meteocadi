@@ -4,7 +4,7 @@ import StationTable from '../../components/StationTable.astro';
 import Forecast from '../../components/Forecast.astro';
 import MountainNotice from '../../components/MountainNotice.astro';
 import MountainForecast from '../../components/MountainForecast.astro';
-import { PLACES, PLACE_BY_SLUG, isMountain, distanceKm } from '../../lib/places.js';
+import { PLACES, PLACE_BY_SLUG, isMountain, isRoad, distanceKm } from '../../lib/places.js';
 import { fetchMountain, mountainText, lowerCommon } from '../../lib/mountain.js';
 import { BY_ID, fmtAlt } from '../../lib/stations.js';
 import { stationRecords } from '../../lib/archive.js';
@@ -21,6 +21,8 @@ const main = BY_ID[p.stations[0]];
 const rec = stationRecords(main.id);
 const fc = await dailyForecast(p, 3);
 const mountain = isMountain(p) && p.points?.length;
+const road = isRoad(p);
+const hub = mountain && !road; // les pàgines de muntanya pengen de /muntanya
 const mdata = mountain ? await fetchMountain(p.points) : null;
 const mtext = mountain ? mountainText(mdata, p) : [];
 const dist = distanceKm(p, main);
@@ -32,9 +34,11 @@ const dayText = (d) => {
   const wind = d.gust != null && d.gust >= 40 ? ` Ratxes de fins a ${Math.round(d.gust)} km/h.` : '';
   return `${cap(longDate(d.date))}: ${wmoText(d.code).toLowerCase()}, màxima de ${Math.round(d.max)} °C i mínima de ${Math.round(d.min)} °C${rain}.${wind}`;
 };
-const kindWord = { poble: 'el poble', cim: 'la muntanya', coll: 'el coll', esqui: "l'estació d'esquí", refugi: 'el refugi' }[p.kind] ?? 'el lloc';
+const kindWord = { poble: 'el poble', cim: 'la muntanya', coll: 'el coll', esqui: "l'estació d'esquí", refugi: 'el refugi', carretera: 'la carretera' }[p.kind] ?? 'el lloc';
 const title = `El temps ${p.a}: ara, previsió per hores i historial | Meteocadí`;
-const description = mountain
+const description = road
+  ? `Temps ${p.a}: previsió a les dues boques (${p.points.map((x) => fmtAlt(x.alt)).join(' i ')}) amb temperatura, precipitació, neu i isoterma de 0 °C, i dades en directe de l'estació ${main.name}. Estat de la carretera: Servei Català de Trànsit.`
+  : mountain
   ? `Temps ${p.a}: vent, sensació tèrmica, isoterma i neu previstos ${p.points.map((x) => `a ${fmtAlt(x.alt)}`).join(' i ')}, i dades en directe de l'estació ${main.name} (${fmtAlt(main.alt)}).`
   : `Temps ${p.a} (${fmtAlt(p.alt)}): temperatura i vent en directe de l'estació ${main.name}, previsió per hores i per a 7 dies calculada per a l'altitud de ${kindWord}, i historial diari.`;
 const others = PLACES.filter((x) => x.slug !== p.slug);
@@ -50,16 +54,16 @@ const ld = [
     '@type': 'BreadcrumbList',
     itemListElement: [
       { '@type': 'ListItem', position: 1, name: 'Inici', item: 'https://www.meteocadi.cat/' },
-      mountain ? { '@type': 'ListItem', position: 2, name: 'Muntanya', item: 'https://www.meteocadi.cat/muntanya' } : { '@type': 'ListItem', position: 2, name: 'Pobles i cims', item: 'https://www.meteocadi.cat/temps' },
+      hub ? { '@type': 'ListItem', position: 2, name: 'Muntanya', item: 'https://www.meteocadi.cat/muntanya' } : { '@type': 'ListItem', position: 2, name: 'Pobles i cims', item: 'https://www.meteocadi.cat/temps' },
       { '@type': 'ListItem', position: 3, name: `El temps ${p.a}`, item: `https://www.meteocadi.cat/temps/${p.slug}` },
     ],
   },
 ];
 ---
-<Base title={title} description={description} path={`/temps/${p.slug}`} jsonLd={ld} current={mountain ? 'muntanya' : 'temps'}>
+<Base title={title} description={description} path={`/temps/${p.slug}`} jsonLd={ld} current={hub ? 'muntanya' : 'temps'}>
   <section class="phead">
     <div class="wrap">
-      <nav class="crumbs" aria-label="Ruta"><a href="/">Inici</a><span>›</span>{mountain ? <a href="/muntanya">Muntanya</a> : <a href="/temps">Pobles i cims</a>}<span>›</span><span>{p.name}</span></nav>
+      <nav class="crumbs" aria-label="Ruta"><a href="/">Inici</a><span>›</span>{hub ? <a href="/muntanya">Muntanya</a> : <a href="/temps">Pobles i cims</a>}<span>›</span><span>{p.name}</span></nav>
       <h1>El temps {p.a}</h1>
       <p>{fmtAlt(p.alt)} d'altitud · Estació de referència: <a href={`/estacions/${main.slug}`}>{main.name}</a> ({fmtAlt(main.alt)}){distTxt}.</p>
       {mountain && mtext.length > 0 && (
@@ -67,7 +71,7 @@ const ld = [
           {mtext.map((t) => <p>{t}</p>)}
         </div>
       )}
-      {mountain && <div style="margin-top:22px;"><MountainNotice short /></div>}
+      {mountain && <div style="margin-top:22px;"><MountainNotice short road={road} /></div>}
       {(!mountain || mtext.length === 0) && fc && (
         <div class="prose" style="margin-top:22px;font-size:17px;">
           {fc.slice(0, 2).map((d) => <p>{dayText(d)}</p>)}
@@ -92,7 +96,7 @@ const ld = [
   {mountain && (
     <section class="sec">
       <div class="wrap">
-        <MountainForecast points={p.points} data={mdata} sub={`Calculada per a ${p.points.map((x) => `${fmtAlt(x.alt)} (${lowerCommon(x.label)})`).join(' i per a ')}.`} />
+        <MountainForecast points={p.points} data={mdata} title={road ? 'Condicions previstes a les boques' : undefined} sub={`Calculada per a ${p.points.map((x) => `${fmtAlt(x.alt)} (${lowerCommon(x.label)})`).join(' i per a ')}.`} />
       </div>
     </section>
   )}
@@ -132,13 +136,13 @@ const ld = [
 
   {mountain && (
     <section class="sec" style="padding:56px 0 8px;">
-      <div class="wrap"><MountainNotice /></div>
+      <div class="wrap"><MountainNotice road={road} /></div>
     </section>
   )}
 
   <section class="sec sec--pale" style="padding:64px 0;">
     <div class="wrap">
-      {mountain && <p style="margin-bottom:18px;"><a class="link-arrow" href="/muntanya">Condicions a tots els cims i estacions d'esquí →</a></p>}
+      {hub && <p style="margin-bottom:18px;"><a class="link-arrow" href="/muntanya">Condicions a tots els cims i estacions d'esquí →</a></p>}
       <h2 style="font-size:24px;font-weight:800;margin-bottom:16px;">El temps a altres llocs de la zona</h2>
       <div style="display:flex;flex-wrap:wrap;gap:10px;">
         {others.map((x) => <a class="btn btn--line" style="height:44px;font-size:15px;background:#fff;" href={`/temps/${x.slug}`}>{x.name}</a>)}

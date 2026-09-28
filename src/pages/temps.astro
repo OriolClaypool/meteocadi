@@ -4,7 +4,8 @@ import { PLACES } from '../lib/places.js';
 import { BY_ID, fmtAlt } from '../lib/stations.js';
 const groups = [
   { title: 'Pobles', list: PLACES.filter((p) => p.kind === 'poble') },
-  { title: 'Muntanya i esquí', list: PLACES.filter((p) => p.kind !== 'poble') },
+  { title: 'Muntanya i esquí', list: PLACES.filter((p) => p.kind !== 'poble' && p.kind !== 'carretera') },
+  { title: 'Carreteres', list: PLACES.filter((p) => p.kind === 'carretera') },
 ];
 const ld = [
   {

@@ -1,9 +1,25 @@
 ---
 // Avís de responsabilitat per a les pàgines de muntanya. "short": caixa breu per a dalt de la pàgina.
-interface Props { short?: boolean }
-const { short = false } = Astro.props;
+interface Props { short?: boolean; road?: boolean }
+const { short = false, road = false } = Astro.props;
+const SCT = 'https://transit.gencat.cat/ca/informacio-viaria/estat-transit/';
 ---
-{short ? (
+{road ? (
+  short ? (
+    <aside class="notice notice--short" aria-label="Avís">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5 2.5 20h19L12 3.5Z"></path><path d="M12 10v4.5"></path><path d="M12 17.3v.2"></path></svg>
+      <p><b>Informació orientativa.</b> Aquesta pàgina no informa de l'estat de la carretera. Abans de sortir, consulta el <a href={SCT} rel="noopener" target="_blank">Servei Català de Trànsit</a>. Meteocadí no es fa responsable de l'ús que es faci d'aquesta informació. <a href="#avis-muntanya">Llegeix l'avís complet</a></p>
+    </aside>
+  ) : (
+    <aside class="notice" id="avis-muntanya" aria-labelledby="avis-muntanya-t">
+      <h2 id="avis-muntanya-t">Abans d'agafar el cotxe</h2>
+      <p>Les dades d'aquesta pàgina són <b>orientatives</b>. Provenen de les estacions de la xarxa Meteocadí i de fonts de tercers (Weather Underground i el model de previsió d'Open-Meteo), es generen de manera automàtica i poden tenir errors, retards o interrupcions.</p>
+      <p><b>No informen de l'estat de la carretera</b>, de talls ni de l'obligació de portar cadenes. Per a això, consulta sempre el <a href={SCT} rel="noopener" target="_blank">Servei Català de Trànsit</a> abans de sortir i fes cas de la senyalització.</p>
+      <p>Cadascú és responsable de les seves decisions. Meteocadí no es fa responsable de l'ús que es faci d'aquesta informació ni dels danys que se'n puguin derivar. En cas d'emergència, truca al <b>112</b>.</p>
+      <p><a href="/avis-legal">Avís legal i condicions d'ús</a></p>
+    </aside>
+  )
+) : short ? (
   <aside class="notice notice--short" aria-label="Avís">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5 2.5 20h19L12 3.5Z"></path><path d="M12 10v4.5"></path><path d="M12 17.3v.2"></path></svg>
     <p><b>Informació orientativa.</b> Les dades i les previsions són automàtiques, de fonts pròpies i de tercers, i poden fallar. A la muntanya cadascú assumeix el seu risc: consulta també les fonts oficials i decideix amb prudència. Meteocadí no es fa responsable de l'ús que es faci d'aquesta informació. <a href="#avis-muntanya">Llegeix l'avís complet</a></p>
