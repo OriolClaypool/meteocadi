@@ -1,7 +1,7 @@
 import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
 
-const HIDDEN = /\/(ranking|taula|previsio|estudi|404|webcams)(\.html)?$/;
+const HIDDEN = /\/(estudi|404|webcams)(\.html)?$/;
 
 export default defineConfig({
   site: 'https://meteocadi.cat',

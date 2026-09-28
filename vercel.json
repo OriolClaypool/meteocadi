@@ -319,6 +319,36 @@
       "source": "/sitemap.xml",
       "destination": "/sitemap-index.xml",
       "permanent": false
+    },
+    {
+      "source": "/taula",
+      "destination": "/estudi",
+      "permanent": false
+    },
+    {
+      "source": "/taula.html",
+      "destination": "/estudi",
+      "permanent": false
+    },
+    {
+      "source": "/ranking",
+      "destination": "/estudi",
+      "permanent": false
+    },
+    {
+      "source": "/ranking.html",
+      "destination": "/estudi",
+      "permanent": false
+    },
+    {
+      "source": "/previsio",
+      "destination": "/estudi",
+      "permanent": false
+    },
+    {
+      "source": "/previsio.html",
+      "destination": "/estudi",
+      "permanent": false
     }
   ],
   "headers": [

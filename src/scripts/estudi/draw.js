@@ -6,6 +6,7 @@ import { tempColor, tempColorLight, num, dayName, dayMonth, cap } from '../../li
 export const W = 1080;
 export const H = 1920;
 const TOP = 180;
+const PV_TOP = 280; // la previsió comença més avall (més aire a dalt a Stories)
 const FOOT_Y = 1688;
 const LIMIT = 1652; // on ha d'acabar el contingut
 const X0 = 64;
@@ -161,25 +162,25 @@ function footer(ctx, dark, pageLabel = '') {
 }
 
 // Data en majúscules i títol de dues línies. Retorna on acaba.
-function header(ctx, eyebrow, l1, l2, c0, c1, c2) {
+function header(ctx, eyebrow, l1, l2, c0, c1, c2, top = TOP) {
   ctx.textBaseline = 'middle';
   font(ctx, 'mono', 24);
   ctx.fillStyle = c0;
-  spaced(ctx, eyebrow.toLocaleUpperCase('ca'), X0, TOP + 15, 3.36);
+  spaced(ctx, eyebrow.toLocaleUpperCase('ca'), X0, top + 15, 3.36);
   tracking(ctx, -3.36);
   const s1 = fitFont(ctx, 'head', 96, 800, l1, X1 - X0);
   ctx.fillStyle = c1;
-  ctx.fillText(l1, X0, TOP + 93);
+  ctx.fillText(l1, X0, top + 93);
   if (!l2) {
     tracking(ctx, 0);
-    return TOP + 140; // títol d'una sola línia
+    return top + 140; // títol d'una sola línia
   }
   const s2 = fitFont(ctx, 'head', 96, 800, l2, X1 - X0);
   ctx.fillStyle = c2;
   font(ctx, 'head', Math.min(s1, s2), 800);
-  ctx.fillText(l2, X0, TOP + 187);
+  ctx.fillText(l2, X0, top + 187);
   tracking(ctx, 0);
-  return TOP + 234;
+  return top + 234;
 }
 
 function hline(ctx, x0, x1, y, color, w = 1) {
@@ -447,16 +448,21 @@ export function layoutPrevisio(ctx, st) {
     if (st.summary.trim()) out.push(measureSummary(ctx, st.summary, k));
     return out;
   };
-  const top = TOP + 140 + 44; // sota el títol «El temps»
+  // Si el text és llarg, primer ocupa l'espai de baix; després la capçalera puja (de 280 fins a 180 px);
+  // i només si encara no hi cap, la lletra es fa una mica més petita o es reparteix en diverses imatges.
+  const HEAD = 140 + 44; // de dalt de la capçalera a la primera targeta
   const GAP = 22;
   for (const k of [1, 0.94, 0.88, 0.84]) {
     const b = blocks(k);
     const total = b.reduce((n, x) => n + x.height, 0) + GAP * (b.length - 1);
-    if (top + total <= LIMIT) {
-      let y = top;
-      return { pages: [b.map((x) => { const o = { ...x, y }; y += x.height + GAP; return o; })], k, error: '' };
+    const room = LIMIT - total - HEAD;
+    if (room >= TOP) {
+      const headTop = Math.min(PV_TOP, Math.floor(room));
+      let y = headTop + HEAD;
+      return { pages: [b.map((x) => { const o = { ...x, y }; y += x.height + GAP; return o; })], k, error: '', headTop };
     }
   }
+  const top = TOP + HEAD;
   // No hi cap en una imatge: es reparteix en diverses
   const b = blocks(0.84);
   const pages = [[]];
@@ -471,7 +477,7 @@ export function layoutPrevisio(ctx, st) {
     pages[pages.length - 1].push({ ...x, y });
     y += x.height + GAP;
   }
-  return { pages, k: 0.84, error };
+  return { pages, k: 0.84, error, headTop: TOP };
 }
 
 function alertPill(ctx, x, y, level, type) {
@@ -574,7 +580,7 @@ function drawSummary(ctx, b) {
 
 export function drawPrevisio(ctx, st, icons, layout, page = 0) {
   background(ctx, true);
-  header(ctx, `Previsió · ${dayName(st.date)} ${dayMonth(st.date)}`, 'El temps', '', A.cy, '#ffffff', A.cy);
+  header(ctx, `Previsió · ${dayName(st.date)} ${dayMonth(st.date)}`, 'El temps', '', A.cy, '#ffffff', A.cy, layout.headTop ?? TOP);
   const items = layout.pages[Math.min(page, layout.pages.length - 1)] || [];
   for (const b of items) b.type === 'day' ? drawCard(ctx, b, st, icons) : drawSummary(ctx, b);
   footer(ctx, true, layout.pages.length > 1 ? `${page + 1} / ${layout.pages.length}` : '');

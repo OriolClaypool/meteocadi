@@ -4,8 +4,8 @@ Weather-station network site for Cadí-Moixeró / Berguedà. **All user-facing c
 
 ## Stack
 - Astro (static output, `build.format: 'file'`, no trailing slash) deployed on Vercel. `vercel.json` sets framework/build/output, cron, redirects.
-- Vercel functions live in `/api` (plain Node, not Astro): `ara.js` (all stations live, CDN-cached 15 min), `arxiva.js` (nightly archive → commits `dades/YYYY/*.json` to GitHub), `hourly.js`, `dailysummary.js` (used by legacy pages).
-- Legacy internal pages (`public/taula.html`, `ranking.html`, `previsio.html`) keep the old `public/css/style.css` + `public/js/main.js`. They are noindex/robots-disallowed.
+- Vercel functions live in `/api` (plain Node, not Astro): `ara.js` (all stations live, CDN-cached 15 min), `arxiva.js` (nightly archive → commits `dades/YYYY/*.json` to GitHub).
+- The old image generators (`/taula`, `/ranking`, `/previsio`) were removed; `vercel.json` redirects them to `/estudi`.
 
 ## Data
 - Stations: single source of truth in `src/lib/stations.js` (Weather Underground IDs). Keep `api/arxiva.js` STATIONS_META in sync when adding a station.
