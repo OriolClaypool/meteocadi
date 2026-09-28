@@ -28,14 +28,14 @@ const ld = [
     description,
     geo: { '@type': 'GeoCoordinates', latitude: s.lat, longitude: s.lng, elevation: s.alt },
     containedInPlace: { '@type': 'AdministrativeArea', name: `${s.loc}, ${s.comarca}` },
-    url: `https://meteocadi.cat/estacions/${s.slug}`,
+    url: `https://www.meteocadi.cat/estacions/${s.slug}`,
   },
   {
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Inici', item: 'https://meteocadi.cat/' },
-      { '@type': 'ListItem', position: 2, name: 'Estacions', item: 'https://meteocadi.cat/estacions' },
-      { '@type': 'ListItem', position: 3, name: s.name, item: `https://meteocadi.cat/estacions/${s.slug}` },
+      { '@type': 'ListItem', position: 1, name: 'Inici', item: 'https://www.meteocadi.cat/' },
+      { '@type': 'ListItem', position: 2, name: 'Estacions', item: 'https://www.meteocadi.cat/estacions' },
+      { '@type': 'ListItem', position: 3, name: s.name, item: `https://www.meteocadi.cat/estacions/${s.slug}` },
     ],
   },
 ];

@@ -4,7 +4,7 @@ import sitemap from '@astrojs/sitemap';
 const HIDDEN = /\/(estudi|404|webcams)(\.html)?$/;
 
 export default defineConfig({
-  site: 'https://meteocadi.cat',
+  site: 'https://www.meteocadi.cat',
   trailingSlash: 'never',
   build: { format: 'file' },
   integrations: [

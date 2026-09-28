@@ -21,7 +21,7 @@ interface Props {
 }
 
 const { title, description, path, image = '/imatges/og-meteocadi.jpg', jsonLd = [], noindex = false, header = 'solid', current = '', preload, bare = false } = Astro.props;
-const site = 'https://meteocadi.cat';
+const site = 'https://www.meteocadi.cat';
 const url = site + (path === '/' ? '/' : path);
 const img = image.startsWith('http') ? image : site + image;
 

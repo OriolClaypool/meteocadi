@@ -3,6 +3,7 @@
 Weather-station network site for Cadí-Moixeró / Berguedà. **All user-facing copy is in Catalan.**
 
 ## Stack
+- Canonical domain: `https://www.meteocadi.cat` (Vercel redirects the apex to www; Google indexes www). Use www in `site`, canonicals, JSON-LD and the sitemap.
 - Astro (static output, `build.format: 'file'`, no trailing slash) deployed on Vercel. `vercel.json` sets framework/build/output, cron, redirects.
 - Vercel functions live in `/api` (plain Node, not Astro): `ara.js` (all stations live, CDN-cached 15 min), `arxiva.js` (nightly archive → commits `dades/YYYY/*.json` to GitHub).
 - The old image generators (`/taula`, `/ranking`, `/previsio`) were removed; `vercel.json` redirects them to `/estudi`.

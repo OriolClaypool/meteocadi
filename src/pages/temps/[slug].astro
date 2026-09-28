@@ -34,14 +34,14 @@ const ld = [
     name: p.name,
     geo: { '@type': 'GeoCoordinates', latitude: p.lat, longitude: p.lng, elevation: p.alt },
     containedInPlace: { '@type': 'AdministrativeArea', name: 'Berguedà' },
-    url: `https://meteocadi.cat/temps/${p.slug}`,
+    url: `https://www.meteocadi.cat/temps/${p.slug}`,
   },
   {
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Inici', item: 'https://meteocadi.cat/' },
-      { '@type': 'ListItem', position: 2, name: 'Pobles i cims', item: 'https://meteocadi.cat/temps' },
-      { '@type': 'ListItem', position: 3, name: `El temps ${p.a}`, item: `https://meteocadi.cat/temps/${p.slug}` },
+      { '@type': 'ListItem', position: 1, name: 'Inici', item: 'https://www.meteocadi.cat/' },
+      { '@type': 'ListItem', position: 2, name: 'Pobles i cims', item: 'https://www.meteocadi.cat/temps' },
+      { '@type': 'ListItem', position: 3, name: `El temps ${p.a}`, item: `https://www.meteocadi.cat/temps/${p.slug}` },
     ],
   },
 ];

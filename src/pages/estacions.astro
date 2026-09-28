@@ -7,7 +7,7 @@ const ld = [
   {
     '@type': 'ItemList',
     name: 'Estacions de la xarxa Meteocadí',
-    itemListElement: STATIONS.map((s, i) => ({ '@type': 'ListItem', position: i + 1, name: `${s.name} (${fmtAlt(s.alt)})`, url: `https://meteocadi.cat/estacions/${s.slug}` })),
+    itemListElement: STATIONS.map((s, i) => ({ '@type': 'ListItem', position: i + 1, name: `${s.name} (${fmtAlt(s.alt)})`, url: `https://www.meteocadi.cat/estacions/${s.slug}` })),
   },
 ];
 const CONT = 'M-200 -20C-190 -140 -40 -190 80 -160C200 -130 260 -40 230 60C200 160 60 190 -60 170C-170 150 -210 80 -200 -20Z';

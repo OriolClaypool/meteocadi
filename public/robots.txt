@@ -4,4 +4,4 @@ Allow: /
 Disallow: /estudi
 Disallow: /api/
 
-Sitemap: https://meteocadi.cat/sitemap-index.xml
+Sitemap: https://www.meteocadi.cat/sitemap-index.xml
