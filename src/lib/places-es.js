@@ -117,6 +117,33 @@ export const PLACES_ES = {
       'La previsión de esta página está calculada para el Pla de Masella y para la cima de la Tosa.',
     ],
   },
+  'port-del-comte': {
+    name: 'Port del Comte',
+    a: 'en Port del Comte',
+    points: ['Parte alta de las pistas', 'Base de las pistas'],
+    intro: [
+      'Port del Comte es la estación de esquí alpino del Solsonès, en el término de La Coma i la Pedra, y abrió en 1973. Las pistas empiezan a unos 1.700 m y la mayoría pasan por dentro de un bosque de pinos.',
+      'No tenemos ninguna estación allí: la más cercana de la red es la de Gósol (1.450 m), y la del Pedraforca (2.270 m) sirve de referencia para el viento arriba. La previsión de esta página está calculada para la base de las pistas y para 2.300 m, en la parte alta.',
+    ],
+  },
+  'rasos-de-peguera': {
+    name: 'Rasos de Peguera',
+    a: 'en los Rasos de Peguera',
+    points: ['Parte alta de las pistas', 'Base de las pistas'],
+    intro: [
+      "Los Rasos de Peguera son la estación de esquí del Berguedà, entre Castellar del Riu y Montmajor, en el espacio natural de la sierra de Ensija. Las pistas, orientadas al norte, van de unos 1.850 a 2.050 m, y también se practica esquí de montaña, esquí de fondo y raquetas.",
+      'Es un lugar clave en la historia del esquí: según la propia estación, en 1908 un grupo de excursionistas usó esquís allí por primera vez. Como está más baja que las estaciones de la Cerdanya, la nieve depende mucho de cada invierno: antes de ir, comprueba siempre si está abierta.',
+    ],
+  },
+  'tuixent-la-vansa': {
+    name: 'Tuixent-La Vansa',
+    a: 'en Tuixent-La Vansa',
+    points: ['Parte alta de los circuitos', 'Base de los circuitos'],
+    intro: [
+      'Tuixent-La Vansa es una estación de esquí nórdico en la cara norte del macizo del Port del Comte, entre Josa i Tuixén y La Vansa i Fórnols, en el Alt Urgell. Tiene cerca de 30 km de circuitos, entre unos 1.830 y 2.150 m, e itinerarios para ir con raquetas.',
+      'Desde los circuitos se ven la sierra del Cadí y el Pedraforca. La estación de la red más cercana es la de Gósol (1.450 m), y la del Pedraforca (2.270 m) sirve de referencia para el viento arriba.',
+    ],
+  },
   comabona: {
     name: 'Comabona',
     a: 'en el Comabona',

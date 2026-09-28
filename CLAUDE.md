@@ -23,6 +23,11 @@ Weather-station network site for Cadí-Moixeró / Berguedà. **All user-facing c
 - `/muntanya` is the hub (high stations live + summary table); `/avis-legal` holds the full disclaimer. Keep both linked from the footer.
 - Facts in place intros must be verifiable (altitudes, municipalities, routes); don't add claims without a source.
 
+## Ski (Meteocadí Neu)
+- `/esqui` and `/es/esqui` (`SkiHub.astro`): 7-day board for every place with a `ski` attribute in `places.js` (type, region, official web, webcams), roads near the resorts (`/api/transit?near=lat:lng:km`) and official links.
+- `src/lib/ski.js` rates the weather for skiing (wind at the top, snowfall, rain at the base, sun, cold, heat, fresh snow). It is weather only, never slope status or whether a resort is open; the rating is hidden out of season (15 Nov–30 Apr), `?temporada` forces it for testing.
+- Resort facts must be verifiable; the official site of each resort is the reference for opening, snow and prices.
+
 ## Episodes (automatic reports)
 - `src/lib/episodes.js` scans the daily archive at build time for heavy rain, strong wind, heat, cold and the first valley frost of the autumn (thresholds in `LLINDARS`; another station must corroborate). Consecutive days merge into one episode; slug `/episodis/YYYY-MM-DD-type` (start date, stable while the episode grows).
 - Measured data only, never forecasts; never claim snow amounts (gauges don't measure snow).

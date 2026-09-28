@@ -7,20 +7,22 @@ import { t } from './i18n.js';
 const DIRS = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
 const dir8 = (deg) => (deg == null || isNaN(deg) ? '' : DIRS[Math.round(deg / 45) % 8]);
 // "Cim de la Tosa d'Alp" → "cim de la Tosa d'Alp" (els noms propis es queden igual)
-export const lowerCommon = (s) => (/^(Cim|Cima|Carena|Base|Estació|Estación|Boca)\s/.test(s) ? s[0].toLowerCase() + s.slice(1) : s);
+export const lowerCommon = (s) => (/^(Cim|Cima|Carena|Base|Estació|Estación|Boca|Part|Parte)\s/.test(s) ? s[0].toLowerCase() + s.slice(1) : s);
 const r0 = (v) => (v == null || isNaN(v) ? null : Math.round(v));
 const thousands = (v) => String(v).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 
-export function mountainUrl(points, days = 3) {
+// past: dies anteriors (per saber la neu caiguda abans d'avui)
+export function mountainUrl(points, days = 3, past = 0) {
   const p = new URLSearchParams({
     latitude: points.map((x) => x.lat).join(','),
     longitude: points.map((x) => x.lng).join(','),
     elevation: points.map((x) => x.alt).join(','),
-    daily: 'weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_min,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant,precipitation_sum,snowfall_sum',
+    daily: 'weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_min,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant,precipitation_sum,snowfall_sum,sunshine_duration',
     hourly: 'freezing_level_height',
     timezone: 'Europe/Madrid',
     forecast_days: String(days),
   });
+  if (past > 0) p.set('past_days', String(past));
   return `https://api.open-meteo.com/v1/forecast?${p}`;
 }
 
@@ -55,18 +57,19 @@ export function parseMountain(json, points) {
         dir: d.wind_direction_10m_dominant?.[i] ?? null,
         precip: d.precipitation_sum?.[i] ?? null,
         snow: d.snowfall_sum?.[i] ?? null,
+        sun: d.sunshine_duration?.[i] != null ? d.sunshine_duration[i] / 3600 : null, // hores de sol
         frz: freezing(j.hourly, date),
       })),
     };
   });
 }
 
-export async function fetchMountain(points, days = 3, ms = 6000) {
+export async function fetchMountain(points, days = 3, ms = 6000, past = 0) {
   try {
     const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), ms);
-    const r = await fetch(mountainUrl(points, days), { signal: ctrl.signal });
-    clearTimeout(t);
+    const timer = setTimeout(() => ctrl.abort(), ms);
+    const r = await fetch(mountainUrl(points, days, past), { signal: ctrl.signal });
+    clearTimeout(timer);
     if (!r.ok) return null;
     return parseMountain(await r.json(), points);
   } catch {

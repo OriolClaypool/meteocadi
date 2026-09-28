@@ -2,13 +2,19 @@
 // Estat de la carretera: incidències del Servei Català de Trànsit (dades obertes) i càmeres de trànsit.
 // Es carrega al navegador des de /api/transit i /api/camera (amb memòria cau al servidor).
 interface Props {
-  roads: { road: string; from?: number; to?: number; label: string }[];
+  roads?: { road: string; from?: number; to?: number; label: string }[];
+  areas?: { lat: number; lng: number; km: number }[]; // incidències a menys de km d'aquests punts
   cameras?: { id: string; label: string }[];
+  sub?: string; // text de sota el títol (per defecte, les carreteres de roads)
   lang?: 'ca' | 'es';
 }
-const { roads, cameras = [], lang = 'ca' } = Astro.props;
+const { roads = [], areas = [], cameras = [], sub, lang = 'ca' } = Astro.props;
 const es = lang === 'es';
-const query = roads.map((r) => (r.from != null ? `${r.road}:${r.from}-${r.to}` : r.road)).join(',');
+const q = new URLSearchParams();
+if (roads.length) q.set('roads', roads.map((r) => (r.from != null ? `${r.road}:${r.from}-${r.to}` : r.road)).join(','));
+if (areas.length) q.set('near', areas.map((a) => `${a.lat}:${a.lng}:${a.km}`).join(','));
+const query = q.toString();
+const subText = sub ?? `${es ? 'Incidencias comunicadas en' : 'Incidències comunicades a'} ${roads.map((r) => r.label).join(es ? ' y ' : ' i ')}.`;
 const SCT = 'https://transit.gencat.cat/ca/informacio-viaria/estat-transit/';
 ---
 <div class="road" data-road={query}>
@@ -16,7 +22,7 @@ const SCT = 'https://transit.gencat.cat/ca/informacio-viaria/estat-transit/';
     <div>
       <span class="eyebrow">SERVEI CATALÀ DE TRÀNSIT · {es ? 'DATOS ABIERTOS' : 'DADES OBERTES'}</span>
       <h2 class="h2">{es ? 'Estado de' : 'Estat de'} <em>la carretera</em></h2>
-      <p class="sub">{es ? 'Incidencias comunicadas en' : 'Incidències comunicades a'} {roads.map((r) => r.label).join(es ? ' y ' : ' i ')}.</p>
+      <p class="sub">{subText}</p>
     </div>
   </div>
   <div class="road__list" data-road-list aria-live="polite">
@@ -32,7 +38,7 @@ const SCT = 'https://transit.gencat.cat/ca/informacio-viaria/estat-transit/';
       {cameras.map((c) => (
         <figure class="road__cam">
           <img data-cam={c.id} alt={`${es ? 'Cámara de tráfico' : 'Càmera de trànsit'}: ${c.label}`} width="704" height="480" loading="lazy" decoding="async" />
-          <figcaption>{c.label} · {es ? 'Imagen' : 'Imatge'}: Servei Català de Trànsit</figcaption>
+          <figcaption data-off={es ? 'Imagen no disponible ahora mismo' : 'Imatge no disponible ara mateix'}>{c.label} · {es ? 'Imagen' : 'Imatge'}: Servei Català de Trànsit</figcaption>
         </figure>
       ))}
     </div>
@@ -56,7 +62,7 @@ const SCT = 'https://transit.gencat.cat/ca/informacio-viaria/estat-transit/';
     const box = root.querySelector('[data-road-list]');
     if (!box) return;
     try {
-      const r = await fetch(`/api/transit?roads=${encodeURIComponent(root.dataset.road || '')}`);
+      const r = await fetch(`/api/transit?${root.dataset.road || ''}`);
       const j = await r.json();
       if (j.error) throw new Error('sct');
       const when = hour(new Date(j.updated));
@@ -86,6 +92,7 @@ const SCT = 'https://transit.gencat.cat/ca/informacio-viaria/estat-transit/';
   function cams(root: HTMLElement) {
     root.querySelectorAll<HTMLImageElement>('[data-cam]').forEach((img) => {
       img.onerror = () => img.closest('figure')?.classList.add('is-off');
+      img.onload = () => img.closest('figure')?.classList.remove('is-off');
       img.src = `/api/camera?id=${img.dataset.cam}&t=${Math.floor(Date.now() / 300000)}`;
     });
   }

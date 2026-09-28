@@ -151,6 +151,7 @@ export const PLACES = [
     name: 'La Molina',
     a: 'a la Molina',
     kind: 'esqui',
+    ski: { type: 'alpi', region: 'Cerdanya', web: 'https://www.lamolina.cat/' },
     lat: 42.3436, lng: 1.9561, alt: 1700,
     stations: ['IGUARD34', 'IBAG67'],
     points: [
@@ -168,6 +169,7 @@ export const PLACES = [
     name: 'Masella',
     a: 'a Masella',
     kind: 'esqui',
+    ski: { type: 'alpi', region: 'Cerdanya', web: 'https://www.masella.com/', webcams: 'https://www.masella.com/es/webcam' },
     lat: 42.3512, lng: 1.9021, alt: 1600,
     stations: ['IGUARD34', 'IBAG67'],
     points: [
@@ -178,6 +180,57 @@ export const PLACES = [
       "Masella és l'estació d'esquí de la cara nord de la Tosa d'Alp, entre els termes d'Alp, Das i Urús, a la Cerdanya. Les pistes van del Pla de Masella (1.600 m) fins al cim de la Tosa i, amb la Molina, formen el domini Alp 2500. És una de les poques estacions del Pirineu on també s'hi pot esquiar de nit.",
       "L'estació de la xarxa més propera és la del Coll de Pal (2.090 m), a l'altre vessant de la carena de la Tosa. Serveix de referència per al vent i la temperatura a la part alta, però la cara nord, on hi ha les pistes, sol ser més freda i ombrívola.",
       "La previsió d'aquesta pàgina està calculada per al Pla de Masella i per al cim de la Tosa.",
+    ],
+  },
+  {
+    slug: 'port-del-comte',
+    name: 'Port del Comte',
+    a: 'a Port del Comte',
+    kind: 'esqui',
+    ski: { type: 'alpi', region: 'Solsonès', web: 'https://portdelcomte.net/', webcams: 'https://portdelcomte.net/webcams-i-meteo/' },
+    lat: 42.1728, lng: 1.5619, alt: 1700,
+    stations: ['IGSOL4', 'IGSOL7'],
+    points: [
+      { label: 'Part alta de les pistes', lat: 42.1728, lng: 1.5619, alt: 2300 },
+      { label: 'Base de les pistes', lat: 42.1728, lng: 1.5619, alt: 1700 },
+    ],
+    intro: [
+      "Port del Comte és l'estació d'esquí alpí del Solsonès, al terme de la Coma i la Pedra, i va obrir el 1973. Les pistes comencen a uns 1.700 m i la majoria passen per dins d'un bosc de pins.",
+      "No hi tenim cap estació: la més propera de la xarxa és la de Gósol (1.450 m), i la del Pedraforca (2.270 m) serveix de referència per al vent a dalt. La previsió d'aquesta pàgina està calculada per a la base de les pistes i per a 2.300 m, a la part alta.",
+    ],
+  },
+  {
+    slug: 'rasos-de-peguera',
+    name: 'Rasos de Peguera',
+    a: 'als Rasos de Peguera',
+    kind: 'esqui',
+    ski: { type: 'alpi', region: 'Berguedà', web: 'https://www.rasos.net/' },
+    lat: 42.1367, lng: 1.7627, alt: 1850,
+    stations: ['IGSOL7', 'ILANOU4'],
+    points: [
+      { label: 'Part alta de les pistes', lat: 42.1367, lng: 1.7627, alt: 2050 },
+      { label: 'Base de les pistes', lat: 42.1367, lng: 1.7627, alt: 1850 },
+    ],
+    intro: [
+      "Els Rasos de Peguera són l'estació d'esquí del Berguedà, entre Castellar del Riu i Montmajor, a l'espai natural de la serra d'Ensija. Les pistes, de cara al nord, van d'uns 1.850 a 2.050 m, i també s'hi fa esquí de muntanya, esquí de fons i raquetes.",
+      "És un lloc clau de la història de l'esquí: segons la mateixa estació, el 1908 un grup d'excursionistes hi va fer servir esquís per primera vegada. Com que és més baixa que les estacions de la Cerdanya, la neu depèn molt de cada hivern: abans d'anar-hi, comprova sempre si és oberta.",
+    ],
+  },
+  {
+    slug: 'tuixent-la-vansa',
+    name: 'Tuixent-La Vansa',
+    a: 'a Tuixent-La Vansa',
+    kind: 'esqui',
+    ski: { type: 'nordic', region: 'Alt Urgell', web: 'https://www.tuixent-lavansa.com/' },
+    lat: 42.2228, lng: 1.5383, alt: 1830,
+    stations: ['IGSOL4', 'IGSOL7'],
+    points: [
+      { label: 'Part alta dels circuits', lat: 42.2228, lng: 1.5383, alt: 2150 },
+      { label: 'Base dels circuits', lat: 42.2228, lng: 1.5383, alt: 1830 },
+    ],
+    intro: [
+      "Tuixent-La Vansa és una estació d'esquí nòrdic a la cara nord del massís del Port del Comte, entre Josa i Tuixén i la Vansa i Fórnols, a l'Alt Urgell. Té prop de 30 km de circuits, entre uns 1.830 i 2.150 m, i itineraris per anar amb raquetes.",
+      "Des dels circuits es veuen la serra del Cadí i el Pedraforca. L'estació de la xarxa més propera és la de Gósol (1.450 m), i la del Pedraforca (2.270 m) serveix de referència per al vent a dalt.",
     ],
   },
   {

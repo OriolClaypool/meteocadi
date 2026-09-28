@@ -1,0 +1,156 @@
+---
+// Neu i esquí (Meteocadí Neu): tauler de 7 dies de les estacions d'esquí, carreteres d'accés i informació oficial.
+// En català a /esqui i en castellà a /es/esqui.
+import Base from '../layouts/Base.astro';
+import MountainNotice from './MountainNotice.astro';
+import RoadStatus from './RoadStatus.astro';
+import { PLACES } from '../lib/places.js';
+import { localize } from '../lib/places-es.js';
+import { fetchSki, skiCardsHTML, skiSnowText, inSeason } from '../lib/ski.js';
+import { todayMadrid, longDate, cap } from '../lib/format.js';
+
+interface Props { lang?: 'ca' | 'es' }
+const { lang = 'ca' } = Astro.props;
+const es = lang === 'es';
+const base = es ? '/es/tiempo/' : '/temps/';
+const resorts = PLACES.filter((p) => p.ski).map((p) => localize(p, lang));
+const light = resorts.map((r) => ({ slug: r.slug, name: r.name, points: r.points, ski: r.ski }));
+const today = todayMadrid();
+const season = inSeason(today);
+const groups = await fetchSki(light);
+const cards = skiCardsHTML(groups, { today, lang, season, base });
+const snowText = skiSnowText(groups, today, lang);
+
+// Zones per a les incidències de trànsit (lat, lng, radi en km)
+const AREAS = [
+  { lat: 42.335, lng: 1.9, km: 12 }, // Cerdanya: la Molina, Masella, Coll de Pal, boca nord del túnel
+  { lat: 42.21, lng: 1.86, km: 13 }, // C-16 pel Berguedà fins a la boca sud del túnel
+  { lat: 42.19, lng: 1.56, km: 12 }, // Port del Comte i Tuixent-La Vansa
+  { lat: 42.12, lng: 1.78, km: 6 }, // Rasos de Peguera
+];
+const CAMERAS = [
+  { id: 'c1649', label: 'C-16, km 97,5 (Berga)' },
+  { id: 'c1658', label: 'C-16, km 118,9 (Bagà)' },
+  { id: 'c1661', label: 'C-16, km 122,3 (Guardiola de Berguedà)' },
+];
+const W = 'https://www.meteocadi.cat';
+const path = es ? '/es/esqui' : '/esqui';
+const ld = [
+  {
+    '@type': 'ItemList',
+    name: es ? 'El tiempo en las estaciones de esquí cerca del Cadí' : "El temps a les estacions d'esquí a prop del Cadí",
+    itemListElement: resorts.map((p, i) => ({ '@type': 'ListItem', position: i + 1, name: `${es ? 'El tiempo' : 'El temps'} ${p.a}`, url: `${W}${base}${p.slug}` })),
+  },
+];
+const title = es
+  ? 'Nieve y esquí: previsión en La Molina, Masella, Port del Comte y más | Meteocadí'
+  : 'Neu i esquí: previsió a la Molina, Masella, Port del Comte i més | Meteocadí';
+const description = es
+  ? 'Previsión de 7 días para las estaciones de esquí de la Cerdanya, el Solsonès, el Alt Urgell y el Berguedà: nieve nueva, viento en las cimas, temperatura, isoterma, mejor día para esquiar y estado de las carreteras.'
+  : "Previsió de 7 dies per a les estacions d'esquí de la Cerdanya, el Solsonès, l'Alt Urgell i el Berguedà: neu nova, vent als cims, temperatura, isoterma, millor dia per esquiar i estat de les carreteres.";
+---
+<Base title={title} description={description} path={path} jsonLd={ld} current="esqui" lang={lang} alternates={{ ca: '/esqui', es: '/es/esqui' }}>
+  <section class="phead phead--ski">
+    <div class="wrap">
+      <nav class="crumbs" aria-label="Ruta"><a href="/">{es ? 'Inicio' : 'Inici'}</a><span>›</span><span>{es ? 'Nieve y esquí' : 'Neu i esquí'}</span></nav>
+      <span class="ski-brand">METEOCADÍ NEU</span>
+      {es ? <h1>Nieve y esquí <em>cerca del Cadí</em></h1> : <h1>Neu i esquí <em>a prop del Cadí</em></h1>}
+      <p>{es
+        ? 'La previsión de 7 días para la parte alta y la base de cada estación de esquí de la zona, con la nieve nueva, el viento en las cimas y el estado de las carreteras para llegar.'
+        : "La previsió de 7 dies per a la part alta i la base de cada estació d'esquí de la zona, amb la neu nova, el vent als cims i l'estat de les carreteres per arribar-hi."}</p>
+      <div class="prose" style="margin-top:18px;font-size:17px;">
+        {snowText && <p>{cap(longDate(today, lang))}. {snowText}</p>}
+        {season
+          ? <p>{es
+              ? 'La valoración del tiempo para esquiar tiene en cuenta el viento arriba, la nevada, el sol, el frío y el calor. No dice nada del estado de las pistas ni de si la estación está abierta: consúltalo siempre en su web.'
+              : "La valoració del temps per esquiar té en compte el vent a dalt, la nevada, el sol, el fred i la calor. No diu res de l'estat de les pistes ni de si l'estació és oberta: consulta-ho sempre a la seva web."}</p>
+          : <p>{es
+              ? 'Ahora estamos fuera de temporada de esquí. Mientras tanto, aquí puedes seguir cuándo llegan las primeras nieves; cuando empiece la temporada también verás cuál es el mejor día para esquiar en cada estación.'
+              : "Ara som fora de temporada d'esquí. Mentrestant, aquí pots seguir quan arriben les primeres neus; quan comenci la temporada també hi veuràs quin és el millor dia per esquiar a cada estació."}</p>}
+      </div>
+      <div style="margin-top:22px;max-width:900px;"><MountainNotice short lang={lang} /></div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="wrap">
+      <div class="sec__head">
+        <div>
+          <span class="eyebrow">{es ? 'PREVISIÓN · 7 DÍAS' : 'PREVISIÓ · 7 DIES'}</span>
+          {es ? <h2 class="h2">Panel de nieve <em>de las estaciones</em></h2> : <h2 class="h2">Tauler de neu <em>de les estacions</em></h2>}
+          <p class="sub">{es
+            ? 'Calculada para la parte alta y la base de cada estación. Toca el nombre de una estación para ver su página con la previsión por horas.'
+            : "Calculada per a la part alta i la base de cada estació. Toca el nom d'una estació per veure'n la pàgina amb la previsió per hores."}</p>
+        </div>
+      </div>
+      <div class="skis" data-ski={JSON.stringify({ resorts: light, lang, base })} data-ski-cards set:html={cards || `<p class="mfc__load">${es ? 'Cargando la previsión…' : 'Carregant la previsió…'}</p>`}></div>
+      <p class="mfc__note">{es
+        ? 'Fuente: Open-Meteo. La nieve es la prevista por el modelo: el grosor real en las pistas depende de la nieve fabricada y de cómo se haya conservado. El viento es el del modelo a 10 m del suelo y en las crestas puede ser más fuerte.'
+        : "Font: Open-Meteo. La neu és la prevista pel model: el gruix real a les pistes depèn de la neu fabricada i de com s'hagi conservat. El vent és el del model a 10 m del terra i a les carenes pot ser més fort."}</p>
+    </div>
+  </section>
+
+  <section class="sec sec--pale" style="padding:64px 0;">
+    <div class="wrap">
+      <RoadStatus
+        areas={AREAS}
+        cameras={CAMERAS}
+        lang={lang}
+        sub={es
+          ? 'Incidencias comunicadas en las carreteras cercanas a las estaciones: la C-16 por el Berguedà y el túnel del Cadí, la Cerdanya, el Solsonès y la zona de los Rasos.'
+          : 'Incidències comunicades a les carreteres properes a les estacions: la C-16 pel Berguedà i el túnel del Cadí, la Cerdanya, el Solsonès i la zona dels Rasos.'}
+      />
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="wrap">
+      {es ? <h2 class="h2" style="font-size:34px;margin-bottom:10px;">Información oficial <em>de cada estación</em></h2> : <h2 class="h2" style="font-size:34px;margin-bottom:10px;">Informació oficial <em>de cada estació</em></h2>}
+      <p class="sub" style="margin-bottom:22px;max-width:820px;">{es
+        ? 'La apertura de pistas y remontes, la nieve en las pistas y los precios los decide cada estación. Consulta siempre su información oficial antes de salir.'
+        : "L'obertura de pistes i remuntadors, la neu a les pistes i els preus els decideix cada estació. Consulta sempre la seva informació oficial abans de sortir."}</p>
+      <div class="skiinfo">
+        {resorts.map((r) => (
+          <div class="skiinfo__i">
+            <a class="skiinfo__n" href={`${base}${r.slug}`}>{r.name}</a>
+            <span class="skiinfo__k">{r.ski.type === 'nordic' ? (es ? 'Esquí nórdico' : 'Esquí nòrdic') : es ? 'Esquí alpino' : 'Esquí alpí'} · {r.ski.region}</span>
+            <span class="skiinfo__l">
+              <a href={r.ski.web} rel="noopener" target="_blank">{es ? 'Web oficial' : 'Web oficial'}</a>
+              {r.ski.webcams && <a href={r.ski.webcams} rel="noopener" target="_blank">Webcams</a>}
+            </span>
+          </div>
+        ))}
+        <div class="skiinfo__i">
+          <span class="skiinfo__n">{es ? 'Aludes y avisos' : 'Allaus i avisos'}</span>
+          <span class="skiinfo__k">{es ? 'Fuentes oficiales' : 'Fonts oficials'}</span>
+          <span class="skiinfo__l">
+            <a href="https://bpa.icgc.cat/" rel="noopener" target="_blank">{es ? 'Boletín de aludes (ICGC)' : "Butlletí d'allaus (ICGC)"}</a>
+            <a href="https://www.meteo.cat" rel="noopener" target="_blank">{es ? 'Avisos del Meteocat' : 'Avisos del Meteocat'}</a>
+          </span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" style="padding:24px 0 72px;">
+    <div class="wrap"><MountainNotice lang={lang} /></div>
+  </section>
+</Base>
+
+<script>
+  import { fetchSki, skiCardsHTML, inSeason } from '../lib/ski.js';
+  import { todayMadrid } from '../lib/format.js';
+  const box = document.querySelector<HTMLElement>('[data-ski]');
+  if (box) {
+    const { resorts, lang, base } = JSON.parse(box.dataset.ski || '{}');
+    const today = todayMadrid();
+    const season = inSeason(today) || new URLSearchParams(location.search).has('temporada');
+    const paint = () =>
+      fetchSki(resorts, 12000).then((groups) => {
+        const html = skiCardsHTML(groups, { today, lang, season, base });
+        if (html) box.innerHTML = html;
+      });
+    paint();
+    setInterval(paint, 30 * 60 * 1000);
+  }
+</script>
