@@ -17,6 +17,12 @@ Weather-station network site for Cadí-Moixeró / Berguedà. **All user-facing c
 ## Pages
 `/` home · `/estacions` + `/estacions/[slug]` · `/temps` + `/temps/[slug]` (places in `src/lib/places.js`) · `/cap-de-setmana` · `/mapa` (Leaflet, bundled) · `/radar` (Meteocat giny) · `/historial` · `/sobre` · `/contacte` (email from env `CONTACT_EMAIL`) · `/webcams` (noindex until cameras exist) · `/estudi` (internal, noindex + robots-disallowed: builds the 1080×1920 social images — forecast text editor, daily summary and rankings — drawn on canvas in `src/scripts/estudi/`; archive data from the static `/estudi-dades.json`, today's data from `/api/ara`).
 
+## Mountain pages
+- Places with `kind` cim / coll / esqui / refugi (see `MOUNTAIN_KINDS` in `src/lib/places.js`) are mountain pages: they need `points` (label, lat, lng, alt) for the forecast at altitude, and show the liability notice (`MountainNotice`) at the top and bottom.
+- `src/lib/mountain.js` builds the Open-Meteo multi-point request (temperature, feels-like, wind/gusts, precipitation, snow, freezing level) and the tables/text, both at build time and in the browser.
+- `/muntanya` is the hub (high stations live + summary table); `/avis-legal` holds the full disclaimer. Keep both linked from the footer.
+- Facts in place intros must be verifiable (altitudes, municipalities, routes); don't add claims without a source.
+
 ## Design
 No italics in headings: the second part of a two-part heading goes in an accent colour (`<em>` is styled non-italic).
 Social images: no logo or project name, only `meteocadi.cat` in the footer.

@@ -4,7 +4,7 @@ import { PLACES } from '../lib/places.js';
 import { BY_ID, fmtAlt } from '../lib/stations.js';
 const groups = [
   { title: 'Pobles', list: PLACES.filter((p) => p.kind === 'poble') },
-  { title: 'Cims i colls', list: PLACES.filter((p) => p.kind !== 'poble') },
+  { title: 'Muntanya i esquí', list: PLACES.filter((p) => p.kind !== 'poble') },
 ];
 const ld = [
   {
@@ -16,7 +16,7 @@ const ld = [
 ---
 <Base
   title="El temps als pobles i cims del Cadí-Moixeró i el Berguedà | Meteocadí"
-  description="Temps actual i previsió per hores a Bagà, Gósol, Saldes, el Pedraforca, la serra del Cadí, el Coll de Pal, Guardiola de Berguedà, la Pobla de Lillet i més, amb dades de les estacions de la xarxa."
+  description="Temps actual i previsió per hores a Bagà, Gósol, Saldes, el Pedraforca, la serra del Cadí, la Tosa d'Alp, la Molina, Masella, Guardiola de Berguedà, la Pobla de Lillet i més, amb dades de les estacions de la xarxa."
   path="/temps"
   jsonLd={ld}
   current="temps"
@@ -25,7 +25,7 @@ const ld = [
     <div class="wrap">
       <h1>El temps als <em>pobles i cims</em></h1>
       <p>Cada lloc té les dades en directe de les estacions més properes, la previsió per hores calculada per a la seva altitud i l'historial de l'estació de referència.</p>
-      <p style="margin-top:14px;"><a class="btn btn--blue" href="/cap-de-setmana">Previsió per a aquest cap de setmana</a></p>
+      <p style="margin-top:14px;display:flex;flex-wrap:wrap;gap:12px;"><a class="btn btn--blue" href="/cap-de-setmana">Previsió per a aquest cap de setmana</a><a class="btn btn--line" href="/muntanya" style="background:#fff;">Condicions a la muntanya</a></p>
     </div>
   </section>
   <section class="sec">

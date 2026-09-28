@@ -1,0 +1,30 @@
+---
+// Condicions previstes a la muntanya (3 dies) per als punts d'un lloc.
+// Es genera en el build (queda al codi HTML) i es refresca al navegador amb la previsió del moment.
+import { fetchMountain, mountainTableHTML } from '../lib/mountain.js';
+interface Props { points: { label: string; lat: number; lng: number; alt: number }[]; title?: string; sub?: string; data?: any }
+const { points, title = 'Condicions previstes a la muntanya', sub = '', data: given } = Astro.props;
+const data = given ?? (await fetchMountain(points));
+const html = mountainTableHTML(data);
+---
+<div class="mfc" data-mfc={JSON.stringify(points)}>
+  <div class="sec__head">
+    <div>
+      <span class="eyebrow">PREVISIÓ PER ALTITUD · 3 DIES</span>
+      <h2 class="h2">{title}</h2>
+      {sub && <p class="sub">{sub}</p>}
+    </div>
+  </div>
+  <div class="tscroll" data-mfc-table set:html={html || '<p class="mfc__load">Carregant la previsió…</p>'}></div>
+  <p class="mfc__note">Temperatura mínima i màxima, sensació tèrmica més baixa del dia, vent i ratxa màxims (km/h) amb la direcció dominant, precipitació i neu acumulades, i altitud de la isoterma de 0 °C entre les 6 i les 21 h. Font: Open-Meteo.</p>
+</div>
+<script>
+  import { fetchMountain, mountainTableHTML } from '../lib/mountain.js';
+  document.querySelectorAll<HTMLElement>('[data-mfc]').forEach(async (root) => {
+    const points = JSON.parse(root.dataset.mfc || '[]');
+    const data = await fetchMountain(points, 3, 10000);
+    const html = mountainTableHTML(data);
+    const box = root.querySelector('[data-mfc-table]');
+    if (html && box) box.innerHTML = html;
+  });
+</script>
