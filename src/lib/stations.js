@@ -1,20 +1,20 @@
 // Xarxa Meteocadí — font única de les estacions (IDs de Weather Underground).
 // Els IDs i noms són els mateixos que ja feia servir la web i l'arxiu diari (api/arxiva.js).
-// lat/lng són aproximats: el mapa fa servir les coordenades que retorna l'API quan n'hi ha.
+// lat/lng: coordenades que retorna l'API de WU (setembre 2026). El mapa fa servir les de l'API si canvien.
 
 export const STATIONS = [
-  { id: 'IGISCL6',    slug: 'tancalaporta',        a: 'a Tancalaporta', name: 'Tancalaporta',               alt: 2440, loc: 'PN Cadí-Moixeró',          comarca: 'Berguedà', group: 'alta', lat: 42.2778, lng: 1.7361 },
-  { id: 'IGSOL7',     slug: 'pedraforca',          a: 'al Pedraforca', name: 'Pedraforca',                 alt: 2270, loc: 'Gósol',                    comarca: 'Berguedà', group: 'alta', lat: 42.2397, lng: 1.7028 },
-  { id: 'IGUARD34',   slug: 'coll-de-pal',         a: 'al Coll de Pal', name: 'Coll de Pal - Puigllançada', alt: 2090, loc: 'Guardiola de Berguedà',    comarca: 'Berguedà', group: 'alta', lat: 42.2847, lng: 1.8889 },
-  { id: 'IBAG67',     slug: 'refugi-de-rebost',    a: 'al Refugi de Rebost', name: 'Refugi de Rebost',           alt: 1650, loc: 'Bagà',                     comarca: 'Berguedà', group: 'alta', lat: 42.2486, lng: 1.8481 },
-  { id: 'IGSOL4',     slug: 'gosol',               a: 'a Gósol', name: 'Gósol',                      alt: 1450, loc: 'Gósol',                    comarca: 'Berguedà', group: 'vall', lat: 42.2400, lng: 1.6622 },
-  { id: 'ISANTJ138',  slug: 'cerdanyola-forcat',   a: 'a Cerdanyola-Forcat', name: 'Cerdanyola-Forcat',          alt: 1115, loc: 'Sant Julià de Cerdanyola', comarca: 'Berguedà', group: 'vall', lat: 42.2190, lng: 1.9010 },
-  { id: 'ISANTJ53',   slug: 'cerdanyola-poble',    a: 'a Cerdanyola-Poble', name: 'Cerdanyola-Poble',           alt: 964,  loc: 'Sant Julià de Cerdanyola', comarca: 'Berguedà', group: 'vall', lat: 42.2217, lng: 1.8944 },
-  { id: 'ILANOU4',    slug: 'la-nou-de-bergueda',  a: 'a la Nou de Berguedà', name: 'La Nou de Berguedà',         alt: 940,  loc: 'La Nou de Berguedà',       comarca: 'Berguedà', group: 'vall', lat: 42.1922, lng: 1.8694 },
-  { id: 'IBAG65',     slug: 'baga-nord',           a: 'a Bagà Nord', name: 'Bagà Nord',                  alt: 865,  loc: 'Bagà',                     comarca: 'Berguedà', group: 'vall', lat: 42.2529, lng: 1.8619 },
-  { id: 'IBARCELO40', slug: 'la-pobla-de-lillet',  a: 'a la Pobla de Lillet', name: 'La Pobla de Lillet',         alt: 843,  loc: 'La Pobla de Lillet',       comarca: 'Berguedà', group: 'vall', lat: 42.2378, lng: 1.9750 },
-  { id: 'IBAG73',     slug: 'baga-centre',         a: 'a Bagà Centre', name: 'Bagà Centre',                alt: 798,  loc: 'Bagà',                     comarca: 'Berguedà', group: 'vall', lat: 42.2510, lng: 1.8615 },
-  { id: 'IBAG72',     slug: 'baga-sud',            a: 'a Bagà Sud', name: 'Bagà Sud',                   alt: 770,  loc: 'Bagà',                     comarca: 'Berguedà', group: 'vall', lat: 42.2490, lng: 1.8610 },
+  { id: 'IGISCL6',    slug: 'tancalaporta',        a: 'a Tancalaporta', name: 'Tancalaporta',               alt: 2440, loc: 'PN Cadí-Moixeró',          comarca: 'Berguedà', group: 'alta', lat: 42.2838, lng: 1.7371 },
+  { id: 'IGSOL7',     slug: 'pedraforca',          a: 'al Pedraforca', name: 'Pedraforca',                 alt: 2270, loc: 'Gósol',                    comarca: 'Berguedà', group: 'alta', lat: 42.2402, lng: 1.7014 },
+  { id: 'IGUARD34',   slug: 'coll-de-pal',         a: 'al Coll de Pal', name: 'Coll de Pal - Puigllançada', alt: 2090, loc: 'Guardiola de Berguedà',    comarca: 'Berguedà', group: 'alta', lat: 42.2991, lng: 1.9252 },
+  { id: 'IBAG67',     slug: 'refugi-de-rebost',    a: 'al Refugi de Rebost', name: 'Refugi de Rebost',           alt: 1650, loc: 'Bagà',                     comarca: 'Berguedà', group: 'alta', lat: 42.2872, lng: 1.8852 },
+  { id: 'IGSOL4',     slug: 'gosol',               a: 'a Gósol', name: 'Gósol',                      alt: 1450, loc: 'Gósol',                    comarca: 'Berguedà', group: 'vall', lat: 42.2415, lng: 1.6577 },
+  { id: 'ISANTJ138',  slug: 'cerdanyola-forcat',   a: 'a Cerdanyola-Forcat', name: 'Cerdanyola-Forcat',          alt: 1115, loc: 'Sant Julià de Cerdanyola', comarca: 'Berguedà', group: 'vall', lat: 42.2304, lng: 1.8898 },
+  { id: 'ISANTJ53',   slug: 'cerdanyola-poble',    a: 'a Cerdanyola-Poble', name: 'Cerdanyola-Poble',           alt: 964,  loc: 'Sant Julià de Cerdanyola', comarca: 'Berguedà', group: 'vall', lat: 42.2215, lng: 1.8948 },
+  { id: 'ILANOU4',    slug: 'la-nou-de-bergueda',  a: 'a la Nou de Berguedà', name: 'La Nou de Berguedà',         alt: 940,  loc: 'La Nou de Berguedà',       comarca: 'Berguedà', group: 'vall', lat: 42.1650, lng: 1.8740 },
+  { id: 'IBAG65',     slug: 'baga-nord',           a: 'a Bagà Nord', name: 'Bagà Nord',                  alt: 865,  loc: 'Bagà',                     comarca: 'Berguedà', group: 'vall', lat: 42.2578, lng: 1.8602 },
+  { id: 'IBARCELO40', slug: 'la-pobla-de-lillet',  a: 'a la Pobla de Lillet', name: 'La Pobla de Lillet',         alt: 843,  loc: 'La Pobla de Lillet',       comarca: 'Berguedà', group: 'vall', lat: 42.2445, lng: 1.9736 },
+  { id: 'IBAG73',     slug: 'baga-centre',         a: 'a Bagà Centre', name: 'Bagà Centre',                alt: 798,  loc: 'Bagà',                     comarca: 'Berguedà', group: 'vall', lat: 42.2517, lng: 1.8638 },
+  { id: 'IBAG72',     slug: 'baga-sud',            a: 'a Bagà Sud', name: 'Bagà Sud',                   alt: 770,  loc: 'Bagà',                     comarca: 'Berguedà', group: 'vall', lat: 42.2468, lng: 1.8677 },
 ];
 
 export const GROUPS = {

@@ -44,7 +44,7 @@ export const PLACES = [
     name: 'Pedraforca',
     a: 'al Pedraforca',
     kind: 'cim',
-    lat: 42.2397, lng: 1.7028, alt: 2270,
+    lat: 42.2402, lng: 1.7014, alt: 2270,
     stations: ['IGSOL7', 'IGSOL4'],
     intro: [
       'El Pedraforca és la muntanya més emblemàtica del Berguedà, amb els dos pollegons separats per l\'Enforcadura i el cim més alt, el Pollegó Superior, a 2.506 m. L\'estació Pedraforca de la xarxa és a 2.270 m.',
@@ -56,7 +56,7 @@ export const PLACES = [
     name: 'Serra del Cadí',
     a: 'a la serra del Cadí',
     kind: 'cim',
-    lat: 42.2778, lng: 1.7361, alt: 2440,
+    lat: 42.2838, lng: 1.7371, alt: 2440,
     stations: ['IGISCL6', 'IGSOL7'],
     intro: [
       'L\'estació de Tancalaporta, a 2.440 m, és la més alta de la xarxa Meteocadí i dona dades de primera mà de la carena de la serra del Cadí, on les condicions poden canviar molt de pressa.',
@@ -68,7 +68,7 @@ export const PLACES = [
     name: 'Coll de Pal',
     a: 'al Coll de Pal',
     kind: 'coll',
-    lat: 42.2847, lng: 1.8889, alt: 2090,
+    lat: 42.2991, lng: 1.9252, alt: 2090,
     stations: ['IGUARD34', 'IBAG67'],
     intro: [
       'El Coll de Pal és el pas de muntanya entre el Berguedà i la Cerdanya per la carretera de Bagà a la Molina, a la zona de l\'antiga estació d\'esquí de Puigllançada. L\'estació de la xarxa és a 2.090 m.',
@@ -116,7 +116,7 @@ export const PLACES = [
     name: 'La Nou de Berguedà',
     a: 'a la Nou de Berguedà',
     kind: 'poble',
-    lat: 42.1922, lng: 1.8694, alt: 940,
+    lat: 42.1650, lng: 1.8740, alt: 940,
     stations: ['ILANOU4', 'IBAG72'],
     intro: [
       'La Nou de Berguedà és un municipi de masies i veïnats escampats, al sud de Guardiola. L\'estació de la xarxa és a 940 m.',

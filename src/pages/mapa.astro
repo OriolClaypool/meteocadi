@@ -24,6 +24,7 @@ import Base from '../layouts/Base.astro';
 <style is:global>
   #map { width: 100%; height: min(72vh, 760px); min-height: 460px; border-radius: 16px; border: 1px solid rgba(61, 184, 255, 0.16); background: #0b1320; }
   .leaflet-container { font-family: var(--f-ui); }
+  .leaflet-tile-pane { filter: saturate(0.55) brightness(0.62) contrast(1.08); }
   .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #0f1a2b; color: #e6edf6; border: 1px solid rgba(61, 184, 255, 0.2); }
   .leaflet-popup-content-wrapper { border-radius: 12px; box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5); }
   .leaflet-popup-close-button { color: #93a3b8 !important; }
@@ -75,10 +76,11 @@ import Base from '../layouts/Base.astro';
   let data: any = {};
   let cur = 'temp';
   const map = L.map('map', { zoomControl: true, scrollWheelZoom: false }).setView([42.245, 1.85], 11);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/">CARTO</a>',
-    subdomains: 'abcd',
-    maxZoom: 18,
+  // OpenTopoMap (relleu, sense clau). Enfosquit amb CSS perquè encaixi amb la secció fosca.
+  L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, SRTM · estil © <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)',
+    subdomains: 'abc',
+    maxZoom: 17,
   }).addTo(map);
   map.createPane('thermal').style.zIndex = '350';
 
