@@ -123,7 +123,7 @@ button { font: inherit; }
 .hero__credit { position: absolute; left: var(--pad); bottom: 24px; z-index: 2; display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: rgba(255, 255, 255, 0.72); }
 
 /* Panell fosc tipus instrument (A) */
-.panel { font-family: var(--f-ui); color: var(--a-txt); background: rgba(6, 10, 18, 0.78); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); border: 1px solid rgba(61, 184, 255, 0.18); border-radius: 20px; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45); }
+.panel { font-family: var(--f-ui); color: var(--a-txt); background: rgba(6, 10, 18, 0.86); border: 1px solid rgba(61, 184, 255, 0.18); border-radius: 20px; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45); }
 .resum { width: 500px; flex-shrink: 0; padding: 26px 28px 22px; display: flex; flex-direction: column; gap: 16px; }
 .resum__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
 .eyebrow { font-family: var(--f-mono); font-size: 11.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--cyan); }
@@ -193,7 +193,7 @@ button { font: inherit; }
 
 /* contorns animats (A) */
 .contours { position: absolute; left: 0; top: 0; width: 1440px; height: 900px; pointer-events: none; }
-.contours g { animation: cdrift 36s ease-in-out infinite alternate; }
+.contours { animation: cdrift 36s ease-in-out infinite alternate; will-change: transform; }
 
 /* ---------- filtres ---------- */
 .filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
@@ -276,6 +276,13 @@ button { font: inherit; }
 .tag { align-self: flex-start; padding: 5px 12px; border-radius: 999px; background: var(--logo-yellow); color: var(--ink); font-size: 14px; font-weight: 800; }
 .tag--soft { background: rgba(255, 255, 255, 0.14); color: #fff; font-weight: 600; }
 .xradar { position: absolute; right: -40px; top: 10px; width: 360px; height: 360px; }
+.xradar svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.rcell { position: absolute; border-radius: 50%; background: radial-gradient(closest-side, var(--c), transparent); animation: cell 6s ease-in-out infinite; will-change: transform, opacity; }
+.rsweep { position: absolute; left: 20px; top: 20px; width: 320px; height: 320px; border-radius: 50%; background: conic-gradient(from 0deg, rgba(127, 208, 255, 0) 0deg 298deg, rgba(127, 208, 255, 0.36) 360deg); animation: sweep 5s linear infinite; will-change: transform; }
+.tmap { position: relative; width: 100%; aspect-ratio: 246 / 176; border-radius: 10px; overflow: hidden; background: rgba(45, 212, 191, 0.5); isolation: isolate; }
+.tmap i { position: absolute; border-radius: 50%; background: radial-gradient(closest-side, var(--c), transparent); animation: drift1 9s ease-in-out infinite; will-change: transform; }
+.tmap i.d2 { animation-name: drift2; animation-duration: 11s; }
+.tmap svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 @media (max-width: 1100px) { .xcard--big { grid-column: span 12; } .xcard--s { grid-column: span 6; } }
 @media (max-width: 640px) {
   .xcard--s { grid-column: span 12; }
@@ -384,6 +391,9 @@ button { font: inherit; }
 .ic-merc { animation: merc 3s ease-in-out infinite; }
 .ic-wind { stroke-dasharray: 12 5; animation: windash 1.6s linear infinite; }
 .ic-drop { transform-box: fill-box; transform-origin: center; animation: droppulse 3s ease-in-out infinite; }
+
+/* seccions fora de pantalla: animacions en pausa */
+.is-off, .is-off * { animation-play-state: paused !important; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }

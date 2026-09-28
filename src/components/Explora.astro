@@ -25,21 +25,17 @@ const dots = [[138, 106], [170, 138], [202, 120], [230, 178], [152, 200], [260, 
     </div>
     <div class="xgrid">
       <a href="/radar" class="xcard xcard--big">
-        <svg class="xradar" viewBox="0 0 360 360" aria-hidden="true">
-          <defs>
-            <filter id="rblur"><feGaussianBlur stdDeviation="9"></feGaussianBlur></filter>
-            <radialGradient id="swg" cx="180" cy="180" r="160" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#7fd0ff" stop-opacity="0"></stop><stop offset="1" stop-color="#7fd0ff" stop-opacity="0.35"></stop></radialGradient>
-          </defs>
-          <g fill="none" stroke="#fff" stroke-opacity="0.16"><circle cx="180" cy="180" r="160"></circle><circle cx="180" cy="180" r="112"></circle><circle cx="180" cy="180" r="64"></circle><line x1="20" y1="180" x2="340" y2="180"></line><line x1="180" y1="20" x2="180" y2="340"></line></g>
-          <g filter="url(#rblur)">
-            <ellipse class="a-cell" cx="236" cy="118" rx="44" ry="30" fill="#4ade80" fill-opacity="0.55"></ellipse>
-            <ellipse class="a-cell" cx="246" cy="112" rx="22" ry="15" fill="#facc15" fill-opacity="0.75" style="animation-delay:-1.5s"></ellipse>
-            <ellipse class="a-cell" cx="250" cy="110" rx="9" ry="7" fill="#f97316" fill-opacity="0.9" style="animation-delay:-0.8s"></ellipse>
-            <ellipse class="a-cell" cx="262" cy="262" rx="34" ry="22" fill="#4ade80" fill-opacity="0.45" style="animation-delay:-2.4s"></ellipse>
-          </g>
-          <g class="a-sweep"><path d="M180 180 L180 20 A160 160 0 0 1 318.6 100 Z" fill="url(#swg)"></path><line x1="180" y1="180" x2="180" y2="20" stroke="#bfe6ff" stroke-width="1.6"></line></g>
-          {dots.map(([x, y]) => <circle cx={x} cy={y} r="3.2" fill="#fff" fill-opacity="0.9"></circle>)}
-        </svg>
+        <div class="xradar" aria-hidden="true">
+          <svg viewBox="0 0 360 360">
+            <g fill="none" stroke="#fff" stroke-opacity="0.16"><circle cx="180" cy="180" r="160"></circle><circle cx="180" cy="180" r="112"></circle><circle cx="180" cy="180" r="64"></circle><line x1="20" y1="180" x2="340" y2="180"></line><line x1="180" y1="20" x2="180" y2="340"></line></g>
+            {dots.map(([x, y]) => <circle cx={x} cy={y} r="3.2" fill="#fff" fill-opacity="0.9"></circle>)}
+          </svg>
+          <i class="rcell" style="left:176px;top:78px;width:120px;height:84px;--c:rgba(74,222,128,.55);"></i>
+          <i class="rcell" style="left:212px;top:92px;width:60px;height:42px;--c:rgba(250,204,21,.75);animation-delay:-1.5s;"></i>
+          <i class="rcell" style="left:234px;top:100px;width:26px;height:20px;--c:rgba(249,115,22,.9);animation-delay:-.8s;"></i>
+          <i class="rcell" style="left:216px;top:230px;width:96px;height:64px;--c:rgba(74,222,128,.45);animation-delay:-2.4s;"></i>
+          <i class="rsweep"></i>
+        </div>
         <div class="xcard__txt">
           <span class="tag">Nou</span>
           <h3>Radar<br /><em>de pluja</em></h3>
@@ -48,19 +44,14 @@ const dots = [[138, 106], [170, 138], [202, 120], [230, 178], [152, 200], [260, 
         </div>
       </a>
       <a href="/mapa?capa=termica" class="xcard xcard--s">
-        <svg viewBox="0 0 246 176" style="width:100%;height:auto;border-radius:10px;" aria-hidden="true">
-          <defs><filter id="tblur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="22"></feGaussianBlur></filter><clipPath id="tclip"><rect width="246" height="176" rx="10"></rect></clipPath></defs>
-          <g clip-path="url(#tclip)"><rect width="246" height="176" fill="#2dd4bf" fill-opacity="0.5"></rect>
-            <g filter="url(#tblur)">
-              <circle class="a-drift1" cx="190" cy="140" r="70" fill="#fb923c"></circle>
-              <circle class="a-drift2" cx="120" cy="120" r="52" fill="#fbbf24"></circle>
-              <circle class="a-drift1" cx="70" cy="80" r="56" fill="#a3e635" style="animation-delay:-4s"></circle>
-              <circle class="a-drift2" cx="40" cy="20" r="60" fill="#38bdf8" style="animation-delay:-6s"></circle>
-              <circle class="a-drift1" cx="150" cy="30" r="44" fill="#4ade80" style="animation-delay:-2s"></circle>
-            </g>
-            <g fill="#fff"><circle cx="60" cy="38" r="3"></circle><circle cx="96" cy="70" r="3"></circle><circle cx="150" cy="92" r="3"></circle><circle cx="188" cy="128" r="3"></circle><circle cx="120" cy="136" r="3"></circle><circle cx="206" cy="150" r="3"></circle><circle cx="40" cy="104" r="3"></circle></g>
-          </g>
-        </svg>
+        <div class="tmap" aria-hidden="true">
+          <i style="left:120px;top:70px;width:180px;height:180px;--c:#fb923c;"></i>
+          <i class="d2" style="left:64px;top:60px;width:130px;height:130px;--c:#fbbf24;"></i>
+          <i style="left:6px;top:14px;width:140px;height:140px;--c:#a3e635;animation-delay:-4s;"></i>
+          <i class="d2" style="left:-30px;top:-50px;width:150px;height:150px;--c:#38bdf8;animation-delay:-6s;"></i>
+          <i style="left:96px;top:-24px;width:110px;height:110px;--c:#4ade80;animation-delay:-2s;"></i>
+          <svg viewBox="0 0 246 176"><g fill="#fff"><circle cx="60" cy="38" r="3"></circle><circle cx="96" cy="70" r="3"></circle><circle cx="150" cy="92" r="3"></circle><circle cx="188" cy="128" r="3"></circle><circle cx="120" cy="136" r="3"></circle><circle cx="206" cy="150" r="3"></circle><circle cx="40" cy="104" r="3"></circle></g></svg>
+        </div>
         <div class="xcard__txt"><h3>Mapa tèrmic</h3><p>La temperatura de tot el territori, interpolada entre les estacions.</p></div>
       </a>
       <a href="/historial" class="xcard xcard--s">

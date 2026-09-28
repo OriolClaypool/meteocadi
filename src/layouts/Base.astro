@@ -76,6 +76,11 @@ const graph = [
     </main>
     <Footer />
     <script>
+      // Pausa les animacions de les seccions que no es veuen (menys feina mentre es desplaça la pàgina)
+      if ('IntersectionObserver' in window) {
+        const io = new IntersectionObserver((es) => es.forEach((e) => e.target.classList.toggle('is-off', !e.isIntersecting)), { rootMargin: '100px' });
+        document.querySelectorAll('main > section, main > .ticker').forEach((el) => io.observe(el));
+      }
       const hdr = document.querySelector('.hdr');
       const btn = document.querySelector('.nav-btn');
       btn?.addEventListener('click', () => {

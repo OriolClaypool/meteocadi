@@ -1,18 +1,103 @@
 ---
-// Línies de vent animades sobre el cel de la portada
-const lines = [];
-const durs = [14, 11, 13, 10, 15, 12, 13, 11, 14];
-const dels = [0, -2, -5, -7, -1, -9, -4, -6, -3];
-const ops = [0.34, 0.26, 0.3, 0.22, 0.32, 0.24, 0.28, 0.22, 0.26];
-let i = 0;
-for (let y = 70; y < 520; y += 52, i++) {
-  const d = `M-60 ${y} C320 ${y - 36} 720 ${y + 42} 1100 ${y - 18} S1480 ${y + 30} 1520 ${y + 8}`;
-  lines.push({ d, cls: 'w-dot', op: ops[i % 9], w: 1.7, dur: durs[i % 9], del: dels[i % 9] });
-  if (i % 2 === 0) lines.push({ d, cls: 'w-streak', op: +(ops[i % 9] * 0.7).toFixed(2), w: 1.3, dur: durs[i % 9] - 3, del: dels[i % 9] - 2 });
-}
+// Línies de vent animades sobre el cel de la portada.
+// Es dibuixen en un <canvas> (i no amb SVG + stroke-dashoffset) perquè l'animació no obligui
+// el navegador a repintar tota la capçalera a cada fotograma: així el desplaçament és fluid.
 ---
-<svg class="hero__wind" viewBox="0 0 1440 600" preserveAspectRatio="xMidYMin slice" fill="none" aria-hidden="true">
-  {lines.map((l) => (
-    <path class={l.cls} d={l.d} stroke="#ffffff" stroke-opacity={l.op} stroke-width={l.w} style={`animation-duration:${l.dur}s;animation-delay:${l.del}s`}></path>
-  ))}
-</svg>
+<canvas class="hero__wind" data-wind aria-hidden="true"></canvas>
+<script>
+  const canvas = document.querySelector<HTMLCanvasElement>('[data-wind]');
+  if (canvas) {
+    const ctx = canvas.getContext('2d')!;
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const DW = 1440, DH = 600;
+
+    // Mateixes corbes que el disseny: M-60 y C320 y-36 720 y+42 1100 y-18 S1480 y+30 1520 y+8
+    const bez = (p0: number[], p1: number[], p2: number[], p3: number[], t: number) => {
+      const u = 1 - t;
+      return [
+        u * u * u * p0[0] + 3 * u * u * t * p1[0] + 3 * u * t * t * p2[0] + t * t * t * p3[0],
+        u * u * u * p0[1] + 3 * u * u * t * p1[1] + 3 * u * t * t * p2[1] + t * t * t * p3[1],
+      ];
+    };
+    type Line = { pts: number[][]; cum: number[]; len: number; op: number; speed: number; streak: boolean; sSpeed: number; off: number };
+    const lines: Line[] = [];
+    const durs = [14, 11, 13, 10, 15, 12, 13, 11, 14];
+    const dels = [0, -2, -5, -7, -1, -9, -4, -6, -3];
+    const ops = [0.34, 0.26, 0.3, 0.22, 0.32, 0.24, 0.28, 0.22, 0.26];
+    let i = 0;
+    for (let y = 70; y < 520; y += 52, i++) {
+      const a = [[-60, y], [320, y - 36], [720, y + 42], [1100, y - 18]];
+      const b = [[1100, y - 18], [1480, y - 78], [1480, y + 30], [1520, y + 8]];
+      const pts: number[][] = [];
+      for (let k = 0; k <= 60; k++) pts.push(bez(a[0], a[1], a[2], a[3], k / 60));
+      for (let k = 1; k <= 12; k++) pts.push(bez(b[0], b[1], b[2], b[3], k / 12));
+      const cum = [0];
+      for (let k = 1; k < pts.length; k++) cum.push(cum[k - 1] + Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1]));
+      const d = durs[i % 9];
+      lines.push({ pts, cum, len: cum[cum.length - 1], op: ops[i % 9], speed: 480 / d, streak: i % 2 === 0, sSpeed: 1600 / (d - 3), off: -dels[i % 9] });
+    }
+    const at = (l: Line, s: number) => {
+      let lo = 0, hi = l.cum.length - 1;
+      while (hi - lo > 1) { const m = (lo + hi) >> 1; if (l.cum[m] < s) lo = m; else hi = m; }
+      const f = (s - l.cum[lo]) / (l.cum[hi] - l.cum[lo] || 1);
+      return [l.pts[lo][0] + (l.pts[hi][0] - l.pts[lo][0]) * f, l.pts[lo][1] + (l.pts[hi][1] - l.pts[lo][1]) * f];
+    };
+
+    let scale = 1, ox = 0, w = 0, h = 0;
+    const resize = () => {
+      const r = canvas.getBoundingClientRect();
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      w = r.width; h = r.height;
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(h * dpr);
+      scale = Math.max(w / DW, h / DH);
+      ox = (w - DW * scale) / 2;
+      ctx.setTransform(dpr * scale, 0, 0, dpr * scale, dpr * ox, 0);
+    };
+
+    const draw = (t: number) => {
+      ctx.clearRect(-ox / scale, 0, w / scale, h / scale);
+      ctx.lineCap = 'round';
+      for (const l of lines) {
+        // punts: patró 1,5 + 22,5 que avança al llarg de la corba
+        ctx.fillStyle = `rgba(255,255,255,${l.op})`;
+        const shift = ((t + l.off) * l.speed) % 24;
+        ctx.beginPath();
+        for (let s = shift; s < l.len; s += 24) {
+          const p = at(l, s);
+          ctx.moveTo(p[0] + 1, p[1]);
+          ctx.arc(p[0], p[1], 0.95, 0, Math.PI * 2);
+        }
+        ctx.fill();
+        // traç llarg: 90 px cada 800 px
+        if (l.streak) {
+          ctx.strokeStyle = `rgba(255,255,255,${(l.op * 0.7).toFixed(2)})`;
+          ctx.lineWidth = 1.3;
+          const s0 = ((t + l.off - 2) * l.sSpeed) % 800;
+          ctx.beginPath();
+          for (let s = s0; s < l.len; s += 800) {
+            const p0 = at(l, s);
+            ctx.moveTo(p0[0], p0[1]);
+            for (let d = 10; d <= 90; d += 10) { const p = at(l, Math.min(l.len, s + d)); ctx.lineTo(p[0], p[1]); }
+          }
+          ctx.stroke();
+        }
+      }
+    };
+
+    let visible = true, raf = 0, t0 = performance.now();
+    const loop = (now: number) => {
+      draw((now - t0) / 1000);
+      raf = visible ? requestAnimationFrame(loop) : 0;
+    };
+    resize();
+    window.addEventListener('resize', () => { resize(); if (reduce) draw(3); });
+    if (reduce) draw(3);
+    else {
+      new IntersectionObserver((e) => {
+        visible = e[0].isIntersecting;
+        if (visible && !raf) raf = requestAnimationFrame(loop);
+      }).observe(canvas);
+    }
+  }
+</script>
