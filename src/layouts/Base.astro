@@ -17,9 +17,10 @@ interface Props {
   header?: 'overlay' | 'solid';
   current?: string;
   preload?: string;
+  bare?: boolean; // sense capçalera ni peu del web (eines internes)
 }
 
-const { title, description, path, image = '/imatges/og-meteocadi.jpg', jsonLd = [], noindex = false, header = 'solid', current = '', preload } = Astro.props;
+const { title, description, path, image = '/imatges/og-meteocadi.jpg', jsonLd = [], noindex = false, header = 'solid', current = '', preload, bare = false } = Astro.props;
 const site = 'https://meteocadi.cat';
 const url = site + (path === '/' ? '/' : path);
 const img = image.startsWith('http') ? image : site + image;
@@ -70,11 +71,11 @@ const graph = [
   </head>
   <body>
     <div class="strip" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-    <Header variant={header} current={current} />
+    {!bare && <Header variant={header} current={current} />}
     <main>
       <slot />
     </main>
-    <Footer />
+    {!bare && <Footer />}
     <script>
       // Pausa les animacions de les seccions que no es veuen (menys feina mentre es desplaça la pàgina)
       if ('IntersectionObserver' in window) {

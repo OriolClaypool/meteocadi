@@ -46,7 +46,7 @@ export function latestDay() {
 
 // Estacions amb un dia probablement incomplet: rang diari molt petit comparat amb
 // estacions d'altitud semblant (les de cim tenen rangs petits de manera natural).
-function suspicious(day) {
+export function suspicious(day) {
   const out = new Set();
   const entries = Object.entries(day.stations).filter(([id]) => BY_ID[id]);
   for (const [id, v] of entries) {

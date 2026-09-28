@@ -4,6 +4,7 @@ Allow: /
 Disallow: /ranking
 Disallow: /taula
 Disallow: /previsio
+Disallow: /estudi
 Disallow: /api/
 
 Sitemap: https://meteocadi.cat/sitemap-index.xml
