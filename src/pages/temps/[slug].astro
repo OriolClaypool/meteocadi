@@ -4,6 +4,7 @@ import StationTable from '../../components/StationTable.astro';
 import Forecast from '../../components/Forecast.astro';
 import MountainNotice from '../../components/MountainNotice.astro';
 import MountainForecast from '../../components/MountainForecast.astro';
+import RoadStatus from '../../components/RoadStatus.astro';
 import { PLACES, PLACE_BY_SLUG, isMountain, isRoad, distanceKm } from '../../lib/places.js';
 import { fetchMountain, mountainText, lowerCommon } from '../../lib/mountain.js';
 import { BY_ID, fmtAlt } from '../../lib/stations.js';
@@ -92,6 +93,12 @@ const ld = [
       <StationTable ids={p.stations} />
     </div>
   </section>
+
+  {p.roads?.length > 0 && (
+    <section class="sec sec--pale" style="padding:64px 0;">
+      <div class="wrap"><RoadStatus roads={p.roads} cameras={p.cameras} /></div>
+    </section>
+  )}
 
   {mountain && (
     <section class="sec">

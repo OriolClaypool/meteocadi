@@ -76,6 +76,7 @@ export const PLACES = [
     lat: 42.2991, lng: 1.9252, alt: 2090,
     stations: ['IGUARD34', 'IBAG67'],
     points: [{ label: 'Coll de Pal', lat: 42.2991, lng: 1.9252, alt: 2090 }],
+    roads: [{ road: 'BV-4024', label: 'la BV-4024 (Bagà – Coll de Pal)' }],
     intro: [
       'El Coll de Pal és el pas de muntanya entre el Berguedà i la Cerdanya per la carretera de Bagà a la Molina, a la zona de l\'antiga estació d\'esquí de Puigllançada. L\'estació de la xarxa és a 2.090 m.',
       'Com a coll obert entre dues valls, és un punt molt exposat al vent, i una bona referència per saber quina temperatura fa a la carretera els mesos freds.',
@@ -229,6 +230,11 @@ export const PLACES = [
     points: [
       { label: 'Boca nord, a Urús', lat: 42.3350, lng: 1.8375, alt: 1236 },
       { label: 'Boca sud, a Guardiola de Berguedà', lat: 42.2947, lng: 1.8631, alt: 1175 },
+    ],
+    roads: [{ road: 'C-16', from: 110, to: 135, label: 'la C-16 entre els km 110 i 135' }],
+    cameras: [
+      { id: 'c1658', label: 'C-16, km 118,9 (Bagà)' },
+      { id: 'c1661', label: 'C-16, km 122,3 (Guardiola de Berguedà)' },
     ],
     intro: [
       "El túnel del Cadí, a la C-16, travessa la serra del Cadí entre el Berguedà i la Cerdanya. Fa 5.026 metres i es va inaugurar el 30 d'octubre de 1984. La boca sud és al terme de Guardiola de Berguedà, a 1.175 m, i la boca nord, al d'Urús, a 1.236 m.",

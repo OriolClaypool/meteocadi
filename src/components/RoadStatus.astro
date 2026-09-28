@@ -1,0 +1,86 @@
+---
+// Estat de la carretera: incidències del Servei Català de Trànsit (dades obertes) i càmeres de trànsit.
+// Es carrega al navegador des de /api/transit i /api/camera (amb memòria cau al servidor).
+interface Props {
+  roads: { road: string; from?: number; to?: number; label: string }[];
+  cameras?: { id: string; label: string }[];
+}
+const { roads, cameras = [] } = Astro.props;
+const query = roads.map((r) => (r.from != null ? `${r.road}:${r.from}-${r.to}` : r.road)).join(',');
+const SCT = 'https://transit.gencat.cat/ca/informacio-viaria/estat-transit/';
+---
+<div class="road" data-road={query}>
+  <div class="sec__head">
+    <div>
+      <span class="eyebrow">SERVEI CATALÀ DE TRÀNSIT · DADES OBERTES</span>
+      <h2 class="h2">Estat de <em>la carretera</em></h2>
+      <p class="sub">Incidències comunicades a {roads.map((r) => r.label).join(' i ')}.</p>
+    </div>
+  </div>
+  <div class="road__list" data-road-list aria-live="polite">
+    <p class="road__empty">Carregant les incidències…</p>
+  </div>
+  <p class="road__note">Informació del Servei Català de Trànsit, que s'actualitza cada hora: pot no recollir canvis molt recents. Consulta sempre l'<a href={SCT} rel="noopener" target="_blank">estat del trànsit</a> abans de sortir.</p>
+  {cameras.length > 0 && (
+    <div class="road__cams">
+      {cameras.map((c) => (
+        <figure class="road__cam">
+          <img data-cam={c.id} alt={`Càmera de trànsit: ${c.label}`} width="704" height="480" loading="lazy" decoding="async" />
+          <figcaption>{c.label} · Imatge: Servei Català de Trànsit</figcaption>
+        </figure>
+      ))}
+    </div>
+  )}
+</div>
+<script>
+  const esc = (s: string) => String(s || '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] as string);
+  const pk = (v: number | null) => (v == null ? '' : String(v).replace('.', ','));
+  const hour = (d: Date) => new Intl.DateTimeFormat('ca-ES', { timeZone: 'Europe/Madrid', hour: '2-digit', minute: '2-digit' }).format(d);
+  // Noms de lloc: "LA MOLINA" o "La molina" → "La Molina"; "GUARDIOLA DE BERGUEDA" → "Guardiola de Bergueda"
+  const SMALL = new Set(['de', 'del', 'dels', 'la', 'el', 'les', 'els', 'i', 'a']);
+  const cap = (s: string) =>
+    String(s || '')
+      .toLowerCase()
+      .replace(/[^\s\-'’]+/g, (w, i) => (i > 0 && SMALL.has(w) ? w : w[0].toUpperCase() + w.slice(1)))
+      .replace(/\b(D|L)'/g, (m, c, i) => (i > 0 ? c.toLowerCase() + "'" : m));
+
+  async function paint(root: HTMLElement) {
+    const box = root.querySelector('[data-road-list]');
+    if (!box) return;
+    try {
+      const r = await fetch(`/api/transit?roads=${encodeURIComponent(root.dataset.road || '')}`);
+      const j = await r.json();
+      if (j.error) throw new Error('sct');
+      const when = hour(new Date(j.updated));
+      if (!j.items.length) {
+        box.innerHTML = `<p class="road__ok"><b>Cap incidència comunicada</b> en aquest tram. <span>Consultat a les ${when}.</span></p>`;
+        return;
+      }
+      box.innerHTML =
+        j.items
+          .map((it: any) => {
+            const t = `${it.type} ${it.text} ${it.cause}`.toLowerCase();
+            const cls = /tallad|tancad/.test(t) ? 'red' : /cadenes|neu|gel|glaç/.test(t) ? 'amber' : 'grey';
+            const tram = it.pkFrom != null ? ` · km ${pk(it.pkFrom)}${it.pkTo != null && it.pkTo !== it.pkFrom ? `–${pk(it.pkTo)}` : ''}` : '';
+            const cap_a = it.towards ? ` · cap a ${esc(cap(it.towards))}` : '';
+            return `<div class="road__it road__it--${cls}"><b>${esc(it.road)}${tram}</b><span>${esc(it.text)}${it.cause ? ` (${esc(it.cause.toLowerCase())})` : ''}${cap_a}</span></div>`;
+          })
+          .join('') + `<p class="road__when">Consultat a les ${when}.</p>`;
+    } catch {
+      box.innerHTML = `<p class="road__empty">Ara no s'han pogut carregar les dades del Servei Català de Trànsit.</p>`;
+    }
+  }
+
+  function cams(root: HTMLElement) {
+    root.querySelectorAll<HTMLImageElement>('[data-cam]').forEach((img) => {
+      img.onerror = () => img.closest('figure')?.classList.add('is-off');
+      img.src = `/api/camera?id=${img.dataset.cam}&t=${Math.floor(Date.now() / 300000)}`;
+    });
+  }
+
+  document.querySelectorAll<HTMLElement>('[data-road]').forEach((root) => {
+    paint(root);
+    cams(root);
+    setInterval(() => { paint(root); cams(root); }, 5 * 60 * 1000);
+  });
+</script>

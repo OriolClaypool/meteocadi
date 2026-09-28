@@ -23,6 +23,11 @@ Weather-station network site for Cadí-Moixeró / Berguedà. **All user-facing c
 - `/muntanya` is the hub (high stations live + summary table); `/avis-legal` holds the full disclaimer. Keep both linked from the footer.
 - Facts in place intros must be verifiable (altitudes, municipalities, routes); don't add claims without a source.
 
+## Road status (Servei Català de Trànsit, open data)
+- Places with `roads` (and optional `cameras`) in `places.js` show `RoadStatus` (tunnel, Coll de Pal).
+- `api/transit.js` reads the SCT incidents GML feed (updated hourly) and filters by road and km range: `/api/transit?roads=C-16:110-135,BV-4024`. CDN cache 10 min.
+- `api/camera.js` proxies SCT camera images (their server is http only). Only IDs in its `ALLOWED` set are served; add new cameras there too.
+
 ## Design
 No italics in headings: the second part of a two-part heading goes in an accent colour (`<em>` is styled non-italic).
 Social images: no logo or project name, only `meteocadi.cat` in the footer.

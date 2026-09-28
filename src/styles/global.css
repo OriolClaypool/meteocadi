@@ -446,3 +446,20 @@ button { font: inherit; }
 @media (max-width: 1000px) { .mcards { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 560px) { .mcards { grid-template-columns: 1fr; } .notice { padding: 20px; } }
 @media (max-width: 700px) { .mtable { min-width: 540px; font-size: 14px; } .mtable th, .mtable td { padding: 9px 8px; } .mtable tbody th { width: 34%; } }
+/* ---------- estat de la carretera ---------- */
+.road__list { display: flex; flex-direction: column; gap: 10px; max-width: 900px; }
+.road__it { display: flex; flex-direction: column; gap: 4px; padding: 14px 18px; border-radius: 12px; border: 1px solid var(--line); border-left-width: 5px; background: #fff; font-size: 16px; }
+.road__it b { font-family: var(--f-mono); font-size: 14px; letter-spacing: 0.04em; }
+.road__it--red { border-left-color: #c62828; }
+.road__it--amber { border-left-color: #e0a100; }
+.road__it--grey { border-left-color: #9aa8b8; }
+.road__ok { padding: 14px 18px; border-radius: 12px; background: #eaf7ee; color: #1f5130; font-size: 16px; max-width: 900px; }
+.road__ok span, .road__when { color: var(--muted); font-size: 14px; }
+.road__empty { color: var(--muted); }
+.road__note { font-size: 14px; color: var(--muted); margin-top: 14px; max-width: 900px; }
+.road__cams { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; margin-top: 24px; }
+.road__cam { margin: 0; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: #0b1524; }
+.road__cam img { display: block; width: 100%; height: auto; aspect-ratio: 704 / 480; background: #0b1524; }
+.road__cam figcaption { padding: 10px 14px; font-size: 13px; color: #c3cfde; }
+.road__cam.is-off img { display: none; }
+.road__cam.is-off figcaption::before { content: 'Imatge no disponible ara mateix · '; }
