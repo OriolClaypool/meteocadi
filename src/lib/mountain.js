@@ -1,7 +1,7 @@
 // Previsió de muntanya (Open-Meteo) per a un o més punts d'altitud coneguda:
 // temperatura, sensació tèrmica, vent i ratxa, precipitació, neu i isoterma de 0 °C.
 // Es fa servir en temps de build (text indexable) i al navegador (dades fresques).
-import { num, dayName, dayShort, parseDay } from './format.js';
+import { num, dayName, dayShort, parseDay, longDate, cap } from './format.js';
 
 const DIRS = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
 const dir8 = (deg) => (deg == null || isNaN(deg) ? '' : DIRS[Math.round(deg / 45) % 8]);
@@ -103,7 +103,7 @@ export function mountainText(data, place) {
   if (!data?.length || !data[0].days.length) return [];
   const top = data[0];
   return top.days.slice(0, 2).map((d, i) => {
-    const when = i === 0 ? 'Avui' : 'Demà';
+    const when = cap(longDate(d.date)); // data explícita: el text es genera al build
     const parts = [`${when}, a ${thousands(top.point.alt)} m (${lowerCommon(top.point.label)}): mínima de ${num(d.min, 0)} °C i màxima de ${num(d.max, 0)} °C`];
     if (d.feels != null && d.feels < d.min - 2) parts.push(`amb una sensació tèrmica de fins a ${num(d.feels, 0)} °C`);
     if (d.gust != null) parts.push(`ratxes de ${r0(d.gust)} km/h${dir8(d.dir) ? ` de ${DIR_NAMES[dir8(d.dir)]}` : ''}`);
