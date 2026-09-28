@@ -170,6 +170,10 @@ function header(ctx, eyebrow, l1, l2, c0, c1, c2) {
   const s1 = fitFont(ctx, 'head', 96, 800, l1, X1 - X0);
   ctx.fillStyle = c1;
   ctx.fillText(l1, X0, TOP + 93);
+  if (!l2) {
+    tracking(ctx, 0);
+    return TOP + 140; // títol d'una sola línia
+  }
   const s2 = fitFont(ctx, 'head', 96, 800, l2, X1 - X0);
   ctx.fillStyle = c2;
   font(ctx, 'head', Math.min(s1, s2), 800);
@@ -443,7 +447,7 @@ export function layoutPrevisio(ctx, st) {
     if (st.summary.trim()) out.push(measureSummary(ctx, st.summary, k));
     return out;
   };
-  const top = TOP + 234 + 44;
+  const top = TOP + 140 + 44; // sota el títol «El temps»
   const GAP = 22;
   for (const k of [1, 0.94, 0.88, 0.84]) {
     const b = blocks(k);
@@ -570,8 +574,7 @@ function drawSummary(ctx, b) {
 
 export function drawPrevisio(ctx, st, icons, layout, page = 0) {
   background(ctx, true);
-  const both = st.days[1] && !dayEmpty(st.days[1]);
-  header(ctx, `Previsió · ${dayName(st.date)} ${dayMonth(st.date)}`, 'El temps', both ? "d'avui i demà" : "d'avui", A.cy, '#ffffff', A.cy);
+  header(ctx, `Previsió · ${dayName(st.date)} ${dayMonth(st.date)}`, 'El temps', '', A.cy, '#ffffff', A.cy);
   const items = layout.pages[Math.min(page, layout.pages.length - 1)] || [];
   for (const b of items) b.type === 'day' ? drawCard(ctx, b, st, icons) : drawSummary(ctx, b);
   footer(ctx, true, layout.pages.length > 1 ? `${page + 1} / ${layout.pages.length}` : '');
