@@ -64,7 +64,7 @@ const who = (e) => (e ? `${e.station?.name.split(' - ')[0] ?? ''}` : '');
       <div class="wrap" style="display:flex;flex-direction:column;gap:24px;">
         <div>
           <h2 class="h2" style="font-size:34px;">{cap(monthName(m.month))} de {m.year}</h2>
-          <p class="sub">{m.days} dies arxivats{m.days < 28 ? ` (del ${dayMonth(m.first)} al ${dayMonth(m.last)})` : ''}.</p>
+          <p class="sub">{m.days} dies arxivats{m.days < 28 ? ` (del ${dayMonth(m.first)} al ${dayMonth(m.last)})` : ''}. <a href={`/historial/${m.key}`} style="font-weight:600;">Resum complet del mes ›</a></p>
         </div>
         <div class="recs">
           <div class="card"><span class="eyebrow">Màxima del mes</span><p class="mono" style={`font-size:30px;color:${tempColorLight(m.max?.v)}`}>{num(m.max?.v)}°</p><p style="font-size:14px;color:var(--muted)">{who(m.max)} · {m.max && `${dayName(m.max.date)} ${dayMonth(m.max.date)}`}</p></div>

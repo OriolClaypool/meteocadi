@@ -178,3 +178,34 @@ export function months() {
     .filter((m) => m.days > 0)
     .reverse();
 }
+
+// Estadístiques del mes estació per estació (per a /historial/AAAA-MM).
+// Les temperatures d'un dia incomplet (vegeu suspicious) no compten.
+export function monthStations(month) {
+  return STATIONS.map((s) => {
+    const rows = month.daysList
+      .filter((d) => d.stations[s.id])
+      .map((d) => ({ date: d.date, ...d.stations[s.id], susp: suspicious(d).has(s.id) }));
+    const t = rows.filter((r) => !r.susp);
+    const avg = (list, k) => {
+      const v = list.map((r) => r[k]).filter((x) => x != null);
+      return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+    };
+    const best = (list, k, dir) =>
+      list.filter((r) => r[k] != null).reduce((a, b) => (!a || (dir > 0 ? b[k] > a[k] : b[k] < a[k]) ? b : a), null);
+    const mx = best(t, 'tempHigh', 1);
+    const mn = best(t, 'tempLow', -1);
+    const gu = best(rows, 'windgustHigh', 1);
+    return {
+      station: s,
+      days: rows.length,
+      avgHigh: avg(t, 'tempHigh'),
+      avgLow: avg(t, 'tempLow'),
+      max: mx ? { v: mx.tempHigh, date: mx.date } : null,
+      min: mn ? { v: mn.tempLow, date: mn.date } : null,
+      gust: gu ? { v: gu.windgustHigh, date: gu.date } : null,
+      rain: rows.reduce((a, r) => a + (r.precipTotal ?? 0), 0),
+      rainDays: rows.filter((r) => (r.precipTotal ?? 0) >= 0.2).length,
+    };
+  }).filter((x) => x.days > 0);
+}

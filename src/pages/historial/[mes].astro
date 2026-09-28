@@ -1,0 +1,142 @@
+---
+// Una pàgina per mes a partir de l'arxiu diari: /historial/2026-09.
+// Es regenera cada nit amb el nou dia arxivat; mentre el mes no s'acaba, és un resum provisional.
+import Base from '../../layouts/Base.astro';
+import { months, extremes, monthStations } from '../../lib/archive.js';
+import { fmtAlt } from '../../lib/stations.js';
+import { num, dayName, dayMonth, monthName, deMonth, cap, tempColorLight, todayMadrid } from '../../lib/format.js';
+
+export function getStaticPaths() {
+  const ms = months(); // del més recent al més antic
+  return ms.map((m, i) => ({ params: { mes: m.key }, props: { m, newer: ms[i - 1] || null, older: ms[i + 1] || null } }));
+}
+
+const { m, newer, older } = Astro.props;
+const st = monthStations(m);
+const nm = monthName(m.month);
+const deMes = deMonth(m.month); // "de setembre" / "d'octubre"
+const lastDay = new Date(Date.UTC(m.year, m.month, 0)).getUTCDate();
+const today = todayMadrid();
+const open = today.slice(0, 7) === m.key || Number(m.last.slice(8)) < lastDay;
+const who = (e) => (e ? e.station?.name.split(' - ')[0] : '');
+const dia = (iso) => `${dayName(iso)} ${Number(iso.slice(8))}`;
+const short = (s) => s.name.split(' - ')[0];
+
+// Text del resum, fet amb les dades
+const high = [...st].sort((a, b) => b.station.alt - a.station.alt)[0];
+const low = [...st].sort((a, b) => a.station.alt - b.station.alt)[0];
+const wet = [...st].sort((a, b) => b.rain - a.rain)[0];
+const rainyDays = m.daysList.filter((d) => Object.values(d.stations).some((v) => (v.precipTotal ?? 0) >= 0.2)).length;
+const p1 = `${open ? 'Resum provisional' : 'Resum'} del mes ${deMes} de ${m.year} a la xarxa d'estacions Meteocadí, ${open ? `amb ${m.days} dies arxivats fins al ${dayMonth(m.last)}` : `amb ${m.days} dies arxivats`}. La màxima més alta va ser de ${num(m.max?.v)} °C a ${who(m.max)} (${dia(m.max.date)}) i la mínima més baixa, de ${num(m.min?.v)} °C a ${who(m.min)} (${dia(m.min.date)}).`;
+const p2 = wet && wet.rain > 0
+  ? `L'estació més plujosa va ser ${short(wet.station)}, amb ${num(wet.rain)} mm. Va ploure en ${rainyDays} ${rainyDays === 1 ? 'dia' : 'dies'} en alguna estació de la xarxa. La ratxa de vent més forta, ${num(m.gust?.v)} km/h, es va registrar a ${who(m.gust)} (${dia(m.gust.date)}).`
+  : `No va ploure a cap estació de la xarxa. La ratxa de vent més forta, ${num(m.gust?.v)} km/h, es va registrar a ${who(m.gust)} (${dia(m.gust.date)}).`;
+const p3 = high && low && high.avgHigh != null && low.avgHigh != null && high !== low
+  ? `De mitjana, les màximes van ser de ${num(low.avgHigh)} °C a ${short(low.station)} (${fmtAlt(low.station.alt)}) i de ${num(high.avgHigh)} °C a ${short(high.station)} (${fmtAlt(high.station.alt)}): ${num(Math.abs(low.avgHigh - high.avgHigh))} °C de diferència amb ${(high.station.alt - low.station.alt).toLocaleString('ca-ES')} metres de desnivell.`
+  : '';
+
+const title = `El temps ${deMes} de ${m.year} al Cadí-Moixeró: resum del mes | Meteocadí`;
+const description = `${cap(nm)} de ${m.year} al Cadí-Moixeró i el Berguedà: màximes, mínimes, pluja i vent de cada estació de Meteocadí, dia a dia${open ? ' (resum provisional)' : ''}.`;
+const url = `https://www.meteocadi.cat/historial/${m.key}`;
+const ld = [
+  {
+    '@type': 'Dataset',
+    name: `Dades meteorològiques ${deMes} de ${m.year} · xarxa Meteocadí`,
+    description,
+    url,
+    temporalCoverage: `${m.first}/${m.last}`,
+    spatialCoverage: { '@type': 'Place', name: 'Cadí-Moixeró i Berguedà' },
+    creator: { '@id': 'https://www.meteocadi.cat/#org' },
+    isAccessibleForFree: true,
+    variableMeasured: ['Temperatura màxima', 'Temperatura mínima', 'Precipitació', 'Ratxa de vent'],
+  },
+  {
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Inici', item: 'https://www.meteocadi.cat/' },
+      { '@type': 'ListItem', position: 2, name: 'Historial', item: 'https://www.meteocadi.cat/historial' },
+      { '@type': 'ListItem', position: 3, name: `${cap(nm)} de ${m.year}`, item: url },
+    ],
+  },
+];
+---
+<Base title={title} description={description} path={`/historial/${m.key}`} jsonLd={ld} current="historial">
+  <section class="phead">
+    <div class="wrap">
+      <nav class="crumbs" aria-label="Ruta"><a href="/">Inici</a><span>›</span><a href="/historial">Historial</a><span>›</span><span>{cap(nm)} de {m.year}</span></nav>
+      <h1>{cap(nm)} de {m.year} <em>al Cadí-Moixeró</em></h1>
+      <div class="prose" style="margin-top:22px;font-size:17px;">
+        <p>{p1}</p>
+        <p>{p2}</p>
+        {p3 && <p>{p3}</p>}
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" style="padding:56px 0;">
+    <div class="wrap" style="display:flex;flex-direction:column;gap:28px;">
+      <div class="recs">
+        <div class="card"><span class="eyebrow">Màxima del mes</span><p class="mono" style={`font-size:30px;color:${tempColorLight(m.max?.v)}`}>{num(m.max?.v)}°</p><p style="font-size:14px;color:var(--muted)">{who(m.max)} · {m.max && dia(m.max.date)}</p></div>
+        <div class="card"><span class="eyebrow">Mínima del mes</span><p class="mono" style={`font-size:30px;color:${tempColorLight(m.min?.v)}`}>{num(m.min?.v)}°</p><p style="font-size:14px;color:var(--muted)">{who(m.min)} · {m.min && dia(m.min.date)}</p></div>
+        <div class="card"><span class="eyebrow">Ratxa més forta</span><p class="mono" style="font-size:30px;">{num(m.gust?.v)} <small style="font-size:15px;color:var(--muted)">km/h</small></p><p style="font-size:14px;color:var(--muted)">{who(m.gust)} · {m.gust && dia(m.gust.date)}</p></div>
+        <div class="card"><span class="eyebrow">Més pluja acumulada</span><p class="mono" style="font-size:30px;">{num(m.wettest?.v)} <small style="font-size:15px;color:var(--muted)">mm</small></p><p style="font-size:14px;color:var(--muted)">{m.wettest && m.wettest.v > 0 ? who(m.wettest) : 'Cap estació amb pluja'}</p></div>
+      </div>
+
+      <div>
+        <h2 class="h2" style="font-size:30px;margin-bottom:14px;">Estació per estació</h2>
+        <div class="tscroll">
+          <table class="dtable">
+            <thead><tr><th>Estació</th><th class="n">Altitud</th><th class="n">Mitjana màx.</th><th class="n">Mitjana mín.</th><th class="n">Màxima</th><th class="n">Mínima</th><th class="n">Pluja</th><th class="n">Dies de pluja</th><th class="n">Ratxa</th></tr></thead>
+            <tbody>
+              {[...st].sort((a, b) => b.station.alt - a.station.alt).map((x) => (
+                <tr>
+                  <td><a href={`/estacions/${x.station.slug}`}>{short(x.station)}</a></td>
+                  <td class="n">{fmtAlt(x.station.alt)}</td>
+                  <td class="n" style={`color:${tempColorLight(x.avgHigh)}`}>{num(x.avgHigh)}°</td>
+                  <td class="n" style={`color:${tempColorLight(x.avgLow)}`}>{num(x.avgLow)}°</td>
+                  <td class="n" title={x.max ? dia(x.max.date) : ''}>{x.max ? `${num(x.max.v)}°` : '—'}</td>
+                  <td class="n" title={x.min ? dia(x.min.date) : ''}>{x.min ? `${num(x.min.v)}°` : '—'}</td>
+                  <td class="n">{num(x.rain)} mm</td>
+                  <td class="n">{x.rainDays}</td>
+                  <td class="n">{x.gust ? `${num(x.gust.v)} km/h` : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div>
+        <h2 class="h2" style="font-size:30px;margin-bottom:14px;">Dia a dia</h2>
+        <div class="tscroll">
+          <table class="dtable">
+            <thead><tr><th>Dia</th><th class="n">Màxima</th><th>On</th><th class="n">Mínima</th><th>On</th><th class="n">Ratxa</th><th class="n">Pluja màx.</th></tr></thead>
+            <tbody>
+              {m.daysList.map((d) => {
+                const e = extremes(d);
+                return (
+                  <tr>
+                    <td>{dia(d.date)}</td>
+                    <td class="n" style={`color:${tempColorLight(e.max?.v)}`}>{num(e.max?.v)}°</td>
+                    <td>{who(e.max)}</td>
+                    <td class="n" style={`color:${tempColorLight(e.min?.v)}`}>{num(e.min?.v)}°</td>
+                    <td>{who(e.min)}</td>
+                    <td class="n">{e.gust ? `${num(e.gust.v)} km/h` : '—'}</td>
+                    <td class="n">{num(e.rain?.v ?? 0)} mm</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <nav style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-weight:600;">
+        {older ? <a href={`/historial/${older.key}`}>‹ {cap(monthName(older.month))} de {older.year}</a> : <span></span>}
+        <a href="/historial">Tot l'historial</a>
+        {newer ? <a href={`/historial/${newer.key}`}>{cap(monthName(newer.month))} de {newer.year} ›</a> : <span></span>}
+      </nav>
+      <p style="font-size:14px;color:var(--muted);">Dades de les estacions de la xarxa Meteocadí (Weather Underground), arxivades cada nit. Les temperatures d'un dia amb dades incompletes no compten per als extrems ni les mitjanes.</p>
+    </div>
+  </section>
+</Base>
