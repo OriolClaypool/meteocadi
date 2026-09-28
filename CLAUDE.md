@@ -1,6 +1,6 @@
 # Meteocadí — notes for Claude Code
 
-Weather-station network site for Cadí-Moixeró / Berguedà. **All user-facing copy is in Catalan.**
+Weather-station network site for Cadí-Moixeró / Berguedà. **All user-facing copy is in Catalan**, except the Spanish versions of the place and mountain pages (see below).
 
 ## Stack
 - Canonical domain: `https://www.meteocadi.cat` (Vercel redirects the apex to www; Google indexes www). Use www in `site`, canonicals, JSON-LD and the sitemap.
@@ -28,6 +28,11 @@ Weather-station network site for Cadí-Moixeró / Berguedà. **All user-facing c
 - Measured data only, never forecasts; never claim snow amounts (gauges don't measure snow).
 - `/episodis` is noindex and left out of the sitemap while there are no episodes (see `astro.config.mjs`). The home shows a strip for an episode that ended ≤ 6 days before the last archived day; month pages list their episodes.
 - Test with fake data: `DADES_DIR=<dir> npm run build` (overrides the `dades/` folder read by `archive.js`).
+
+## Spanish pages (/es/)
+- Only `/es/tiempo`, `/es/tiempo/[slug]` and `/es/montana`, built from the same components as the Catalan pages (`PlacePage.astro`, `MountainHub.astro`) with `lang="es"`. Catalan is primary: hreflang pairs with Catalan as x-default, no automatic language redirects, and no Spanish home page (searches for "Meteocadí" must land on the Catalan site).
+- Spanish place texts live in `src/lib/places-es.js` (keep in sync with `places.js`; toponyms stay in Catalan). UI strings for shared components are in `src/lib/i18n.js`; client scripts read the language from `<html lang>`.
+- Base takes `lang` and `alternates` ({ ca, es } paths); the header shows a small ES / CA link when a page has both.
 
 ## Road status (Servei Català de Trànsit, open data)
 - Places with `roads` (and optional `cameras`) in `places.js` show `RoadStatus` (tunnel, Coll de Pal).

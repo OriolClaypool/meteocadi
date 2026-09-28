@@ -2,6 +2,7 @@
 // La previsió es calcula per a l'altitud del lloc (paràmetre elevation).
 import { tempColorLight, num, cap, dayName, dayShort, parseDay } from '../lib/format.js';
 import { wmoIcon, wmoText, iconUrl } from '../lib/wmo.js';
+import { t, pageLang } from '../lib/i18n.js';
 
 const cache = new Map();
 
@@ -39,6 +40,8 @@ const INK = '#10233b', INK2 = '#44556b', MUTED = '#56667a', LINE = '#e3e9f0', BL
 const ARROW = 'M0 -8 L5.5 6 L0 3 L-5.5 6 Z';
 
 export function meteogramSVG(j) {
+  const lang = pageLang();
+  const L = t(lang);
   const h = j.hourly;
   let s = h.time.indexOf(nowKey());
   if (s < 0) s = 0;
@@ -52,7 +55,7 @@ export function meteogramSVG(j) {
   const ty = (t) => TY0 - ((t - tmin) / (tmax - tmin)) * (TY0 - TY1);
   const step = tmax - tmin > 14 ? 5 : 2;
   const o = [];
-  o.push(`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Meteograma de les pròximes 48 hores">`);
+  o.push(`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${L.meteogram}">`);
   // degradat de temperatura segons l'eix
   const stops = [];
   for (let t = tmax; t >= tmin; t -= 1) stops.push(`<stop offset="${((ty(t) - TY1) / (TY0 - TY1)).toFixed(3)}" stop-color="${tempColorLight(t)}"></stop>`);
@@ -78,7 +81,7 @@ export function meteogramSVG(j) {
   const dayLabel = (i, first) => {
     const iso = h.time[i].slice(0, 10);
     const d = parseDay(iso).getUTCDate();
-    return first ? 'Ara' : `${cap(dayName(iso))} ${d}`;
+    return first ? L.now : `${cap(dayName(iso, lang))} ${d}`;
   };
   o.push(`<text x="${X0 + 8}" y="16" font-size="15" font-weight="700" fill="${INK}">${dayLabel(idx[0], true)}</text>`);
   idx.forEach((i, k) => {
@@ -99,7 +102,7 @@ export function meteogramSVG(j) {
     o.push(`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.2" fill="#fff" stroke="${tempColorLight(t)}" stroke-width="2"></circle>`);
     if (k % 6 === 0 && k > 0) o.push(`<text x="${x.toFixed(1)}" y="${(y - 14).toFixed(1)}" text-anchor="middle" font-size="16" font-weight="500" fill="${tempColorLight(t)}" font-family="Geist Mono Variable, monospace">${Math.round(t)}°</text>`);
     // icona
-    o.push(`<image href="${iconUrl(wmoIcon(h.weather_code[i], h.is_day[i] === 1))}" x="${(x - 21).toFixed(1)}" y="22" width="42" height="42"><title>${wmoText(h.weather_code[i])}</title></image>`);
+    o.push(`<image href="${iconUrl(wmoIcon(h.weather_code[i], h.is_day[i] === 1))}" x="${(x - 21).toFixed(1)}" y="22" width="42" height="42"><title>${wmoText(h.weather_code[i], lang)}</title></image>`);
   });
   // ara
   o.push(`<line x1="${X0}" y1="72" x2="${X0}" y2="${BASE}" stroke="${INK}" stroke-width="1.5"></line>`);
@@ -128,32 +131,35 @@ export function meteogramSVG(j) {
 }
 
 export function daysHTML(j, n = 7) {
+  const lang = pageLang();
+  const L = t(lang);
   const d = j.daily;
   return d.time
     .slice(0, n)
     .map((iso, i) => {
-      const name = i === 0 ? 'Avui' : i === 1 ? 'Demà' : `${cap(dayShort(iso))} ${parseDay(iso).getUTCDate()}`;
+      const name = i === 0 ? L.today : i === 1 ? L.tomorrow : `${cap(dayShort(iso, lang))} ${parseDay(iso).getUTCDate()}`;
       const code = d.weather_code[i];
       const rain = d.precipitation_sum[i];
       const prob = d.precipitation_probability_max?.[i];
-      return `<div class="day"><span class="day__d">${name}</span><img src="${iconUrl(wmoIcon(code, true))}" alt="${wmoText(code)}" width="52" height="52" loading="lazy"><span class="day__t"><span style="color:${tempColorLight(d.temperature_2m_max[i])}">${Math.round(d.temperature_2m_max[i])}°</span> <span style="color:#8a99ab">/</span> <span style="color:${tempColorLight(d.temperature_2m_min[i])}">${Math.round(d.temperature_2m_min[i])}°</span></span><span class="day__r">${rain >= 0.1 ? `${num(rain)} mm` : 'sec'}${prob != null && rain >= 0.1 ? ` · ${prob}%` : ''}</span></div>`;
+      return `<div class="day"><span class="day__d">${name}</span><img src="${iconUrl(wmoIcon(code, true))}" alt="${wmoText(code, lang)}" width="52" height="52" loading="lazy"><span class="day__t"><span style="color:${tempColorLight(d.temperature_2m_max[i])}">${Math.round(d.temperature_2m_max[i])}°</span> <span style="color:#8a99ab">/</span> <span style="color:${tempColorLight(d.temperature_2m_min[i])}">${Math.round(d.temperature_2m_min[i])}°</span></span><span class="day__r">${rain >= 0.1 ? `${num(rain)} mm` : L.dry}${prob != null && rain >= 0.1 ? ` · ${prob}%` : ''}</span></div>`;
     })
     .join('');
 }
 
 // Munta un bloc de previsió: data-forecast='{"lat":..,"lng":..,"alt":..}'
 export function mountForecast(root) {
+  const L = t(pageLang());
   const mg = root.querySelector('[data-mg]');
   const days = root.querySelector('[data-days]');
   const run = (place) => {
-    if (mg) mg.innerHTML = '<div class="mg-empty">Carregant la previsió…</div>';
+    if (mg) mg.innerHTML = `<div class="mg-empty">${L.loadingFc}</div>`;
     fetchForecast(place)
       .then((j) => {
-        if (mg) mg.innerHTML = meteogramSVG(j) || '<div class="mg-empty">Previsió no disponible</div>';
+        if (mg) mg.innerHTML = meteogramSVG(j) || `<div class="mg-empty">${L.fcNone}</div>`;
         if (days) days.innerHTML = daysHTML(j);
       })
       .catch(() => {
-        if (mg) mg.innerHTML = '<div class="mg-empty">No s\'ha pogut carregar la previsió. Torna-ho a provar d\'aquí a una estona.</div>';
+        if (mg) mg.innerHTML = `<div class="mg-empty">${L.fcError}</div>`;
       });
   };
   const chips = root.querySelectorAll('[data-place]');

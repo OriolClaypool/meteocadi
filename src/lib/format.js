@@ -76,20 +76,24 @@ const DIES = ['diumenge', 'dilluns', 'dimarts', 'dimecres', 'dijous', 'divendres
 const DIES_CURTS = ['dg', 'dl', 'dt', 'dc', 'dj', 'dv', 'ds'];
 const MESOS = ['gener', 'febrer', 'març', 'abril', 'maig', 'juny', 'juliol', 'agost', 'setembre', 'octubre', 'novembre', 'desembre'];
 const MESOS_CURTS = ['gen', 'febr', 'març', 'abr', 'maig', 'juny', 'jul', 'ag', 'set', 'oct', 'nov', 'des'];
+// Castellà (pàgines /es/)
+const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+const DIAS_CORTOS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 
 // "2026-09-25" → Date a migdia UTC (evita salts de zona horària)
 export function parseDay(iso) {
   return new Date(`${iso}T12:00:00Z`);
 }
 
-export function dayName(iso) {
-  return DIES[parseDay(iso).getUTCDay()];
+export function dayName(iso, lang = 'ca') {
+  return (lang === 'es' ? DIAS : DIES)[parseDay(iso).getUTCDay()];
 }
-export function dayShort(iso) {
-  return DIES_CURTS[parseDay(iso).getUTCDay()];
+export function dayShort(iso, lang = 'ca') {
+  return (lang === 'es' ? DIAS_CORTOS : DIES_CURTS)[parseDay(iso).getUTCDay()];
 }
-export function monthName(m) {
-  return MESOS[m - 1];
+export function monthName(m, lang = 'ca') {
+  return (lang === 'es' ? MESES : MESOS)[m - 1];
 }
 
 // "de setembre" / "d'octubre"
@@ -98,10 +102,10 @@ export function deMonth(m) {
   return /^[aeiouàèéíòóú]/i.test(n) ? `d'${n}` : `de ${n}`;
 }
 
-// "25 de setembre" / "3 d'octubre"
-export function dayMonth(iso) {
+// "25 de setembre" / "3 d'octubre" (castellà: "25 de septiembre")
+export function dayMonth(iso, lang = 'ca') {
   const d = parseDay(iso);
-  return `${d.getUTCDate()} ${deMonth(d.getUTCMonth() + 1)}`;
+  return lang === 'es' ? `${d.getUTCDate()} de ${MESES[d.getUTCMonth()]}` : `${d.getUTCDate()} ${deMonth(d.getUTCMonth() + 1)}`;
 }
 
 export function dayMonthShort(iso) {
@@ -109,9 +113,9 @@ export function dayMonthShort(iso) {
   return `${d.getUTCDate()} ${MESOS_CURTS[d.getUTCMonth()]}`;
 }
 
-// "divendres 25 de setembre"
-export function longDate(iso) {
-  return `${dayName(iso)} ${dayMonth(iso)}`;
+// "divendres 25 de setembre" / "viernes 25 de septiembre"
+export function longDate(iso, lang = 'ca') {
+  return `${dayName(iso, lang)} ${dayMonth(iso, lang)}`;
 }
 
 export function cap(s) {
@@ -127,8 +131,9 @@ export function hourMadrid(d = new Date()) {
   return new Intl.DateTimeFormat('ca-ES', { timeZone: 'Europe/Madrid', hour: '2-digit', minute: '2-digit' }).format(d);
 }
 
-// "des del 20 de setembre" / "des de l'1 d'octubre"
-export function desDe(iso) {
+// "des del 20 de setembre" / "des de l'1 d'octubre" (castellà: "desde el 20 de septiembre")
+export function desDe(iso, lang = 'ca') {
+  if (lang === 'es') return `desde el ${dayMonth(iso, 'es')}`;
   const n = parseDay(iso).getUTCDate();
   return n === 1 || n === 11 ? `des de l'${dayMonth(iso)}` : `des del ${dayMonth(iso)}`;
 }

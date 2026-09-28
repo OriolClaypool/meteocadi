@@ -490,3 +490,13 @@ button { font: inherit; }
 .epstrip:hover u { text-decoration: underline; text-underline-offset: 3px; }
 @media (max-width: 640px) { .epstrip u { margin-left: 0; } }
 .dtable td.n { white-space: nowrap; }
+
+/* Enllaç a l'altra llengua (només a les pàgines que en tenen versió) */
+.nav .nav__lang { font-family: var(--f-mono); font-size: 13px; letter-spacing: 0.06em; padding: 4px 8px; border-radius: 6px; border: 1px solid currentColor; opacity: 0.7; }
+.nav .nav__lang:hover { opacity: 1; }
+.nav__lang-l { display: none; }
+@media (max-width: 1080px) {
+  .nav .nav__lang { font-family: inherit; font-size: 17px; letter-spacing: 0; border: 0; padding: 14px 16px; opacity: 1; }
+  .nav__lang-s { display: none; }
+  .nav__lang-l { display: inline; }
+}

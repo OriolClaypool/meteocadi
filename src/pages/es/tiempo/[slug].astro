@@ -1,0 +1,10 @@
+---
+// El tiempo en cada lugar (versión en castellano). La versión principal, en catalán, es /temps/[slug].
+import PlacePage from '../../../components/PlacePage.astro';
+import { PLACES } from '../../../lib/places.js';
+
+export function getStaticPaths() {
+  return PLACES.map((p) => ({ params: { slug: p.slug } }));
+}
+---
+<PlacePage slug={Astro.params.slug} lang="es" />

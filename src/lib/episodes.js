@@ -60,7 +60,7 @@ function whenText(a, b) {
 // "d'octubre" / "de setembre i octubre"
 function monthsText(keys) {
   const ms = keys.map((k) => Number(k.slice(5, 7)));
-  return ms.length === 1 ? deMonth(ms[0]) : `${deMonth(ms[0])} i ${ms.slice(1).map(monthName).join(' i ')}`;
+  return ms.length === 1 ? deMonth(ms[0]) : `${deMonth(ms[0])} i ${ms.slice(1).map((m) => monthName(m)).join(' i ')}`;
 }
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
 const nameList = (xs) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} i ${xs[xs.length - 1]}`);

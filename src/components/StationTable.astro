@@ -1,14 +1,16 @@
 ---
 // Taula d'estacions en directe (estil instrument). Les dades les pinta src/scripts/live.js.
 import { STATIONS, GROUPS, BY_ID, subLine } from '../lib/stations.js';
-interface Props { ids?: string[] }
-const { ids } = Astro.props;
+import { t } from '../lib/i18n.js';
+interface Props { ids?: string[]; lang?: 'ca' | 'es' }
+const { ids, lang = 'ca' } = Astro.props;
+const L = t(lang);
 const groups = ids ? ['sel'] : ['alta', 'vall'];
 const listFor = (g) => (g === 'sel' ? ids.map((i) => BY_ID[i]) : STATIONS.filter((s) => s.group === g));
 ---
 <div class="st-table" data-st-table>
   <div class="st-head" aria-hidden="true">
-    <span>ESTACIÓ</span><span class="r">ARA</span><span class="r">MÀX.</span><span class="r">MÍN.</span><span>VENT</span><span class="r">RATXA</span><span class="r c-rain">PLUJA</span><span class="c-spark">ÚLTIMES HORES</span>
+    <span>{L.thStation}</span><span class="r">{L.thNow}</span><span class="r">{L.thMax}</span><span class="r">{L.thMin}</span><span>{L.thWind}</span><span class="r">{L.thGust}</span><span class="r c-rain">{L.thRain}</span><span class="c-spark">{L.thSpark}</span>
   </div>
   {groups.map((g) => {
     const list = listFor(g);
@@ -30,7 +32,7 @@ const listFor = (g) => (g === 'sel' ? ids.map((i) => BY_ID[i]) : STATIONS.filter
             <span class="st-spark">
               <svg data-f="spark" width="190" height="30" viewBox="0 0 190 30" aria-hidden="true"><path d="" fill="#3db8ff" fill-opacity="0.07"></path><path class="a-spark" d="" fill="none" stroke="#3db8ff" stroke-opacity="0.85" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"></path><circle r="0"></circle></svg>
             </span>
-            <span class="st-mob" data-f="mob">Carregant…</span>
+            <span class="st-mob" data-f="mob">{L.loading}</span>
           </a>
         ))}
       </div>

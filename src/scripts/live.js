@@ -2,6 +2,7 @@
 // i pinta tots els elements marcats amb data-* de la pàgina.
 import { STATIONS, BY_ID } from '../lib/stations.js';
 import { tempColor, windColor, precipColor, num, dirLabel, hourMadrid } from '../lib/format.js';
+import { t, pageLang } from '../lib/i18n.js';
 
 const REFRESH = 10 * 60 * 1000;
 let current = null;
@@ -63,6 +64,7 @@ function rotate(el, deg) {
 }
 
 export function paint(j) {
+  const L = t(pageLang());
   const data = j?.stations || {};
   const ok = j?.ok ?? 0;
 
@@ -70,9 +72,9 @@ export function paint(j) {
     const on = ok > 0;
     el.classList.toggle('live--off', !on);
     const txt = el.querySelector('[data-live-text]');
-    if (txt) txt.textContent = on ? `EN DIRECTE · ${hourMadrid(new Date(j.updated))}` : 'SENSE CONNEXIÓ';
+    if (txt) txt.textContent = on ? `${L.live} · ${hourMadrid(new Date(j.updated))}` : L.offline;
   });
-  $$('[data-live-count]').forEach((el) => (el.textContent = `${ok} de ${STATIONS.length} estacions en línia`));
+  $$('[data-live-count]').forEach((el) => (el.textContent = L.online(ok, STATIONS.length)));
 
   for (const s of STATIONS) {
     const d = data[s.id];
@@ -94,17 +96,17 @@ export function paint(j) {
       const g = d?.gustMax ?? d?.gust;
       set(f('gust'), g != null ? `${Math.round(g)}` : '—', g != null ? (g >= 40 ? '#fbbf24' : '#c3cfde') : undefined);
       set(f('rain'), d?.rain != null ? `${num(d.rain)} mm` : '—', d?.rain != null ? precipColor(d.rain) : undefined);
-      const ago = d?.stale && d.epoch ? `Última lectura fa ${Math.round((Date.now() / 1000 - d.epoch) / 3600)} h` : null;
+      const ago = d?.stale && d.epoch ? L.lastReading(Math.round((Date.now() / 1000 - d.epoch) / 3600)) : null;
       const nameEl = row.querySelector('.st-name small');
       if (nameEl && !nameEl.dataset.orig) nameEl.dataset.orig = nameEl.textContent;
       if (nameEl) nameEl.textContent = ago ? `${nameEl.dataset.orig} · ${ago.toLowerCase()}` : nameEl.dataset.orig;
       set(
         f('mob'),
         d
-          ? [d.max != null ? `màx ${num(d.max)}° · mín ${num(d.min)}°` : null, d.wind != null ? `${dirLabel(d.dir)} ${Math.round(d.wind)} km/h` : null, d.rain ? `${num(d.rain)} mm` : null]
+          ? [d.max != null ? L.maxMin(`${num(d.max)}°`, `${num(d.min)}°`) : null, d.wind != null ? `${dirLabel(d.dir)} ${Math.round(d.wind)} km/h` : null, d.rain ? `${num(d.rain)} mm` : null]
               .filter(Boolean)
               .join('  ·  ')
-          : 'Sense dades ara mateix',
+          : L.noDataNow,
       );
       paintSpark(f('spark'), d);
     });

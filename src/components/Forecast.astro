@@ -1,9 +1,11 @@
 ---
 // Bloc de previsió (meteograma 48 h + 7 dies). Es pinta al navegador amb src/scripts/forecast.js.
 import { fmtAlt } from '../lib/stations.js';
+import { t } from '../lib/i18n.js';
 interface P { name: string; lat: number; lng: number; alt: number }
-interface Props { place?: P; chips?: P[]; days?: boolean; title?: string; sub?: string }
-const { place, chips = [], days = true, title, sub } = Astro.props;
+interface Props { place?: P; chips?: P[]; days?: boolean; title?: string; sub?: string; lang?: 'ca' | 'es' }
+const { place, chips = [], days = true, title, sub, lang = 'ca' } = Astro.props;
+const L = t(lang);
 const first = place ?? chips[0];
 ---
 <div data-forecast-root data-forecast={JSON.stringify(first)}>
@@ -23,13 +25,13 @@ const first = place ?? chips[0];
     </div>
   )}
   <div class="mg-card">
-    <div class="mg-scroll"><div class="mg" data-mg><div class="mg-empty">Carregant la previsió…</div></div></div>
+    <div class="mg-scroll"><div class="mg" data-mg><div class="mg-empty">{L.loadingFc}</div></div></div>
     <div class="mg-legend">
-      <span><span style="width:22px;height:3px;border-radius:2px;background:linear-gradient(90deg,#0f766e,#b45309);"></span>Temperatura (°C)</span>
-      <span><span style="width:12px;height:12px;border-radius:2px;background:#2f6fde;"></span>Pluja (mm en 3 h)</span>
-      <span><svg width="14" height="14" viewBox="-7 -9 14 16" aria-hidden="true"><path d="M0 -8 L5.5 6 L0 3 L-5.5 6 Z" fill="#22477a"></path></svg>Vent (km/h)</span>
-      <span><span style="width:14px;height:12px;background:#22477a;opacity:.14;"></span>Nit</span>
-      <span class="src">Previsió: <a href="https://open-meteo.com/" rel="noopener" target="_blank">Open-Meteo</a> per a <span data-place-name>{first?.name} ({fmtAlt(first?.alt ?? 0)})</span></span>
+      <span><span style="width:22px;height:3px;border-radius:2px;background:linear-gradient(90deg,#0f766e,#b45309);"></span>{L.lgTemp}</span>
+      <span><span style="width:12px;height:12px;border-radius:2px;background:#2f6fde;"></span>{L.lgRain}</span>
+      <span><svg width="14" height="14" viewBox="-7 -9 14 16" aria-hidden="true"><path d="M0 -8 L5.5 6 L0 3 L-5.5 6 Z" fill="#22477a"></path></svg>{L.lgWind}</span>
+      <span><span style="width:14px;height:12px;background:#22477a;opacity:.14;"></span>{L.lgNight}</span>
+      <span class="src">{L.lgSrc} <a href="https://open-meteo.com/" rel="noopener" target="_blank">Open-Meteo</a> {L.lgFor} <span data-place-name>{first?.name} ({fmtAlt(first?.alt ?? 0)})</span></span>
     </div>
   </div>
   {days && <div class="days7" data-days></div>}

@@ -2,12 +2,12 @@
 // temperatura, sensació tèrmica, vent i ratxa, precipitació, neu i isoterma de 0 °C.
 // Es fa servir en temps de build (text indexable) i al navegador (dades fresques).
 import { num, dayName, dayShort, parseDay, longDate, cap } from './format.js';
+import { t } from './i18n.js';
 
 const DIRS = ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'];
 const dir8 = (deg) => (deg == null || isNaN(deg) ? '' : DIRS[Math.round(deg / 45) % 8]);
-const DIR_NAMES = { N: 'nord', NE: 'nord-est', E: 'est', SE: 'sud-est', S: 'sud', SO: 'sud-oest', O: 'oest', NO: 'nord-oest' };
 // "Cim de la Tosa d'Alp" → "cim de la Tosa d'Alp" (els noms propis es queden igual)
-export const lowerCommon = (s) => (/^(Cim|Carena|Base|Estació|Boca)\s/.test(s) ? s[0].toLowerCase() + s.slice(1) : s);
+export const lowerCommon = (s) => (/^(Cim|Cima|Carena|Base|Estació|Estación|Boca)\s/.test(s) ? s[0].toLowerCase() + s.slice(1) : s);
 const r0 = (v) => (v == null || isNaN(v) ? null : Math.round(v));
 const thousands = (v) => String(v).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 
@@ -74,64 +74,73 @@ export async function fetchMountain(points, days = 3, ms = 6000) {
   }
 }
 
-const dayLabel = (date, i) => (i === 0 ? 'Avui' : i === 1 ? 'Demà' : `${dayName(date)[0].toUpperCase()}${dayName(date).slice(1)}`);
+const dayLabel = (date, i, lang) => (i === 0 ? t(lang).today : i === 1 ? t(lang).tomorrow : cap(dayName(date, lang)));
 
 // Taula de condicions previstes (una fila per dada, una columna per dia; un bloc per punt)
-export function mountainTableHTML(data) {
+export function mountainTableHTML(data, lang = 'ca') {
   if (!data?.length || !data[0].days.length) return '';
+  const L = t(lang);
   const days = data[0].days;
-  const head = `<tr><th></th>${days.map((d, i) => `<th>${dayLabel(d.date, i)}<small>${dayShort(d.date)} ${parseDay(d.date).getUTCDate()}</small></th>`).join('')}</tr>`;
+  const head = `<tr><th></th>${days.map((d, i) => `<th>${dayLabel(d.date, i, lang)}<small>${dayShort(d.date, lang)} ${parseDay(d.date).getUTCDate()}</small></th>`).join('')}</tr>`;
   const rows = data
     .map(({ point, days: ds }) => {
       const cell = (f) => ds.map((d) => `<td>${f(d)}</td>`).join('');
       return `<tbody>
 <tr class="mt-pt"><th colspan="${ds.length + 1}">${point.label} · ${thousands(point.alt)} m</th></tr>
-<tr><th>Temperatura</th>${cell((d) => `<b>${num(d.min, 0)}°</b> / <b>${num(d.max, 0)}°</b>`)}</tr>
-<tr><th>Sensació tèrmica mínima</th>${cell((d) => (d.feels == null ? '—' : `${num(d.feels, 0)}°`))}</tr>
-<tr><th>Vent màxim · ratxa</th>${cell((d) => (d.wind == null ? '—' : `${r0(d.wind)} · <b>${r0(d.gust)}</b> km/h <small>${dir8(d.dir)}</small>`))}</tr>
-<tr><th>Precipitació</th>${cell((d) => (d.precip == null ? '—' : d.precip < 0.2 ? '0' : `${num(d.precip)} mm`))}</tr>
-<tr><th>Neu</th>${cell((d) => (d.snow == null ? '—' : d.snow < 0.5 ? '—' : `<b>${num(d.snow, 0)} cm</b>`))}</tr>
+<tr><th>${L.mtTemp}</th>${cell((d) => `<b>${num(d.min, 0)}°</b> / <b>${num(d.max, 0)}°</b>`)}</tr>
+<tr><th>${L.mtFeels}</th>${cell((d) => (d.feels == null ? '—' : `${num(d.feels, 0)}°`))}</tr>
+<tr><th>${L.mtWind}</th>${cell((d) => (d.wind == null ? '—' : `${r0(d.wind)} · <b>${r0(d.gust)}</b> km/h <small>${dir8(d.dir)}</small>`))}</tr>
+<tr><th>${L.mtPrecip}</th>${cell((d) => (d.precip == null ? '—' : d.precip < 0.2 ? '0' : `${num(d.precip)} mm`))}</tr>
+<tr><th>${L.mtSnow}</th>${cell((d) => (d.snow == null ? '—' : d.snow < 0.5 ? '—' : `<b>${num(d.snow, 0)} cm</b>`))}</tr>
 </tbody>`;
     })
     .join('');
-  const frz = `<tbody><tr class="mt-frz"><th>Isoterma de 0 °C</th>${days.map((d) => `<td>${d.frz ? (d.frz.min === d.frz.max ? `${thousands(d.frz.min)} m` : `${thousands(d.frz.min)}–${thousands(d.frz.max)} m`) : '—'}</td>`).join('')}</tr></tbody>`;
+  const frz = `<tbody><tr class="mt-frz"><th>${L.mtFrz}</th>${days.map((d) => `<td>${d.frz ? (d.frz.min === d.frz.max ? `${thousands(d.frz.min)} m` : `${thousands(d.frz.min)}–${thousands(d.frz.max)} m`) : '—'}</td>`).join('')}</tr></tbody>`;
   return `<table class="mtable"><thead>${head}</thead>${rows}${frz}</table>`;
 }
 
 // Frases per al text de la pàgina (el primer punt és el més alt)
-export function mountainText(data, place) {
+export function mountainText(data, place, lang = 'ca') {
   if (!data?.length || !data[0].days.length) return [];
   const top = data[0];
-  return top.days.slice(0, 2).map((d, i) => {
-    const when = cap(longDate(d.date)); // data explícita: el text es genera al build
-    const parts = [`${when}, a ${thousands(top.point.alt)} m (${lowerCommon(top.point.label)}): mínima de ${num(d.min, 0)} °C i màxima de ${num(d.max, 0)} °C`];
-    if (d.feels != null && d.feels < d.min - 2) parts.push(`amb una sensació tèrmica de fins a ${num(d.feels, 0)} °C`);
-    if (d.gust != null) parts.push(`ratxes de ${r0(d.gust)} km/h${dir8(d.dir) ? ` de ${DIR_NAMES[dir8(d.dir)]}` : ''}`);
+  const es = lang === 'es';
+  const DN = t(lang).dirs;
+  return top.days.slice(0, 2).map((d) => {
+    const when = cap(longDate(d.date, lang)); // data explícita: el text es genera al build
+    const where = `${thousands(top.point.alt)} m (${lowerCommon(top.point.label)})`;
+    const parts = [
+      es
+        ? `${when}, a ${where}: mínima de ${num(d.min, 0)} °C y máxima de ${num(d.max, 0)} °C`
+        : `${when}, a ${where}: mínima de ${num(d.min, 0)} °C i màxima de ${num(d.max, 0)} °C`,
+    ];
+    if (d.feels != null && d.feels < d.min - 2) parts.push(es ? `con una sensación térmica de hasta ${num(d.feels, 0)} °C` : `amb una sensació tèrmica de fins a ${num(d.feels, 0)} °C`);
+    if (d.gust != null) parts.push(`${es ? 'rachas' : 'ratxes'} de ${r0(d.gust)} km/h${dir8(d.dir) ? ` ${es ? 'del' : 'de'} ${DN[dir8(d.dir)]}` : ''}`);
     let s = parts.join(', ') + '.';
-    if (d.snow != null && d.snow >= 1) s += ` Pot nevar: fins a ${num(d.snow, 0)} cm.`;
-    else if (d.precip != null && d.precip >= 0.5) s += ` Precipitació prevista: ${num(d.precip)} mm.`;
-    if (d.frz) s += ` Isoterma de 0 °C a uns ${thousands(Math.round((d.frz.min + d.frz.max) / 200) * 100)} m.`;
+    if (d.snow != null && d.snow >= 1) s += es ? ` Puede nevar: hasta ${num(d.snow, 0)} cm.` : ` Pot nevar: fins a ${num(d.snow, 0)} cm.`;
+    else if (d.precip != null && d.precip >= 0.5) s += es ? ` Precipitación prevista: ${num(d.precip)} mm.` : ` Precipitació prevista: ${num(d.precip)} mm.`;
+    if (d.frz) s += ` ${es ? 'Isoterma de 0 °C a unos' : 'Isoterma de 0 °C a uns'} ${thousands(Math.round((d.frz.min + d.frz.max) / 200) * 100)} m.`;
     return s;
   });
 }
 
 // Resum de tots els cims: una fila per lloc (el seu punt més alt) i una columna per dia
-export function summitsTableHTML(data, places) {
+export function summitsTableHTML(data, places, lang = 'ca', base = '/temps/') {
   if (!data?.length || !data[0].days.length) return '';
+  const L = t(lang);
   const days = data[0].days;
-  const head = `<tr><th>Lloc</th>${days.map((d, i) => `<th>${dayLabel(d.date, i)}<small>${dayShort(d.date)} ${parseDay(d.date).getUTCDate()}</small></th>`).join('')}</tr>`;
+  const head = `<tr><th>${L.mtPlace}</th>${days.map((d, i) => `<th>${dayLabel(d.date, i, lang)}<small>${dayShort(d.date, lang)} ${parseDay(d.date).getUTCDate()}</small></th>`).join('')}</tr>`;
   const rows = data
     .map(({ point, days: ds }, k) => {
       const pl = places[k];
       const cells = ds
         .map((d) => {
-          const snow = d.snow != null && d.snow >= 0.5 ? ` · <b>${num(d.snow, 0)} cm</b> de neu` : '';
-          return `<td><span class="mt-t"><b>${num(d.min, 0)}°</b> / <b>${num(d.max, 0)}°</b></span><span class="mt-w">ratxa ${r0(d.gust)} km/h ${dir8(d.dir)}${snow}</span></td>`;
+          const snow = d.snow != null && d.snow >= 0.5 ? ` · <b>${num(d.snow, 0)} cm</b> ${L.mtOfSnow}` : '';
+          return `<td><span class="mt-t"><b>${num(d.min, 0)}°</b> / <b>${num(d.max, 0)}°</b></span><span class="mt-w">${L.mtGust} ${r0(d.gust)} km/h ${dir8(d.dir)}${snow}</span></td>`;
         })
         .join('');
-      return `<tr><th><a href="/temps/${pl.slug}">${pl.name}</a><small>${thousands(point.alt)} m</small></th>${cells}</tr>`;
+      return `<tr><th><a href="${base}${pl.slug}">${pl.name}</a><small>${thousands(point.alt)} m</small></th>${cells}</tr>`;
     })
     .join('');
-  const frz = `<tr class="mt-frz"><th>Isoterma de 0 °C</th>${days.map((d) => `<td>${d.frz ? `${thousands(d.frz.min)}–${thousands(d.frz.max)} m` : '—'}</td>`).join('')}</tr>`;
+  const frz = `<tr class="mt-frz"><th>${L.mtFrz}</th>${days.map((d) => `<td>${d.frz ? `${thousands(d.frz.min)}–${thousands(d.frz.max)} m` : '—'}</td>`).join('')}</tr>`;
   return `<table class="mtable mtable--sum"><thead>${head}</thead><tbody>${rows}${frz}</tbody></table>`;
 }

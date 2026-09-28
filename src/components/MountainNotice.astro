@@ -1,20 +1,51 @@
 ---
 // Avís de responsabilitat per a les pàgines de muntanya. "short": caixa breu per a dalt de la pàgina.
-interface Props { short?: boolean; road?: boolean }
-const { short = false, road = false } = Astro.props;
+interface Props { short?: boolean; road?: boolean; lang?: 'ca' | 'es' }
+const { short = false, road = false, lang = 'ca' } = Astro.props;
 const SCT = 'https://transit.gencat.cat/ca/informacio-viaria/estat-transit/';
+const ICON = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5 2.5 20h19L12 3.5Z"></path><path d="M12 10v4.5"></path><path d="M12 17.3v.2"></path></svg>';
 ---
-{road ? (
+{lang === 'es' ? (
+  road ? (
+    short ? (
+      <aside class="notice notice--short" aria-label="Aviso">
+        <Fragment set:html={ICON} />
+        <p><b>Información orientativa.</b> El estado de la carretera que mostramos viene del Servei Català de Trànsit y puede no recoger los cambios más recientes. Antes de salir, consulta el <a href={SCT} rel="noopener" target="_blank">Servei Català de Trànsit</a>. Meteocadí no se hace responsable del uso que se haga de esta información. <a href="#avis-muntanya">Lee el aviso completo</a></p>
+      </aside>
+    ) : (
+      <aside class="notice" id="avis-muntanya" aria-labelledby="avis-muntanya-t">
+        <h2 id="avis-muntanya-t">Antes de coger el coche</h2>
+        <p>Los datos de esta página son <b>orientativos</b>. Proceden de las estaciones de la red Meteocadí y de fuentes de terceros (Weather Underground, el modelo de previsión de Open-Meteo y los datos abiertos del Servei Català de Trànsit), se generan de forma automática y pueden tener errores, retrasos o interrupciones.</p>
+        <p>Para saber si la carretera está abierta, si hacen falta cadenas o si hay incidencias, consulta siempre el <a href={SCT} rel="noopener" target="_blank">Servei Català de Trànsit</a> antes de salir y haz caso de la señalización.</p>
+        <p>Cada uno es responsable de sus decisiones. Meteocadí no se hace responsable del uso que se haga de esta información ni de los daños que puedan derivarse. En caso de emergencia, llama al <b>112</b>.</p>
+        <p><a href="/avis-legal">Aviso legal y condiciones de uso (en catalán)</a></p>
+      </aside>
+    )
+  ) : short ? (
+    <aside class="notice notice--short" aria-label="Aviso">
+      <Fragment set:html={ICON} />
+      <p><b>Información orientativa.</b> Los datos y las previsiones son automáticos, de fuentes propias y de terceros, y pueden fallar. En la montaña cada uno asume su riesgo: consulta también las fuentes oficiales y decide con prudencia. Meteocadí no se hace responsable del uso que se haga de esta información. <a href="#avis-muntanya">Lee el aviso completo</a></p>
+    </aside>
+  ) : (
+    <aside class="notice" id="avis-muntanya" aria-labelledby="avis-muntanya-t">
+      <h2 id="avis-muntanya-t">Antes de salir a la montaña</h2>
+      <p>Los datos de esta página son <b>orientativos</b>. Proceden de las estaciones de la red Meteocadí y de fuentes de terceros (Weather Underground y el modelo de previsión de Open-Meteo), se generan de forma automática y pueden tener errores, retrasos o interrupciones. El viento previsto es el del modelo a 10 m del suelo: en las cimas y en las crestas expuestas puede ser bastante más fuerte.</p>
+      <p>Una previsión no es ninguna garantía. En la montaña el tiempo puede cambiar muy deprisa y las condiciones reales pueden ser peores que las previstas. Consulta siempre las fuentes oficiales, como los <a href="https://www.meteo.cat" rel="noopener" target="_blank">avisos del Servei Meteorològic de Catalunya</a> y, en invierno, el <a href="https://bpa.icgc.cat/" rel="noopener" target="_blank">boletín de peligro de aludes del ICGC</a>. Valora tu experiencia, tu equipo y el de quien te acompaña, y renuncia si hace falta.</p>
+      <p><b>Cada uno es responsable de sus decisiones y asume el riesgo de las actividades que hace en la montaña.</b> Meteocadí no se hace responsable del uso que se haga de esta información ni de los daños que puedan derivarse. En caso de emergencia, llama al <b>112</b>.</p>
+      <p><a href="/avis-legal">Aviso legal y condiciones de uso (en catalán)</a></p>
+    </aside>
+  )
+) : road ? (
   short ? (
     <aside class="notice notice--short" aria-label="Avís">
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3.5 2.5 20h19L12 3.5Z"></path><path d="M12 10v4.5"></path><path d="M12 17.3v.2"></path></svg>
-      <p><b>Informació orientativa.</b> Aquesta pàgina no informa de l'estat de la carretera. Abans de sortir, consulta el <a href={SCT} rel="noopener" target="_blank">Servei Català de Trànsit</a>. Meteocadí no es fa responsable de l'ús que es faci d'aquesta informació. <a href="#avis-muntanya">Llegeix l'avís complet</a></p>
+      <p><b>Informació orientativa.</b> L'estat de la carretera que mostrem ve del Servei Català de Trànsit i pot no recollir els canvis més recents. Abans de sortir, consulta el <a href={SCT} rel="noopener" target="_blank">Servei Català de Trànsit</a>. Meteocadí no es fa responsable de l'ús que es faci d'aquesta informació. <a href="#avis-muntanya">Llegeix l'avís complet</a></p>
     </aside>
   ) : (
     <aside class="notice" id="avis-muntanya" aria-labelledby="avis-muntanya-t">
       <h2 id="avis-muntanya-t">Abans d'agafar el cotxe</h2>
-      <p>Les dades d'aquesta pàgina són <b>orientatives</b>. Provenen de les estacions de la xarxa Meteocadí i de fonts de tercers (Weather Underground i el model de previsió d'Open-Meteo), es generen de manera automàtica i poden tenir errors, retards o interrupcions.</p>
-      <p><b>No informen de l'estat de la carretera</b>, de talls ni de l'obligació de portar cadenes. Per a això, consulta sempre el <a href={SCT} rel="noopener" target="_blank">Servei Català de Trànsit</a> abans de sortir i fes cas de la senyalització.</p>
+      <p>Les dades d'aquesta pàgina són <b>orientatives</b>. Provenen de les estacions de la xarxa Meteocadí i de fonts de tercers (Weather Underground, el model de previsió d'Open-Meteo i les dades obertes del Servei Català de Trànsit), es generen de manera automàtica i poden tenir errors, retards o interrupcions.</p>
+      <p>Per saber si la carretera és oberta, si calen cadenes o si hi ha incidències, consulta sempre el <a href={SCT} rel="noopener" target="_blank">Servei Català de Trànsit</a> abans de sortir i fes cas de la senyalització.</p>
       <p>Cadascú és responsable de les seves decisions. Meteocadí no es fa responsable de l'ús que es faci d'aquesta informació ni dels danys que se'n puguin derivar. En cas d'emergència, truca al <b>112</b>.</p>
       <p><a href="/avis-legal">Avís legal i condicions d'ús</a></p>
     </aside>

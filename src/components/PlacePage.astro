@@ -1,0 +1,200 @@
+---
+// Pàgina "El temps a …" d'un lloc, en català (/temps/<slug>) o en castellà (/es/tiempo/<slug>).
+import Base from '../layouts/Base.astro';
+import StationTable from './StationTable.astro';
+import Forecast from './Forecast.astro';
+import MountainNotice from './MountainNotice.astro';
+import MountainForecast from './MountainForecast.astro';
+import RoadStatus from './RoadStatus.astro';
+import { PLACES, PLACE_BY_SLUG, isMountain, isRoad, distanceKm } from '../lib/places.js';
+import { localize, esPath, caPath } from '../lib/places-es.js';
+import { fetchMountain, mountainText, lowerCommon } from '../lib/mountain.js';
+import { BY_ID, fmtAlt } from '../lib/stations.js';
+import { stationRecords } from '../lib/archive.js';
+import { dailyForecast } from '../lib/forecast-build.js';
+import { wmoText } from '../lib/wmo.js';
+import { num, longDate, cap, desDe, tempColorLight } from '../lib/format.js';
+
+interface Props { slug: string; lang?: 'ca' | 'es' }
+const { slug, lang = 'ca' } = Astro.props;
+const es = lang === 'es';
+const p = localize(PLACE_BY_SLUG[slug], lang);
+const main = BY_ID[p.stations[0]];
+const rec = stationRecords(main.id);
+const fc = await dailyForecast(p, 3);
+const mountain = isMountain(p) && p.points?.length;
+const road = isRoad(p);
+const hub = mountain && !road; // les pàgines de muntanya pengen de /muntanya
+const mdata = mountain ? await fetchMountain(p.points) : null;
+const mtext = mountain ? mountainText(mdata, p, lang) : [];
+const dist = distanceKm(p, main);
+const distTxt = dist >= 0.5 ? `, a ${dist < 1 ? (es ? 'menos de 1 km' : "menys d'1 km") : `${num(dist, 1)} km`}` : '';
+const path = es ? esPath(p.slug) : caPath(p.slug);
+const base = es ? '/es/tiempo/' : '/temps/';
+const hubPath = es ? '/es/montana' : '/muntanya';
+const listPath = es ? '/es/tiempo' : '/temps';
+
+const dayText = (d) => {
+  if (!d) return '';
+  if (es) {
+    const rain = d.rain >= 0.2 ? `, con ${num(d.rain)} mm de lluvia prevista${d.prob != null ? ` (probabilidad del ${d.prob} %)` : ''}` : ', sin lluvia prevista';
+    const wind = d.gust != null && d.gust >= 40 ? ` Rachas de hasta ${Math.round(d.gust)} km/h.` : '';
+    return `${cap(longDate(d.date, 'es'))}: ${wmoText(d.code, 'es').toLowerCase()}, máxima de ${Math.round(d.max)} °C y mínima de ${Math.round(d.min)} °C${rain}.${wind}`;
+  }
+  const rain = d.rain >= 0.2 ? `, amb ${num(d.rain)} mm de pluja prevista${d.prob != null ? ` (probabilitat del ${d.prob} %)` : ''}` : ', sense pluja prevista';
+  const wind = d.gust != null && d.gust >= 40 ? ` Ratxes de fins a ${Math.round(d.gust)} km/h.` : '';
+  return `${cap(longDate(d.date))}: ${wmoText(d.code).toLowerCase()}, màxima de ${Math.round(d.max)} °C i mínima de ${Math.round(d.min)} °C${rain}.${wind}`;
+};
+
+let title, description, kindWord;
+const alts = p.points?.map((x) => fmtAlt(x.alt)) ?? [];
+if (es) {
+  kindWord = { poble: 'el pueblo', cim: 'la montaña', coll: 'el collado', esqui: 'la estación de esquí', refugi: 'el refugio', carretera: 'la carretera' }[p.kind] ?? 'el lugar';
+  title = `El tiempo ${p.a}: ahora, previsión por horas e historial | Meteocadí`;
+  description = road
+    ? `Tiempo ${p.a}: previsión en las dos bocas (${alts.join(' y ')}) con temperatura, precipitación, nieve e isoterma de 0 °C, datos en directo de la estación ${main.name} y estado de la carretera (Servei Català de Trànsit).`
+    : mountain
+    ? `Tiempo ${p.a}: viento, sensación térmica, isoterma y nieve previstos ${alts.map((a) => `a ${a}`).join(' y ')}, y datos en directo de la estación ${main.name} (${fmtAlt(main.alt)}).`
+    : `Tiempo ${p.a} (${fmtAlt(p.alt)}): temperatura y viento en directo de la estación ${main.name}, previsión por horas y a 7 días calculada para la altitud de ${kindWord}, e historial diario.`;
+} else {
+  kindWord = { poble: 'el poble', cim: 'la muntanya', coll: 'el coll', esqui: "l'estació d'esquí", refugi: 'el refugi', carretera: 'la carretera' }[p.kind] ?? 'el lloc';
+  title = `El temps ${p.a}: ara, previsió per hores i historial | Meteocadí`;
+  description = road
+    ? `Temps ${p.a}: previsió a les dues boques (${alts.join(' i ')}) amb temperatura, precipitació, neu i isoterma de 0 °C, i dades en directe de l'estació ${main.name}. Estat de la carretera: Servei Català de Trànsit.`
+    : mountain
+    ? `Temps ${p.a}: vent, sensació tèrmica, isoterma i neu previstos ${alts.map((a) => `a ${a}`).join(' i ')}, i dades en directe de l'estació ${main.name} (${fmtAlt(main.alt)}).`
+    : `Temps ${p.a} (${fmtAlt(p.alt)}): temperatura i vent en directe de l'estació ${main.name}, previsió per hores i per a 7 dies calculada per a l'altitud de ${kindWord}, i historial diari.`;
+}
+const others = PLACES.filter((x) => x.slug !== p.slug).map((x) => localize(x, lang));
+const W = 'https://www.meteocadi.cat';
+const ld = [
+  {
+    '@type': 'Place',
+    name: p.name,
+    geo: { '@type': 'GeoCoordinates', latitude: p.lat, longitude: p.lng, elevation: p.alt },
+    containedInPlace: { '@type': 'AdministrativeArea', name: 'Berguedà' },
+    url: W + path,
+  },
+  {
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: es ? 'Inicio' : 'Inici', item: `${W}/` },
+      hub
+        ? { '@type': 'ListItem', position: 2, name: es ? 'Montaña' : 'Muntanya', item: W + hubPath }
+        : { '@type': 'ListItem', position: 2, name: es ? 'El tiempo' : 'Pobles i cims', item: W + listPath },
+      { '@type': 'ListItem', position: 3, name: `${es ? 'El tiempo' : 'El temps'} ${p.a}`, item: W + path },
+    ],
+  },
+];
+const mSub = p.points ? `${es ? 'Calculada para' : 'Calculada per a'} ${p.points.map((x) => `${fmtAlt(x.alt)} (${lowerCommon(x.label)})`).join(es ? ' y para ' : ' i per a ')}.` : '';
+---
+<Base title={title} description={description} path={path} jsonLd={ld} current={hub ? 'muntanya' : 'temps'} lang={lang} alternates={{ ca: caPath(p.slug), es: esPath(p.slug) }}>
+  <section class="phead">
+    <div class="wrap">
+      <nav class="crumbs" aria-label={es ? 'Ruta' : 'Ruta'}><a href="/">{es ? 'Inicio' : 'Inici'}</a><span>›</span>{hub ? <a href={hubPath}>{es ? 'Montaña' : 'Muntanya'}</a> : <a href={listPath}>{es ? 'El tiempo' : 'Pobles i cims'}</a>}<span>›</span><span>{p.name}</span></nav>
+      <h1>{es ? 'El tiempo' : 'El temps'} {p.a}</h1>
+      <p>
+        {fmtAlt(p.alt)} {es ? 'de altitud · Estación de referencia:' : "d'altitud · Estació de referència:"} <a href={`/estacions/${main.slug}`}>{main.name}</a> ({fmtAlt(main.alt)}){distTxt}.
+      </p>
+      {mountain && mtext.length > 0 && (
+        <div class="prose" style="margin-top:22px;font-size:17px;">
+          {mtext.map((t) => <p>{t}</p>)}
+        </div>
+      )}
+      {mountain && <div style="margin-top:22px;"><MountainNotice short road={road} lang={lang} /></div>}
+      {(!mountain || mtext.length === 0) && fc && (
+        <div class="prose" style="margin-top:22px;font-size:17px;">
+          {fc.slice(0, 2).map((d) => <p>{dayText(d)}</p>)}
+        </div>
+      )}
+    </div>
+  </section>
+
+  <section class="sec sec--dark" style="padding:64px 0;">
+    <div class="wrap" style="position:relative;">
+      <div class="sec__head">
+        <div>
+          <span class="eyebrow"><span class="live live--off" data-live-badge style="padding:6px 12px;"><span class="live__dot"><i></i><i></i></span><span data-live-text>{es ? 'CONECTANDO…' : 'CONNECTANT…'}</span></span></span>
+          <h2 class="h2">{es ? 'Ahora' : 'Ara'} {p.a}</h2>
+        </div>
+        <a href="/estacions" style="color:#7fd0ff;font-size:15px;">{es ? 'Todas las estaciones' : 'Totes les estacions'}</a>
+      </div>
+      <StationTable ids={p.stations} lang={lang} />
+    </div>
+  </section>
+
+  {p.roads?.length > 0 && (
+    <section class="sec sec--pale" style="padding:64px 0;">
+      <div class="wrap"><RoadStatus roads={p.roads} cameras={p.cameras} lang={lang} /></div>
+    </section>
+  )}
+
+  {mountain && (
+    <section class="sec">
+      <div class="wrap">
+        <MountainForecast points={p.points} data={mdata} lang={lang} title={road ? (es ? 'Condiciones previstas en las bocas' : 'Condicions previstes a les boques') : undefined} sub={mSub} />
+      </div>
+    </section>
+  )}
+
+  <section class="sec sec--pale">
+    <div class="wrap">
+      <Forecast
+        place={{ name: p.name, lat: p.lat, lng: p.lng, alt: p.alt }}
+        lang={lang}
+        title={`${es ? 'Previsión' : 'Previsió'} ${p.a}`}
+        sub={es ? `Por horas las próximas 48 horas y por días toda la semana, para ${fmtAlt(p.alt)} de altitud.` : `Per hores les pròximes 48 hores i per dies tota la setmana, per a ${fmtAlt(p.alt)} d'altitud.`}
+      />
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="wrap grid2" style="gap:64px;align-items:start;">
+      <div class="prose">
+        <h2 style="margin-top:0;">{es ? 'El tiempo' : 'El temps'} {p.a}</h2>
+        {p.intro.map((t) => <p>{t}</p>)}
+        {es
+          ? <p><a href="/cap-de-setmana">El tiempo este fin de semana en toda la zona (en catalán) →</a></p>
+          : <p><a href="/cap-de-setmana">Què farà aquest cap de setmana {p.a} i a la resta de la zona →</a></p>}
+      </div>
+      <div style="display:flex;flex-direction:column;gap:16px;">
+        {rec ? (
+          <>
+            <h2 style="font-size:24px;font-weight:800;">{es ? 'Datos del archivo' : "Dades de l'arxiu"} · {main.name}</h2>
+            <p style="color:var(--muted);font-size:15px;">{cap(desDe(rec.from, lang))} ({rec.days} {es ? 'días archivados' : 'dies arxivats'}).</p>
+            <div class="recs" style="grid-template-columns:1fr 1fr;">
+              <div class="card"><span class="eyebrow">{es ? 'Máxima más alta' : 'Màxima més alta'}</span><p class="mono" style={`font-size:30px;color:${tempColorLight(rec.maxHigh?.tempHigh)}`}>{num(rec.maxHigh?.tempHigh)}°</p><p style="color:var(--muted);font-size:14px;">{rec.maxHigh && longDate(rec.maxHigh.date, lang)}</p></div>
+              <div class="card"><span class="eyebrow">{es ? 'Mínima más baja' : 'Mínima més baixa'}</span><p class="mono" style={`font-size:30px;color:${tempColorLight(rec.minLow?.tempLow)}`}>{num(rec.minLow?.tempLow)}°</p><p style="color:var(--muted);font-size:14px;">{rec.minLow && longDate(rec.minLow.date, lang)}</p></div>
+              <div class="card"><span class="eyebrow">{es ? 'Media de máximas' : 'Mitjana de màximes'}</span><p class="mono" style="font-size:30px;">{num(rec.avgHigh)}°</p></div>
+              <div class="card"><span class="eyebrow">{es ? 'Lluvia acumulada' : 'Pluja acumulada'}</span><p class="mono" style="font-size:30px;">{num(rec.rainTotal)} <small style="font-size:15px;color:var(--muted)">mm</small></p></div>
+            </div>
+            <a href={`/estacions/${main.slug}`} class="link-arrow">{es ? 'Historial completo de la estación →' : "Historial complet de l'estació →"}</a>
+          </>
+        ) : (
+          <p style="color:var(--muted)">{es ? 'El archivo diario de esta estación aún se está llenando.' : "L'arxiu diari d'aquesta estació encara s'està omplint."}</p>
+        )}
+      </div>
+    </div>
+  </section>
+
+  {mountain && (
+    <section class="sec" style="padding:56px 0 8px;">
+      <div class="wrap"><MountainNotice road={road} lang={lang} /></div>
+    </section>
+  )}
+
+  <section class="sec sec--pale" style="padding:64px 0;">
+    <div class="wrap">
+      {hub && <p style="margin-bottom:18px;"><a class="link-arrow" href={hubPath}>{es ? 'Condiciones en todas las cimas y estaciones de esquí →' : "Condicions a tots els cims i estacions d'esquí →"}</a></p>}
+      <h2 style="font-size:24px;font-weight:800;margin-bottom:16px;">{es ? 'El tiempo en otros lugares de la zona' : 'El temps a altres llocs de la zona'}</h2>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;">
+        {others.map((x) => <a class="btn btn--line" style="height:44px;font-size:15px;background:#fff;" href={`${base}${x.slug}`}>{x.name}</a>)}
+      </div>
+    </div>
+  </section>
+</Base>
+
+<script>
+  import { startLive } from '../scripts/live.js';
+  startLive();
+</script>

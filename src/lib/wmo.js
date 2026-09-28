@@ -1,4 +1,4 @@
-// Codis WMO (Open-Meteo) → icona Meteocons (public/imatges/icones) i descripció en català.
+// Codis WMO (Open-Meteo) → icona Meteocons (public/imatges/icones) i descripció en català (o en castellà, per a /es/).
 
 export function wmoIcon(code, isDay = true) {
   const d = isDay ? 'day' : 'night';
@@ -16,7 +16,18 @@ export function wmoIcon(code, isDay = true) {
   return 'cloudy';
 }
 
-export function wmoText(code) {
+const ES = [
+  [0, 'Cielo despejado'], [1, 'Casi despejado'], [2, 'Parcialmente nuboso'], [3, 'Cubierto'], [45, 'Niebla'], [48, 'Niebla'],
+  [51, 'Llovizna'], [53, 'Llovizna'], [55, 'Llovizna'], [56, 'Llovizna helada'], [57, 'Llovizna helada'],
+  [61, 'Lluvia débil'], [63, 'Lluvia'], [65, 'Lluvia fuerte'], [66, 'Lluvia helada'], [67, 'Lluvia helada'],
+  [71, 'Nieve débil'], [73, 'Nieve'], [75, 'Nieve fuerte'], [77, 'Nieve granulada'],
+  [80, 'Chubascos'], [81, 'Chubascos moderados'], [82, 'Chubascos fuertes'], [85, 'Chubascos de nieve'], [86, 'Chubascos de nieve'],
+  [95, 'Tormenta'], [96, 'Tormenta con granizo'], [99, 'Tormenta con granizo'],
+];
+const ES_MAP = new Map(ES);
+
+export function wmoText(code, lang = 'ca') {
+  if (lang === 'es') return ES_MAP.get(code) ?? 'Variable';
   if (code === 0) return 'Cel serè';
   if (code === 1) return 'Gairebé serè';
   if (code === 2) return 'Parcialment ennuvolat';

@@ -239,7 +239,7 @@ export const PLACES = [
     intro: [
       "El túnel del Cadí, a la C-16, travessa la serra del Cadí entre el Berguedà i la Cerdanya. Fa 5.026 metres i es va inaugurar el 30 d'octubre de 1984. La boca sud és al terme de Guardiola de Berguedà, a 1.175 m, i la boca nord, al d'Urús, a 1.236 m.",
       "A cada banda del túnel el temps pot ser molt diferent, i per això la previsió d'aquesta pàgina està calculada per a totes dues boques. Fixa't sobretot en la isoterma de 0 °C: si baixa a prop de l'altitud de les boques, a la carretera hi pot haver neu o gel.",
-      "Les estacions de la xarxa més properes són la del Refugi de Rebost (1.650 m), a uns 2 km de la boca sud, i la de Bagà Nord (865 m), a la vall. Aquesta pàgina no informa de l'estat de la carretera: per saber si és oberta, si calen cadenes o si hi ha incidències, consulta sempre el Servei Català de Trànsit.",
+      "Les estacions de la xarxa més properes són la del Refugi de Rebost (1.650 m), a uns 2 km de la boca sud, i la de Bagà Nord (865 m), a la vall. L'estat de la carretera d'aquesta pàgina ve de les dades obertes del Servei Català de Trànsit, que s'actualitzen cada hora: abans de sortir, consulta sempre el seu web per saber si la carretera és oberta o si calen cadenes.",
     ],
   },
 ];

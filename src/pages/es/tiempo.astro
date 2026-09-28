@@ -1,0 +1,63 @@
+---
+// Índice de lugares en castellano. La versión principal, en catalán, es /temps.
+import Base from '../../layouts/Base.astro';
+import { PLACES } from '../../lib/places.js';
+import { localize } from '../../lib/places-es.js';
+import { BY_ID, fmtAlt } from '../../lib/stations.js';
+const L = PLACES.map((p) => localize(p, 'es'));
+const groups = [
+  { title: 'Pueblos', list: L.filter((p) => p.kind === 'poble') },
+  { title: 'Montaña y esquí', list: L.filter((p) => p.kind !== 'poble' && p.kind !== 'carretera') },
+  { title: 'Carreteras', list: L.filter((p) => p.kind === 'carretera') },
+];
+const ld = [
+  {
+    '@type': 'ItemList',
+    name: 'El tiempo en los pueblos y cimas del Cadí-Moixeró',
+    itemListElement: L.map((p, i) => ({ '@type': 'ListItem', position: i + 1, name: `El tiempo ${p.a}`, url: `https://www.meteocadi.cat/es/tiempo/${p.slug}` })),
+  },
+];
+---
+<Base
+  title="El tiempo en los pueblos y cimas del Cadí-Moixeró y el Berguedà | Meteocadí"
+  description="Tiempo actual y previsión por horas en Bagà, Gósol, Saldes, el Pedraforca, la sierra del Cadí, la Tosa d'Alp, La Molina, Masella, Guardiola de Berguedà, La Pobla de Lillet y más, con datos de las estaciones de la red."
+  path="/es/tiempo"
+  jsonLd={ld}
+  current="temps"
+  lang="es"
+  alternates={{ ca: '/temps', es: '/es/tiempo' }}
+>
+  <section class="phead">
+    <div class="wrap">
+      <h1>El tiempo en los <em>pueblos y cimas</em></h1>
+      <p>Cada lugar tiene los datos en directo de las estaciones más cercanas, la previsión por horas calculada para su altitud y el historial de la estación de referencia.</p>
+      <p style="margin-top:14px;display:flex;flex-wrap:wrap;gap:12px;"><a class="btn btn--blue" href="/es/montana">Condiciones en la montaña</a></p>
+    </div>
+  </section>
+  <section class="sec">
+    <div class="wrap" style="display:flex;flex-direction:column;gap:56px;">
+      {groups.map((g) => (
+        <div>
+          <h2 class="h2" style="font-size:34px;margin-bottom:20px;">{g.title}</h2>
+          <div class="places">
+            {g.list.map((p) => (
+              <a href={`/es/tiempo/${p.slug}`} class="place">
+                <span class="place__n">{p.name}</span>
+                <span class="place__a mono">{fmtAlt(p.alt)}</span>
+                <span class="place__s">Estación: {BY_ID[p.stations[0]].name}</span>
+              </a>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
+</Base>
+<style>
+  .places { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+  .place { display: flex; flex-direction: column; gap: 6px; padding: 22px 24px; border-radius: 14px; border: 1px solid var(--line); background: #fff; color: var(--ink); transition: border-color .15s, transform .2s; }
+  .place:hover { border-color: var(--blue); transform: translateY(-2px); color: var(--ink); }
+  .place__n { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+  .place__a { font-size: 14px; color: var(--blue); }
+  .place__s { font-size: 14px; color: var(--muted); }
+</style>

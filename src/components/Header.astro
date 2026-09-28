@@ -1,7 +1,17 @@
 ---
-interface Props { variant: 'overlay' | 'solid'; current?: string }
-const { variant, current = '' } = Astro.props;
-const LINKS = [
+interface Props { variant: 'overlay' | 'solid'; current?: string; lang?: 'ca' | 'es'; alt?: string }
+const { variant, current = '', lang = 'ca', alt } = Astro.props;
+const es = lang === 'es';
+// Les pàgines en castellà enllacen a les catalanes quan no tenen versió pròpia
+const LINKS_ES = [
+  { href: '/estacions', label: 'Estaciones', key: 'estacions' },
+  { href: '/es/tiempo', label: 'El tiempo', key: 'temps' },
+  { href: '/es/montana', label: 'Montaña', key: 'muntanya' },
+  { href: '/mapa', label: 'Mapa', key: 'mapa' },
+  { href: '/radar', label: 'Radar', key: 'radar' },
+  { href: '/historial', label: 'Historial', key: 'historial' },
+];
+const LINKS_CA = [
   { href: '/estacions', label: 'Estacions', key: 'estacions' },
   { href: '/temps', label: 'Pobles i cims', key: 'temps' },
   { href: '/muntanya', label: 'Muntanya', key: 'muntanya' },
@@ -10,19 +20,23 @@ const LINKS = [
   { href: '/historial', label: 'Historial', key: 'historial' },
   { href: '/sobre', label: 'Sobre el projecte', key: 'sobre' },
 ];
+const LINKS = es ? LINKS_ES : LINKS_CA;
 ---
 <header class={`hdr hdr--${variant}`}>
   <div class="wrap hdr__in">
-    <a href="/" class="brand" aria-label="Meteocadí, inici">
+    <a href="/" class="brand" aria-label={es ? 'Meteocadí, inicio' : 'Meteocadí, inici'}>
       <img src="/imatges/logo-256.png" alt="" width="40" height="40" />
       <span>Meteocadí</span>
     </a>
-    <button class="nav-btn" type="button" aria-label="Obrir el menú" aria-expanded="false" aria-controls="menu">
+    <button class="nav-btn" type="button" aria-label={es ? 'Abrir el menú' : 'Obrir el menú'} aria-expanded="false" aria-controls="menu">
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
     </button>
     <nav class="nav" id="menu" aria-label="Menú principal">
       {LINKS.map((l) => <a href={l.href} aria-current={current === l.key ? 'page' : undefined}>{l.label}</a>)}
-      <a href="/contacte" class="nav__cta" aria-current={current === 'contacte' ? 'page' : undefined}>Contacte</a>
+      {alt && (es
+        ? <a href={alt} class="nav__lang" hreflang="ca" lang="ca" title="Versió en català"><span class="nav__lang-s">CA</span><span class="nav__lang-l">Versió en català</span></a>
+        : <a href={alt} class="nav__lang" hreflang="es" lang="es" title="Versión en castellano"><span class="nav__lang-s">ES</span><span class="nav__lang-l">Versión en castellano</span></a>)}
+      <a href="/contacte" class="nav__cta" aria-current={current === 'contacte' ? 'page' : undefined}>{es ? 'Contacto' : 'Contacte'}</a>
     </nav>
   </div>
 </header>

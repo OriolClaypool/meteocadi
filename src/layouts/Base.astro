@@ -18,12 +18,15 @@ interface Props {
   current?: string;
   preload?: string;
   bare?: boolean; // sense capçalera ni peu del web (eines internes)
+  lang?: 'ca' | 'es'; // el castellà només a /es/
+  alternates?: { ca: string; es: string }; // camins de la mateixa pàgina en cada llengua (hreflang)
 }
 
-const { title, description, path, image = '/imatges/og-meteocadi.jpg', jsonLd = [], noindex = false, header = 'solid', current = '', preload, bare = false } = Astro.props;
+const { title, description, path, image = '/imatges/og-meteocadi.jpg', jsonLd = [], noindex = false, header = 'solid', current = '', preload, bare = false, lang = 'ca', alternates } = Astro.props;
 const site = 'https://www.meteocadi.cat';
 const url = site + (path === '/' ? '/' : path);
 const img = image.startsWith('http') ? image : site + image;
+const altPath = alternates ? (lang === 'es' ? alternates.ca : alternates.es) : undefined;
 
 const graph = [
   {
@@ -40,19 +43,27 @@ const graph = [
 ];
 ---
 <!doctype html>
-<html lang="ca">
+<html lang={lang}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={url} />
+    {alternates && (
+      <>
+        <link rel="alternate" hreflang="ca" href={site + alternates.ca} />
+        <link rel="alternate" hreflang="es" href={site + alternates.es} />
+        <link rel="alternate" hreflang="x-default" href={site + alternates.ca} />
+      </>
+    )}
     {noindex && <meta name="robots" content="noindex, follow" />}
     <meta name="theme-color" content="#10233b" />
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta property="og:type" content="website" />
-    <meta property="og:locale" content="ca_ES" />
+    <meta property="og:locale" content={lang === 'es' ? 'es_ES' : 'ca_ES'} />
+    {alternates && <meta property="og:locale:alternate" content={lang === 'es' ? 'ca_ES' : 'es_ES'} />}
     <meta property="og:site_name" content="Meteocadí" />
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
@@ -71,11 +82,11 @@ const graph = [
   </head>
   <body>
     <div class="strip" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-    {!bare && <Header variant={header} current={current} />}
+    {!bare && <Header variant={header} current={current} lang={lang} alt={altPath} />}
     <main>
       <slot />
     </main>
-    {!bare && <Footer />}
+    {!bare && <Footer lang={lang} />}
     <script>
       // Pausa les animacions de les seccions que no es veuen (menys feina mentre es desplaça la pàgina)
       if ('IntersectionObserver' in window) {

@@ -1,0 +1,158 @@
+---
+// Condicions a la muntanya: estacions altes en directe, previsió als cims i estacions d'esquí, i avís de responsabilitat.
+// En català a /muntanya i en castellà a /es/montana.
+import Base from '../layouts/Base.astro';
+import MountainNotice from './MountainNotice.astro';
+import { MOUNTAINS } from '../lib/places.js';
+import { localize } from '../lib/places-es.js';
+import { STATIONS, BY_ID, fmtAlt, shortName } from '../lib/stations.js';
+import { fetchMountain, summitsTableHTML } from '../lib/mountain.js';
+
+interface Props { lang?: 'ca' | 'es' }
+const { lang = 'ca' } = Astro.props;
+const es = lang === 'es';
+const base = es ? '/es/tiempo/' : '/temps/';
+const LIST = MOUNTAINS.map((p) => localize(p, lang));
+
+const HIGH = STATIONS.filter((s) => s.group === 'alta');
+// Un punt per lloc: el cim, o la base a les estacions d'esquí (el cim de la Tosa ja té la seva fila)
+const rows = LIST.map((p) => ({ place: p, point: p.kind === 'esqui' ? p.points[p.points.length - 1] : p.points[0] }));
+const points = rows.map((r) => r.point);
+const places = rows.map((r) => ({ slug: r.place.slug, name: r.place.name }));
+const data = await fetchMountain(points);
+const table = summitsTableHTML(data, places, lang, base);
+const KIND = es ? { cim: 'Cima', coll: 'Collado', esqui: 'Estación de esquí', refugi: 'Refugio' } : { cim: 'Cim', coll: 'Coll', esqui: "Estació d'esquí", refugi: 'Refugi' };
+const W = 'https://www.meteocadi.cat';
+
+const ld = [
+  {
+    '@type': 'ItemList',
+    name: es ? "El tiempo en la montaña del Cadí-Moixeró y la Tosa d'Alp" : "El temps a la muntanya del Cadí-Moixeró i la Tosa d'Alp",
+    itemListElement: LIST.map((p, i) => ({ '@type': 'ListItem', position: i + 1, name: `${es ? 'El tiempo' : 'El temps'} ${p.a}`, url: `${W}${base}${p.slug}` })),
+  },
+];
+---
+<Base
+  title={es ? 'Condiciones en la montaña: Cadí, Pedraforca, la Tosa, La Molina y Masella | Meteocadí' : 'Condicions a la muntanya: Cadí, Pedraforca, la Tosa, la Molina i Masella | Meteocadí'}
+  description={es
+    ? "Viento, temperatura y sensación térmica en directo en las estaciones altas del Cadí-Moixeró, y previsión por altitud en las cimas y estaciones de esquí: Pedraforca, Comabona, Tosa d'Alp, La Molina, Masella y más."
+    : "Vent, temperatura i sensació tèrmica en directe a les estacions altes del Cadí-Moixeró, i previsió per altitud als cims i estacions d'esquí: Pedraforca, Comabona, Tosa d'Alp, la Molina, Masella i més."}
+  path={es ? '/es/montana' : '/muntanya'}
+  jsonLd={ld}
+  current="muntanya"
+  lang={lang}
+  alternates={{ ca: '/muntanya', es: '/es/montana' }}
+>
+  <section class="phead">
+    <div class="wrap">
+      <nav class="crumbs" aria-label="Ruta"><a href="/">{es ? 'Inicio' : 'Inici'}</a><span>›</span><span>{es ? 'Montaña' : 'Muntanya'}</span></nav>
+      {es ? <h1>Condiciones en la montaña <em>del Cadí-Moixeró</em></h1> : <h1>Condicions a la muntanya <em>del Cadí-Moixeró</em></h1>}
+      <p>{es
+        ? 'Las cuatro estaciones más altas de la red en directo, de 1.650 a 2.440 m, y la previsión calculada para la altitud de cada cima, collado y estación de esquí de la zona.'
+        : "Les quatre estacions més altes de la xarxa en directe, de 1.650 a 2.440 m, i la previsió calculada per a l'altitud de cada cim, coll i estació d'esquí de la zona."}</p>
+      <div style="margin-top:22px;max-width:900px;"><MountainNotice short lang={lang} /></div>
+    </div>
+  </section>
+
+  <section class="sec sec--dark" style="padding:64px 0;">
+    <div class="wrap">
+      <div class="sec__head">
+        <div>
+          <span class="eyebrow">{es ? 'EN DIRECTO · ESTACIONES DE ALTA MONTAÑA' : "EN DIRECTE · ESTACIONS D'ALTA MUNTANYA"}</span>
+          {es ? <h2 class="h2">Ahora <em>arriba</em></h2> : <h2 class="h2">Ara <em>a dalt</em></h2>}
+        </div>
+        <span class="mcards__upd" data-mh-upd></span>
+      </div>
+      <div class="mcards">
+        {HIGH.map((s) => (
+          <a class="mcard" href={`/estacions/${s.slug}`} data-mh={s.id}>
+            <span class="mcard__n">{shortName(s)}<small>{fmtAlt(s.alt)}</small></span>
+            <span class="mcard__t" data-mh-f="temp">—</span>
+            <span class="mcard__row"><span>{es ? 'Sensación térmica' : 'Sensació tèrmica'}</span><b data-mh-f="feels">—</b></span>
+            <span class="mcard__row"><span>{es ? 'Viento' : 'Vent'}</span><b data-mh-f="wind">—</b></span>
+            <span class="mcard__row"><span>{es ? 'Racha máxima de hoy' : "Ratxa màxima d'avui"}</span><b data-mh-f="gust">—</b></span>
+            <span class="mcard__row"><span>{es ? 'Máx. / mín. de hoy' : "Màx. / mín. d'avui"}</span><b data-mh-f="mm">—</b></span>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="wrap">
+      <div class="mfc" data-sum={JSON.stringify({ points, places, base })}>
+        <div class="sec__head">
+          <div>
+            <span class="eyebrow">{es ? 'PREVISIÓN POR ALTITUD · 3 DÍAS' : 'PREVISIÓ PER ALTITUD · 3 DIES'}</span>
+            {es ? <h2 class="h2">Previsión en las cimas <em>y en las pistas</em></h2> : <h2 class="h2">Previsió als cims <em>i a les pistes</em></h2>}
+            <p class="sub">{es ? 'Mínima y máxima, racha máxima y nieve prevista a la altitud de cada lugar. Toca un lugar para ver el detalle.' : "Mínima i màxima, ratxa màxima i neu prevista a l'altitud de cada lloc. Toca un lloc per veure'n el detall."}</p>
+          </div>
+        </div>
+        <div class="tscroll" data-sum-table set:html={table || `<p class="mfc__load">${es ? 'Cargando la previsión…' : 'Carregant la previsió…'}</p>`}></div>
+        <p class="mfc__note">{es ? 'Fuente: Open-Meteo. El viento es el del modelo a 10 m del suelo: en cimas y crestas expuestas puede ser más fuerte.' : 'Font: Open-Meteo. El vent és el del model a 10 m del terra: als cims i carenes exposades pot ser més fort.'}</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec sec--pale">
+    <div class="wrap">
+      {es ? <h2 class="h2" style="font-size:34px;margin-bottom:20px;">Todos los lugares <em>de montaña</em></h2> : <h2 class="h2" style="font-size:34px;margin-bottom:20px;">Tots els llocs <em>de muntanya</em></h2>}
+      <div class="mplaces">
+        {LIST.map((p) => (
+          <a class="mplace" href={`${base}${p.slug}`}>
+            <span class="mplace__k">{KIND[p.kind]}</span>
+            <span class="mplace__n">{p.name}</span>
+            <span class="mplace__a mono">{p.points.map((x) => fmtAlt(x.alt)).join(' · ')}</span>
+            <span class="mplace__s">{es ? 'Estación de referencia' : 'Estació de referència'}: {shortName(BY_ID[p.stations[0]])}</span>
+          </a>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" style="padding:56px 0 72px;">
+    <div class="wrap"><MountainNotice lang={lang} /></div>
+  </section>
+</Base>
+
+<script>
+  import { loadAra } from '../scripts/live.js';
+  import { num, dirLabel, hourMadrid, tempColor } from '../lib/format.js';
+  import { fetchMountain, summitsTableHTML } from '../lib/mountain.js';
+  import { pageLang, t } from '../lib/i18n.js';
+  const LANG = pageLang();
+
+  async function paintHigh() {
+    const j = await loadAra(true);
+    if (!j) return;
+    document.querySelectorAll<HTMLElement>('[data-mh]').forEach((card) => {
+      const d = j.stations?.[card.dataset.mh || ''];
+      const f = (k: string) => card.querySelector<HTMLElement>(`[data-mh-f="${k}"]`);
+      if (!d || d.stale) {
+        f('temp')!.textContent = t(LANG).noData;
+        return;
+      }
+      const feels = d.temp != null && d.temp < 10 ? d.windchill : d.heatindex;
+      f('temp')!.textContent = d.temp == null ? '—' : `${num(d.temp)}°`;
+      f('temp')!.style.color = tempColor(d.temp);
+      f('feels')!.textContent = feels == null ? '—' : `${num(feels)}°`;
+      f('wind')!.textContent = d.wind == null ? '—' : `${num(d.wind, 0)} km/h ${dirLabel(d.dir)}`.trim();
+      f('gust')!.textContent = d.gustMax == null ? '—' : `${num(d.gustMax, 0)} km/h`;
+      f('mm')!.textContent = d.max == null ? '—' : `${num(d.max)}° / ${num(d.min)}°`;
+    });
+    const upd = document.querySelector('[data-mh-upd]');
+    if (upd && j.updated) upd.textContent = `${LANG === 'es' ? 'Actualizado a las' : 'Actualitzat a les'} ${hourMadrid(new Date(j.updated))}`;
+  }
+  paintHigh();
+  setInterval(paintHigh, 10 * 60 * 1000);
+
+  const sum = document.querySelector<HTMLElement>('[data-sum]');
+  if (sum) {
+    const { points, places, base } = JSON.parse(sum.dataset.sum || '{}');
+    fetchMountain(points, 3, 10000).then((data) => {
+      const html = summitsTableHTML(data, places, LANG, base);
+      const box = sum.querySelector('[data-sum-table]');
+      if (html && box) box.innerHTML = html;
+    });
+  }
+</script>
