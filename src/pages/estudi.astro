@@ -80,6 +80,10 @@ import { WEATHER } from '../scripts/estudi/draw.js';
               <label>Què vols classificar</label>
               <div class="st-seg st-seg--4" id="rankVar"><button type="button" data-var="max" aria-pressed="true">Màximes</button><button type="button" data-var="min" aria-pressed="false">Mínimes</button><button type="button" data-var="pluja" aria-pressed="false">Pluja</button><button type="button" data-var="ratxa" aria-pressed="false">Ratxes</button></div>
             </div>
+            <div class="st-field">
+              <label>Format</label>
+              <div class="st-seg" id="rankFmt"><button type="button" data-fmt="story" aria-pressed="true">Vertical 9:16 · Stories</button><button type="button" data-fmt="wide" aria-pressed="false">Horitzontal 16:9 · X</button></div>
+            </div>
             <div class="st-field"><label for="sentence">La frase de sota el títol <span>Es pot editar</span></label><textarea id="sentence" rows="3"></textarea><button type="button" class="st-link" id="sentenceReset" style="margin-top:6px;">Tornar a la frase automàtica</button></div>
           </div>
           <p class="st-note">Les dades de cada dia es desen cada matí cap a les 6. Les estacions amb el dia incomplet no entren als extrems ni al rànquing de temperatures.</p>
@@ -164,6 +168,7 @@ import { WEATHER } from '../scripts/estudi/draw.js';
   .st-btn--primary:hover { background: #1b3a5e; }
   .st-btn--quiet { background: #fff; border-color: var(--line); color: var(--ink); }
   .st-pv { background: #e7edf3; padding: 28px 32px; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+  .st-canvas.is-wide { width: min(100%, 760px); }
   .st-canvas { width: min(100%, 420px); border-radius: 6px; overflow: hidden; box-shadow: 0 18px 60px rgba(16, 35, 59, 0.18), 0 2px 6px rgba(16, 35, 59, 0.12); background: #060a12; }
   .st-canvas canvas { display: block; width: 100%; height: auto; }
   .st-pvbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 14px; }

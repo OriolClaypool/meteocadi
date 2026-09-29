@@ -28,6 +28,7 @@ import Base from '../../layouts/Base.astro';
         <span>Descarrega el mapa com a imatge</span>
         <button type="button" data-f="post">Publicació 4:5</button>
         <button type="button" data-f="story">Història 9:16</button>
+        <button type="button" data-f="wide">Horitzontal 16:9</button>
       </div>
       <p class="cm-note">
         Dades: <a href="https://www.meteo.cat/" rel="noopener" target="_blank">Servei Meteorològic de Catalunya</a> (Xarxa d'Estacions Meteorològiques Automàtiques, a través de les <a href="https://analisi.transparenciacatalunya.cat/Medi-Ambient/Dades-meteorol-giques-de-la-XEMA/nzvn-apee" rel="noopener" target="_blank">dades obertes de la Generalitat</a>) i xarxa Meteocadí (voltades en negre). Límits comarcals: ICGC. El mapa de color és una estimació entre estacions (a la temperatura, tenint en compte l'altitud del terreny, Copernicus DEM): serveix per veure com es reparteix, no el valor exacte d'un punt, i al vent és només orientatiu, perquè canvia molt d'un lloc a l'altre. Amb el selector d'estacions pots veure-les totes, deixar-ne només una per capital de comarca o amagar-les; per defecte hi surten les que hi caben, i en apropar-te al mapa en van apareixent més. Són dades automàtiques sense validar: una lectura estranya pot ser un error del sensor. Quan les etiquetes no hi caben, algunes estacions es mostren com un punt: toca-les o apropa't per veure'n el valor.
@@ -83,7 +84,7 @@ import Base from '../../layouts/Base.astro';
   .cm-dl button::before { content: ''; width: 14px; height: 14px; background: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3v12m0 0-5-5m5 5 5-5M4 20h16'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3v12m0 0-5-5m5 5 5-5M4 20h16'/%3E%3C/svg%3E") center / contain no-repeat; }
   .cm-dl button:hover { border-color: var(--ink); }
   .cm-dl button[aria-busy='true'] { opacity: 0.6; cursor: progress; }
-  .cm-dlg { border: 0; border-radius: 16px; padding: 16px; max-width: min(92vw, 560px); background: #fff; box-shadow: 0 20px 60px rgba(16, 35, 59, 0.35); }
+  .cm-dlg { border: 0; border-radius: 16px; padding: 16px; max-width: min(92vw, 960px); background: #fff; box-shadow: 0 20px 60px rgba(16, 35, 59, 0.35); }
   .cm-dlg::backdrop { background: rgba(16, 35, 59, 0.6); }
   .cm-dlg img { display: block; max-width: 100%; max-height: 72vh; width: auto; height: auto; margin: 0 auto; border-radius: 8px; border: 1px solid var(--line); }
   .cm-dlg__bar { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
@@ -486,7 +487,7 @@ import Base from '../../layouts/Base.astro';
         if (!blob) return;
         const day = todayMadrid(when);
         const hhmm = hourMadrid(when).replace(':', '');
-        const name = `meteocadi-catalunya-${cur.key}-${day}-${hhmm}${b.dataset.f === 'story' ? '-historia' : ''}.png`;
+        const name = `meteocadi-catalunya-${cur.key}-${day}-${hhmm}${b.dataset.f === 'story' ? '-historia' : b.dataset.f === 'wide' ? '-horitzontal' : ''}.png`;
         if (dlgUrl) URL.revokeObjectURL(dlgUrl);
         dlgUrl = URL.createObjectURL(blob);
         dlgFile = new File([blob], name, { type: 'image/png' });

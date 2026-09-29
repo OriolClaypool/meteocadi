@@ -4,7 +4,7 @@
 import { STATIONS, shortName } from '../../lib/stations.js';
 import { todayMadrid, hourMadrid, dayMonth, parseDay } from '../../lib/format.js';
 import {
-  loadFonts, loadIcons, drawResum, drawRanking, drawPrevisio, layoutPrevisio, rankSentence, WEATHER, PHENOMENA,
+  loadFonts, loadIcons, drawResum, drawRanking, drawRankingWide, WIDE, drawPrevisio, layoutPrevisio, rankSentence, WEATHER, PHENOMENA,
 } from './draw.js';
 
 const $ = (id) => document.getElementById(id);
@@ -114,6 +114,7 @@ export async function startEstudi() {
   let liveAt = 0;
   let choice = 'ahir';
   let rankVar = 'max';
+  let rankFmt = 'story'; // 'story' (1080 × 1920) o 'wide' (1600 × 900, per a X)
   let sentence = { key: '', text: '', edited: false };
 
   async function getArchive() {
@@ -176,8 +177,18 @@ export async function startEstudi() {
   // ------------------------------------------------------------------ dibuix
   let drawSeq = 0;
   let lastData = null;
+  // Mida del canvas segons la plantilla i el format
+  function size() {
+    const wide = tpl === 'ranquing' && rankFmt === 'wide';
+    const [w, h] = wide ? [WIDE.W, WIDE.H] : [1080, 1920];
+    if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+    canvas.parentElement.classList.toggle('is-wide', wide);
+    const el = document.querySelector('.st-size');
+    if (el) el.textContent = `${w} × ${h} px · PNG`;
+  }
   async function draw() {
     if (!ready) return;
+    size();
     const seq = ++drawSeq;
     $('status').textContent = '';
     $('pageControls').hidden = true;
@@ -218,7 +229,7 @@ export async function startEstudi() {
       if (sentence.key !== key) sentence = { key, text: rankSentence(d.rows, rankVar), edited: false };
       if ($('sentence').value !== sentence.text) $('sentence').value = sentence.text;
       const when = d.kind === 'ahir' ? "d'ahir" : d.kind === 'avui' ? "d'avui" : delDia(d.date);
-      drawRanking(ctx, { date: d.date, when, variable: rankVar, rows: d.rows, sentence: sentence.text });
+      (rankFmt === 'wide' ? drawRankingWide : drawRanking)(ctx, { date: d.date, when, variable: rankVar, rows: d.rows, sentence: sentence.text });
     }
     lastData = d;
   }
@@ -420,6 +431,13 @@ export async function startEstudi() {
       draw();
     }),
   );
+  document.querySelectorAll('[data-fmt]').forEach((b) =>
+    b.addEventListener('click', () => {
+      rankFmt = b.dataset.fmt;
+      document.querySelectorAll('[data-fmt]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      draw();
+    }),
+  );
   $('sentence').addEventListener('input', (e) => { sentence.text = e.target.value; sentence.edited = true; draw(); });
   $('sentenceReset').addEventListener('click', () => { sentence.key = ''; draw(); });
 
@@ -428,7 +446,7 @@ export async function startEstudi() {
     const n = (d) => d.replaceAll('-', '');
     if (tpl === 'previsio') return `meteocadi-previsio-${n(pv.date)}${pvLayout?.pages.length > 1 ? `-${page + 1}` : ''}.png`;
     const date = lastData?.date || todayMadrid();
-    return tpl === 'resum' ? `meteocadi-resum-${n(date)}.png` : `meteocadi-ranquing-${rankVar}-${n(date)}.png`;
+    return tpl === 'resum' ? `meteocadi-resum-${n(date)}.png` : `meteocadi-ranquing-${rankVar}-${n(date)}${rankFmt === 'wide' ? '-horitzontal' : ''}.png`;
   }
   async function blob() {
     await document.fonts.ready;
