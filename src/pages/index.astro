@@ -6,17 +6,21 @@ import StationTable from '../components/StationTable.astro';
 import Forecast from '../components/Forecast.astro';
 import Explora from '../components/Explora.astro';
 import Perfil from '../components/Perfil.astro';
+import SkiHome from '../components/SkiHome.astro';
+import CatalunyaAra from '../components/CatalunyaAra.astro';
 import { STATIONS, fmtAlt } from '../lib/stations.js';
-import { PLACE_BY_SLUG, FORECAST_CHIPS } from '../lib/places.js';
+import { PLACE_BY_SLUG, forecastChips } from '../lib/places.js';
+import { inSeason } from '../lib/ski.js';
 import { latestDay, extremes } from '../lib/archive.js';
 import { episodes } from '../lib/episodes.js';
-import { tempColor, num, dayShort, dayMonthShort } from '../lib/format.js';
+import { tempColor, num, dayShort, dayMonthShort, todayMadrid } from '../lib/format.js';
 
 const day = latestDay();
 const ex = extremes(day);
 // Episodi destacat recent (acabat fa com a molt 6 dies respecte del darrer dia arxivat)
 const recent = episodes().find((e) => day && (Date.parse(day.date) - Date.parse(e.end)) / 864e5 <= 6);
-const chips = FORECAST_CHIPS.map((s) => PLACE_BY_SLUG[s]).map((p) => ({ name: p.name, lat: p.lat, lng: p.lng, alt: p.alt }));
+const skiSeason = inSeason(todayMadrid());
+const chips = forecastChips(todayMadrid()).map((s) => PLACE_BY_SLUG[s]).map((p) => ({ name: p.name, lat: p.lat, lng: p.lng, alt: p.alt }));
 const ARROW = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg>';
 const altRange = `${fmtAlt(Math.min(...STATIONS.map((s) => s.alt))).replace(' m', '')} i els ${fmtAlt(Math.max(...STATIONS.map((s) => s.alt))).replace(' m', '')} metres`;
 const who = (e) => (e ? `${e.station.name.split(' - ')[0]} · ${fmtAlt(e.station.alt)}` : '');
@@ -130,23 +134,27 @@ const contours = [...Array(10).keys()].map((j) => `translate(1180 260) rotate(${
           <span class="eyebrow" data-live-count>LECTURES EN DIRECTE</span>
           <h2 class="h2">Les estacions, ara</h2>
         </div>
-        <div class="filters" role="group" aria-label="Filtra les estacions">
-          <button type="button" class="fbtn" aria-pressed="true" data-filter="totes">Totes</button>
-          <button type="button" class="fbtn" aria-pressed="false" data-filter="alta">Alta muntanya</button>
-          <button type="button" class="fbtn" aria-pressed="false" data-filter="vall">Vall i Prepirineu</button>
-          <a href="/mapa" style="display:inline-flex;align-items:center;gap:8px;margin-left:12px;font-size:14px;color:#7fd0ff;">Veure-les al mapa <Fragment set:html={ARROW} /></a>
+        <div class="filters">
+          <a href="/estacions" style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#7fd0ff;">Les {STATIONS.length} estacions <Fragment set:html={ARROW} /></a>
+          <a href="/mapa" style="display:inline-flex;align-items:center;gap:8px;margin-left:18px;font-size:14px;color:#7fd0ff;">Veure-les al mapa <Fragment set:html={ARROW} /></a>
         </div>
       </div>
       <StationTable />
-      <p class="st-note">Dades de les estacions via Weather Underground, actualitzades cada 15 minuts. Toca una estació per veure'n el detall.</p>
+      <p class="st-note">Les d'alta muntanya hi són sempre. De la vall i el Prepirineu, hi surten les quatre amb les dades més destacades del moment: la pluja, el vent, la calor o el fred (si no passa res especial, van rotant). Dades via Weather Underground, cada 15 minuts. Toca una estació per veure'n el detall.</p>
     </div>
   </section>
+
+  {skiSeason && <SkiHome />}
 
   <section class="sec sec--pale" id="previsio">
     <div class="wrap">
       <Forecast chips={chips} title="Les pròximes 48 hores" sub="Previsió cada tres hores: cel, temperatura, pluja i vent, calculada per a l'altitud de cada lloc." />
     </div>
   </section>
+
+  {!skiSeason && <SkiHome />}
+
+  <CatalunyaAra />
 
   <Explora />
   <Perfil />
@@ -155,8 +163,6 @@ const contours = [...Array(10).keys()].map((j) => `translate(1180 260) rotate(${
 <script>
   import { startLive } from '../scripts/live.js';
   import { todayMadrid } from '../lib/format.js';
-  startLive();
-
   // "Resum d'ahir" si el darrer dia arxivat és ahir
   const lab = document.querySelector('[data-resum-label]') as HTMLElement | null;
   if (lab) {
@@ -164,16 +170,46 @@ const contours = [...Array(10).keys()].map((j) => `translate(1180 260) rotate(${
     if (lab.dataset.date === todayMadrid(y)) lab.textContent = `RESUM D'AHIR · ${lab.textContent?.split('· ')[1] ?? ''}`;
   }
 
-  // Filtres de la taula
-  const btns = document.querySelectorAll<HTMLButtonElement>('[data-filter]');
-  btns.forEach((b) =>
-    b.addEventListener('click', () => {
-      btns.forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
-      document.querySelectorAll<HTMLElement>('[data-group]').forEach((g) => {
-        g.hidden = b.dataset.filter !== 'totes' && g.dataset.group !== b.dataset.filter;
-      });
-    }),
-  );
+  // Estacions de vall de la taula: les quatre amb les dades més destacades (pluja, vent, calor, fred).
+  // Si no passa res especial, van rotant cada dia. Les tres de Bagà compten com una.
+  const VALL = Array.from(document.querySelectorAll<HTMLElement>('[data-group="vall"] [data-row]'));
+  const BAGA = new Set(['IBAG65', 'IBAG73', 'IBAG72']);
+  const SHOW = 4;
+  function pick(j: any) {
+    if (!VALL.length) return;
+    const st = j?.stations || {};
+    const rows = VALL.map((el, i) => ({ el, i, id: el.dataset.row as string, d: st[el.dataset.row as string] }));
+    const live = rows.filter((r) => r.d && !r.d.stale);
+    const med = (a: (number | null | undefined)[]) => { const v = a.filter((x): x is number => x != null).sort((p, q) => p - q); return v.length ? v[Math.floor(v.length / 2)] : null; };
+    const mMax = med(live.map((r) => r.d.max)), mMin = med(live.map((r) => r.d.min));
+    const doy = Math.floor(Date.now() / 864e5);
+    const score = (r: any) => {
+      let s = ((doy + r.i) % rows.length) * 0.5;
+      const d = r.d;
+      if (!d || d.stale) return j ? -1e6 + s : s;
+      if (d.rain >= 0.2) s += 100 + d.rain * 8;
+      const g = d.gustMax ?? d.gust;
+      if (g != null && g >= 40) s += (g - 30) * 1.5;
+      if (d.max != null) { if (d.max >= 30) s += 20 + (d.max - 30) * 6; if (mMax != null) s += Math.max(0, d.max - mMax - 1) * 4; }
+      if (d.min != null) { if (d.min <= 0) s += 25 - d.min * 5; if (mMin != null) s += Math.max(0, mMin - d.min - 1) * 4; }
+      return s;
+    };
+    const chosen: any[] = [];
+    let baga = false;
+    for (const r of rows.map((r) => ({ ...r, s: score(r) })).sort((a, b) => b.s - a.s)) {
+      if (chosen.length >= SHOW) break;
+      if (BAGA.has(r.id)) { if (baga) continue; baga = true; }
+      chosen.push(r);
+    }
+    const box = VALL[0].parentElement!;
+    VALL.forEach((el) => (el.style.display = 'none'));
+    chosen.forEach((r) => { r.el.style.display = ''; box.appendChild(r.el); });
+    const count = box.querySelector('.st-group span:last-child');
+    if (count) count.textContent = `${chosen.length} de ${VALL.length} · les més destacades`;
+  }
+  pick(null);
+  document.addEventListener('meteocadi:ara', (e) => pick((e as CustomEvent).detail));
+  startLive();
 
   // Recompte animat del resum
   const els = document.querySelectorAll<HTMLElement>('[data-count]');

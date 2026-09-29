@@ -83,6 +83,19 @@ button { font: inherit; }
 @media (max-width: 1399px) and (min-width: 1201px) { .nav { gap: 18px; } .nav a { font-size: 15px; } }
 .nav a[aria-current='page'] { text-decoration: underline; text-underline-offset: 6px; text-decoration-thickness: 2px; }
 .nav .nav__cta { font-weight: 600; padding: 9px 18px; border-radius: 999px; border: 1.5px solid currentColor; }
+/* Botó d'esquí, destacat (al mòbil, també fora del menú, al costat de la hamburguesa) */
+.hdr__ski { display: none; }
+@media (max-width: 1200px) {
+  .hdr__ski { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; height: 36px; padding: 0 14px; border-radius: 999px; background: #dff3ff; color: #0b3a66; font-weight: 700; font-size: 15px; }
+  .hdr--overlay .hdr__ski { background: #fff; }
+  .hdr__ski:hover { color: #0b3a66; }
+}
+.nav .nav__ski { display: inline-flex; align-items: center; gap: 7px; font-weight: 700; padding: 9px 16px; border-radius: 999px; background: #dff3ff; color: #0b3a66; }
+.nav .nav__ski svg { flex: none; }
+.hdr--overlay .nav .nav__ski { background: #fff; color: #0b3a66; }
+.hdr--overlay .nav .nav__ski:hover { color: #0b3a66; opacity: 0.9; }
+.hdr--solid .nav .nav__ski:hover { background: #c8eaff; color: #0b3a66; }
+.nav .nav__ski[aria-current='page'] { text-decoration: none; box-shadow: inset 0 0 0 2px #0b3a66; }
 .hdr--overlay { position: absolute; left: 0; right: 0; top: 4px; color: #fff; }
 .hdr--overlay a:hover { color: #fff; opacity: 0.85; }
 .hdr--solid { background: #fff; color: var(--ink); border-bottom: 1px solid var(--line); }
@@ -95,6 +108,7 @@ button { font: inherit; }
   .nav a { padding: 14px 16px; border-radius: 10px; font-size: 17px; }
   .nav a:hover { background: var(--pale); color: var(--ink); opacity: 1; }
   .nav .nav__cta { border: 0; margin-top: 4px; background: var(--blue); color: #fff; text-align: center; }
+  .nav .nav__ski, .hdr--overlay .nav .nav__ski { justify-content: center; margin-top: 8px; background: #dff3ff; color: #0b3a66; }
   .hdr.is-open .nav { display: flex; }
 }
 
@@ -549,3 +563,28 @@ button { font: inherit; }
   .ski__snow { text-align: left; }
 }
 .ski__t tbody th, .ski__t thead th:first-child { position: sticky; left: 0; z-index: 1; background: #fff; }
+
+/* Targetes resumides d'esquí (portada i tauler) */
+.skcs { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 16px; }
+.skc { background: #fff; border: 1px solid var(--line); border-radius: 16px; transition: border-color 0.15s, transform 0.15s; }
+.skc:hover { border-color: #9fd3e6; transform: translateY(-2px); }
+.skc__a { display: flex; flex-direction: column; gap: 12px; padding: 20px 20px 18px; color: var(--ink); height: 100%; }
+.skc__a:hover { color: var(--ink); }
+.skc__head { display: flex; justify-content: space-between; gap: 12px; }
+.skc__head h3 { font-family: var(--f-head); font-size: 24px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; margin: 4px 0 2px; }
+.skc__snow { text-align: right; display: flex; flex-direction: column; align-items: flex-end; flex: none; }
+.skc__snow b { font-family: var(--f-mono); font-size: 32px; font-weight: 600; color: #1d4ed8; line-height: 1; }
+.skc__snow span { font-size: 12.5px; color: var(--muted); line-height: 1.25; margin-top: 4px; }
+.skc__days { list-style: none; margin: 0; padding: 10px 0 0; display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; border-top: 1px solid var(--line); }
+.skc__days li { display: flex; flex-direction: column; align-items: center; gap: 1px; font-family: var(--f-mono); font-size: 11.5px; color: var(--muted); }
+.skc__days li > span { text-transform: uppercase; letter-spacing: 0.04em; font-size: 10.5px; }
+.skc__days b { color: #1d4ed8; font-size: 13px; }
+.skc__days i { font-style: normal; color: #b6c2cf; font-size: 13px; }
+.skc__days .rt { width: 9px; height: 9px; margin-top: 3px; }
+.skc__now { font-size: 14px; color: var(--ink2); }
+.skc__now b { font-family: var(--f-mono); color: var(--ink); font-weight: 600; }
+.skc__best { font-size: 14px; color: var(--ink2); display: flex; align-items: center; gap: 8px; }
+.skc__best b { color: var(--ink); }
+.skc__best--none { color: var(--muted); }
+.skc__more { margin-top: auto; font-size: 14.5px; font-weight: 700; color: var(--blue); }
+@media (max-width: 640px) { .skcs { grid-template-columns: 1fr; } }

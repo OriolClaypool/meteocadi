@@ -7,7 +7,6 @@ const LINKS_ES = [
   { href: '/estacions', label: 'Estaciones', key: 'estacions' },
   { href: '/es/tiempo', label: 'El tiempo', key: 'temps' },
   { href: '/es/montana', label: 'Montaña', key: 'muntanya' },
-  { href: '/es/esqui', label: 'Esquí', key: 'esqui' },
   { href: '/mapa', label: 'Mapa', key: 'mapa' },
   { href: '/radar', label: 'Radar', key: 'radar' },
   { href: '/historial', label: 'Historial', key: 'historial' },
@@ -16,7 +15,6 @@ const LINKS_CA = [
   { href: '/estacions', label: 'Estacions', key: 'estacions' },
   { href: '/temps', label: 'Pobles i cims', key: 'temps' },
   { href: '/muntanya', label: 'Muntanya', key: 'muntanya' },
-  { href: '/esqui', label: 'Esquí', key: 'esqui' },
   { href: '/mapa', label: 'Mapa', key: 'mapa' },
   { href: '/radar', label: 'Radar', key: 'radar' },
   { href: '/historial', label: 'Historial', key: 'historial' },
@@ -30,6 +28,7 @@ const LINKS = es ? LINKS_ES : LINKS_CA;
       <img src="/imatges/logo-256.png" alt="" width="40" height="40" />
       <span>Meteocadí</span>
     </a>
+    <a href={es ? '/es/esqui' : '/esqui'} class="hdr__ski" aria-hidden="true" tabindex="-1"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M3.3 7l17.4 10M3.3 17 20.7 7M9 3.5l3 2.2 3-2.2M9 20.5l3-2.2 3 2.2"></path></svg>Esquí</a>
     <button class="nav-btn" type="button" aria-label={es ? 'Abrir el menú' : 'Obrir el menú'} aria-expanded="false" aria-controls="menu">
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
     </button>
@@ -38,6 +37,7 @@ const LINKS = es ? LINKS_ES : LINKS_CA;
       {alt && (es
         ? <a href={alt} class="nav__lang" hreflang="ca" lang="ca" title="Versió en català"><span class="nav__lang-s">CA</span><span class="nav__lang-l">Versió en català</span></a>
         : <a href={alt} class="nav__lang" hreflang="es" lang="es" title="Versión en castellano"><span class="nav__lang-s">ES</span><span class="nav__lang-l">Versión en castellano</span></a>)}
+      <a href={es ? '/es/esqui' : '/esqui'} class="nav__ski" aria-current={current === 'esqui' ? 'page' : undefined}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20M3.3 7l17.4 10M3.3 17 20.7 7M9 3.5l3 2.2 3-2.2M9 20.5l3-2.2 3 2.2"></path></svg>{es ? 'Esquí' : 'Esquí'}</a>
       <a href="/contacte" class="nav__cta" aria-current={current === 'contacte' ? 'page' : undefined}>{es ? 'Contacto' : 'Contacte'}</a>
     </nav>
   </div>

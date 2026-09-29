@@ -176,6 +176,49 @@ ${rateRow}
     .join('');
 }
 
+// Targeta resumida d'una estació (portada i tauler): neu prevista, tira de 7 dies i temps d'avui a dalt.
+// La taula completa és a la pàgina de cada estació.
+export function skiCompactHTML(groups, { today, lang = 'ca', season = true, base = '/temps/' }) {
+  if (!groups?.length || !groups[0].top?.days?.length) return '';
+  const L = tx(lang);
+  const es = lang === 'es';
+  return groups
+    .map((g) => {
+      const r = g.resort;
+      const days = g.top.days;
+      const { idx, snow, rated, best } = skiSummary(g, today, lang);
+      const alts = `${thousands(r.points[r.points.length - 1].alt)}–${thousands(r.points[0].alt)} m`;
+      const rate = Object.fromEntries(rated.map((x) => [x.i, x.r]));
+      const strip = idx
+        .map((i, k) => {
+          const d = days[i];
+          const rt = season && rate[i] ? `<span class="rt rt--${rate[i].level}" title="${L.levels[rate[i].level]}"></span>` : '';
+          const cm = d.snow != null && d.snow >= 0.5 ? `<b>${num(d.snow, 0)}</b>` : '<i>—</i>';
+          const ic = d.code == null ? '' : `<img src="${iconUrl(wmoIcon(d.code, true))}" alt="${wmoText(d.code, lang)}" title="${wmoText(d.code, lang)}" width="30" height="30" loading="lazy">`;
+          return `<li><span>${k === 0 ? L.today : `${cap(dayShort(d.date, lang))}`}</span>${ic}${cm}${rt}</li>`;
+        })
+        .join('');
+      const t0 = days[idx[0]];
+      const now = t0 ? `${es ? 'Hoy arriba' : 'Avui a dalt'}: <b>${num(t0.min, 0)}° / ${num(t0.max, 0)}°</b>${t0.gust != null ? ` · ${es ? 'racha' : 'ratxa'} <b${t0.gust >= 70 ? ' class="ski__hi"' : ''}>${Math.round(t0.gust)} km/h</b>` : ''}` : '';
+      const bestTxt = season
+        ? best
+          ? `<p class="skc__best"><span class="rt rt--${best.r.level}"></span>${L.best}: <b>${best.i === idx[0] ? L.today.toLowerCase() : best.i === idx[1] ? L.tomorrow.toLowerCase() : `${dayName(best.date, lang)} ${parseDay(best.date).getUTCDate()}`}</b></p>`
+          : `<p class="skc__best skc__best--none">${L.none}</p>`
+        : '';
+      return `<article class="skc skc--${r.ski.type}">
+<a class="skc__a" href="${base}${r.slug}">
+<div class="skc__head"><div><span class="ski__k">${L.type[r.ski.type]} · ${r.ski.region}</span><h3>${r.name}</h3><span class="ski__alt">${alts}</span></div>
+<div class="skc__snow">${snow >= 1 ? `<b>${num(snow, 0)}</b><span>${es ? 'cm de nieve<br>en 7 días' : 'cm de neu<br>en 7 dies'}</span>` : `<span>${es ? 'Sin nieve<br>en 7 días' : 'Sense neu<br>en 7 dies'}</span>`}</div></div>
+<ol class="skc__days" aria-label="${es ? 'Nieve prevista cada día, en cm' : 'Neu prevista cada dia, en cm'}">${strip}</ol>
+<p class="skc__now">${now}</p>
+${bestTxt}
+<span class="skc__more">${es ? 'Previsión completa' : 'Previsió completa'} →</span>
+</a>
+</article>`;
+    })
+    .join('');
+}
+
 // Frase per al text de la pàgina (es genera al build): on nevarà més
 export function skiSnowText(groups, today, lang = 'ca') {
   if (!groups?.length || !groups[0].top?.days?.length) return '';

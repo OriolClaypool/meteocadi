@@ -1,0 +1,62 @@
+---
+// Portada: les estacions d'esquí més properes al Cadí en targetes resumides (neu prevista, 7 dies, temps a dalt).
+import { PLACE_BY_SLUG, PLACES, SKI_HOME } from '../lib/places.js';
+import { fetchSki, skiCompactHTML, inSeason } from '../lib/ski.js';
+import { todayMadrid } from '../lib/format.js';
+
+const resorts = SKI_HOME.map((s) => PLACE_BY_SLUG[s]).filter(Boolean).map((p) => ({ slug: p.slug, name: p.name, points: p.points, ski: p.ski }));
+const today = todayMadrid();
+const season = inSeason(today);
+const groups = await fetchSki(resorts);
+const cards = skiCompactHTML(groups, { today, season, base: '/temps/' });
+const total = PLACES.filter((p) => p.ski).length;
+const ARROW = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg>';
+---
+<section class="sec sec--ski" id="esqui">
+  <div class="wrap">
+    <div class="sec__head">
+      <div>
+        <span class="eyebrow" style="color:#0e6e8c;">METEOCADÍ NEU · PREVISIÓ DE 7 DIES</span>
+        <h2 class="h2">Neu i esquí, <em>a prop del Cadí</em></h2>
+        <p class="sub" style="max-width:720px;margin-top:10px;">
+          {season
+            ? 'La neu prevista a dalt de les pistes, el temps de cada dia i el millor dia per esquiar a les estacions més properes.'
+            : "La temporada comença a mitjan novembre. Mentrestant, aquí veuràs quan arriben les primeres neus a dalt de les pistes de cada estació."}
+        </p>
+      </div>
+      <a class="btn btn--blue" href="/esqui">{`Les ${total} estacions d'esquí`} <Fragment set:html={ARROW} /></a>
+    </div>
+    <div class="skcs" data-skih={JSON.stringify({ resorts })} set:html={cards || '<p class="mfc__load">Carregant la previsió…</p>'}></div>
+  </div>
+</section>
+
+<style is:global>
+  .sec--ski { background: linear-gradient(180deg, #f2f9ff 0%, #e6f3fc 100%); padding: 88px 0; }
+  .sec--ski .sec__head { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; flex-wrap: wrap; margin-bottom: 28px; }
+  /* Al mòbil, les targetes es passen de costat */
+  @media (max-width: 640px) {
+    .sec--ski { padding: 64px 0; }
+    .sec--ski .skcs { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 12px; margin: 0 calc(-1 * var(--pad)); padding: 0 var(--pad) 10px; }
+    .sec--ski .skc { flex: 0 0 86%; scroll-snap-align: start; }
+    .sec--ski .skc:hover { transform: none; }
+  }
+</style>
+
+<script>
+  import { fetchSki, skiCompactHTML, inSeason } from '../lib/ski.js';
+  import { todayMadrid } from '../lib/format.js';
+  const box = document.querySelector<HTMLElement>('[data-skih]');
+  if (box) {
+    const { resorts } = JSON.parse(box.dataset.skih || '{}');
+    const paint = () => {
+      const today = todayMadrid();
+      const season = inSeason(today) || new URLSearchParams(location.search).has('temporada');
+      return fetchSki(resorts, 12000).then((groups) => {
+        const html = skiCompactHTML(groups, { today, season, base: '/temps/' });
+        if (html) box.innerHTML = html;
+      }).catch(() => {});
+    };
+    paint();
+    setInterval(paint, 30 * 60 * 1000);
+  }
+</script>
