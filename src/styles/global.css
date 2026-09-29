@@ -627,3 +627,7 @@ button { font: inherit; }
 .xlinks { display: flex; flex-wrap: wrap; gap: 8px; align-self: flex-end; }
 .xlinks a { padding: 9px 16px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.28); color: #fff; font-weight: 600; font-size: 15px; }
 .xlinks a:hover { border-color: #fff; color: #fff; }
+
+/* Resum de la portada mentre arriben les dades d'avui */
+.resum.is-wait .stat__val, .resum.is-wait .stat__who { opacity: 0.25; transition: opacity 0.3s; }
+.resum .stat__val, .resum .stat__who { transition: opacity 0.3s; }

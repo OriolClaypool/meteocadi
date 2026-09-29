@@ -12,6 +12,7 @@ Weather-station network site for Cadí-Moixeró / Berguedà. **All user-facing c
 - Stations: single source of truth in `src/lib/stations.js` (Weather Underground IDs). Keep `api/arxiva.js` STATIONS_META in sync when adding a station.
 - WU key limit: 1,500 calls/day and 30/min. Never call WU from the browser; go through `/api/ara` (cached).
 - Archive read at build time by `src/lib/archive.js` (every nightly archive commit triggers a rebuild, so "yesterday" data is baked into HTML).
+- Home hero card: from 8:00 (Madrid) it shows today's extremes so far from `/api/ara` (live, refreshed every 15 min); before 8:00 or if the live data fails, the last archived day (baked in at build).
 - Forecast: Open-Meteo (no key), client-side in `src/scripts/forecast.js`; build-time snapshot for SEO text in `src/lib/forecast-build.js` and `src/lib/weekend.js` (must never fail the build).
 
 ## Pages
