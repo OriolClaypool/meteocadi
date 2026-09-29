@@ -28,6 +28,8 @@ Weather-station network site for Cadí-Moixeró / Berguedà. **All user-facing c
 - `api/comarques.js`: ICGC comarca borders (dataset `aasi-gwnd`), simplified server-side, CDN cache 30 days.
 - The page merges our stations from `/api/ara` (dark outline). Labels that collide become dots (priority: our stations, then the most extreme values). Snow depth only in season (sensors report a few cm of noise in summer).
 - Always credit: Servei Meteorològic de Catalunya (XEMA) · dades obertes de la Generalitat; comarca borders: ICGC.
+- Colour layer ("Mapa de color", temperature and rain only): IDW (power 3) on a 340×290 canvas clipped to the comarques. Temperatures are reduced to sea level with the lapse rate fitted on the same stations and then re-projected on the terrain height from `api/dem.js` (Copernicus DEM via Open-Meteo, 0.04° grid, CDN cache 1 year); without the DEM it falls back to plain IDW. Wind and humidity have no layer (too local to interpolate).
+- Bagà Nord and Bagà Sud are hidden on this map (`HIDDEN_HERE`) so the three Bagà stations don't pile up; Bagà Centre stays.
 
 ## Ski (Meteocadí Neu)
 - `/esqui` and `/es/esqui` (`SkiHub.astro`): 7-day board for every place with a `ski` attribute in `places.js` (type, region, official web, webcams), roads near the resorts (`/api/transit?near=lat:lng:km`) and official links.
