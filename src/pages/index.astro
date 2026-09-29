@@ -61,34 +61,34 @@ const contours = [...Array(10).keys()].map((j) => `translate(1180 260) rotate(${
           <div class="resum__head">
             <div style="display:flex;flex-direction:column;gap:6px;">
               <span class="eyebrow" id="resum-t" data-resum-label data-date={day.date}>RESUM · {dateLabel}</span>
-              <span style="font-size:15px;color:#c3cfde;">Els extrems de les {ex.n} estacions amb dades</span>
+              <span style="font-size:15px;color:#c3cfde;" data-rs-sub>Els extrems de les {ex.n} estacions amb dades</span>
             </div>
             <a href="/historial" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;">Historial <Fragment set:html={ARROW} /></a>
           </div>
           <div class="resum__grid">
             <div class="stat">
               <span class="stat__lab"><Icon name="up" color="#ef4444" />MÀXIMA</span>
-              <span class="stat__val" style={`color:${tempColor(ex.max?.v)}`}><span data-count={ex.max?.v}>{num(ex.max?.v)}</span><small>°C</small></span>
-              <span class="stat__who">{who(ex.max)}</span>
+              <span class="stat__val" data-rsv="max" style={`color:${tempColor(ex.max?.v)}`}><span data-count={ex.max?.v}>{num(ex.max?.v)}</span><small>°C</small></span>
+              <span class="stat__who" data-rsw="max">{who(ex.max)}</span>
             </div>
             <div class="stat">
               <span class="stat__lab"><Icon name="down" color="#2dd4bf" />MÍNIMA</span>
-              <span class="stat__val" style={`color:${tempColor(ex.min?.v)}`}><span data-count={ex.min?.v}>{num(ex.min?.v)}</span><small>°C</small></span>
-              <span class="stat__who">{who(ex.min)}</span>
+              <span class="stat__val" data-rsv="min" style={`color:${tempColor(ex.min?.v)}`}><span data-count={ex.min?.v}>{num(ex.min?.v)}</span><small>°C</small></span>
+              <span class="stat__who" data-rsw="min">{who(ex.min)}</span>
             </div>
             <div class="stat">
               <span class="stat__lab"><Icon name="wind" />RATXA MÀXIMA</span>
-              <span class="stat__val" style={`color:${(ex.gust?.v ?? 0) >= 40 ? '#fbbf24' : '#e6edf6'}`}><span data-count={ex.gust?.v}>{num(ex.gust?.v)}</span><small>km/h</small></span>
-              <span class="stat__who">{who(ex.gust)}</span>
+              <span class="stat__val" data-rsv="gust" style={`color:${(ex.gust?.v ?? 0) >= 40 ? '#fbbf24' : '#e6edf6'}`}><span data-count={ex.gust?.v}>{num(ex.gust?.v)}</span><small>km/h</small></span>
+              <span class="stat__who" data-rsw="gust">{who(ex.gust)}</span>
             </div>
             <div class="stat">
               <span class="stat__lab"><Icon name="drop" />PLUJA</span>
-              <span class="stat__val" style={`color:${(ex.rain?.v ?? 0) > 0 ? '#60a5fa' : '#93a3b8'}`}><span data-count={ex.rain?.v ?? 0}>{num(ex.rain?.v ?? 0)}</span><small>mm</small></span>
-              <span class="stat__who">{(ex.rain?.v ?? 0) > 0 ? `${who(ex.rain)} · ${ex.rainyStations} estacions amb pluja` : "Cap estació n'ha recollit"}</span>
+              <span class="stat__val" data-rsv="rain" style={`color:${(ex.rain?.v ?? 0) > 0 ? '#60a5fa' : '#93a3b8'}`}><span data-count={ex.rain?.v ?? 0}>{num(ex.rain?.v ?? 0)}</span><small>mm</small></span>
+              <span class="stat__who" data-rsw="rain">{(ex.rain?.v ?? 0) > 0 ? `${who(ex.rain)} · ${ex.rainyStations} estacions amb pluja` : "Cap estació n'ha recollit"}</span>
             </div>
           </div>
           <div class="resum__foot">
-            <span>Arxiu diari de la xarxa</span>
+            <span data-rs-foot>Arxiu diari de la xarxa</span>
             <a href="/historial" style="display:inline-flex;align-items:center;gap:6px;">Tots els dies <Fragment set:html={ARROW} /></a>
           </div>
         </aside>
@@ -162,7 +162,8 @@ const contours = [...Array(10).keys()].map((j) => `translate(1180 260) rotate(${
 
 <script>
   import { startLive } from '../scripts/live.js';
-  import { todayMadrid } from '../lib/format.js';
+  import { todayMadrid, hourMadrid, tempColor } from '../lib/format.js';
+  import { STATIONS, fmtAlt } from '../lib/stations.js';
   // "Resum d'ahir" si el darrer dia arxivat és ahir
   const lab = document.querySelector('[data-resum-label]') as HTMLElement | null;
   if (lab) {
@@ -209,20 +210,74 @@ const contours = [...Array(10).keys()].map((j) => `translate(1180 260) rotate(${
   }
   pick(null);
   document.addEventListener('meteocadi:ara', (e) => pick((e as CustomEvent).detail));
-  startLive();
 
   // Recompte animat del resum
-  const els = document.querySelectorAll<HTMLElement>('[data-count]');
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  if (!reduce) {
-    const targets = Array.from(els).map((el) => ({ el, v: Number(el.dataset.count) }));
-    const t0 = performance.now() + 500;
+  const fmt1 = (v: number) => v.toFixed(1).replace('.', ',').replace('-', '−');
+  function countUp(els: HTMLElement[], delay = 500) {
+    const targets = els.map((el) => ({ el, v: Number(el.dataset.count) }));
+    if (reduce) { targets.forEach(({ el, v }) => { if (!isNaN(v)) el.textContent = fmt1(v); }); return; }
+    const t0 = performance.now() + delay;
     const tick = (now: number) => {
       const p = Math.max(0, Math.min(1, (now - t0) / 1600));
       const e = 1 - Math.pow(1 - p, 3);
-      targets.forEach(({ el, v }) => { if (!isNaN(v)) el.textContent = (v * e).toFixed(1).replace('.', ',').replace('-', '−'); });
+      targets.forEach(({ el, v }) => { if (!isNaN(v)) el.textContent = fmt1(v * e); });
       if (p < 1) requestAnimationFrame(tick);
     };
     requestAnimationFrame(tick);
   }
+
+  // Resum d'avui fins ara (a partir de les 8 del matí, amb les dades en directe). Abans de les 8, o si les dades
+  // en directe no arriben, es queda el resum del darrer dia arxivat (ahir).
+  const card = document.querySelector<HTMLElement>('.resum');
+  const hourNow = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Madrid', hour: '2-digit', hourCycle: 'h23' }).format(new Date()));
+  const todayMode = !!card && hourNow >= 8;
+  let todayShown = false;
+  if (todayMode) {
+    card!.classList.add('is-wait');
+    setTimeout(() => { if (!todayShown) { card!.classList.remove('is-wait'); countUp(Array.from(card!.querySelectorAll<HTMLElement>('[data-count]')), 0); } }, 4000);
+  } else if (card) countUp(Array.from(card.querySelectorAll<HTMLElement>('[data-count]')));
+
+  const whoOf = (s: any) => `${s.name.split(' - ')[0]} · ${fmtAlt(s.alt)}`;
+  function today(j: any) {
+    if (!todayMode || !card) return;
+    const live = STATIONS.map((s) => ({ s, d: j?.stations?.[s.id] })).filter((x) => x.d && !x.d.stale);
+    if (live.length < 3) return;
+    const ok = (v: any, lo: number, hi: number) => typeof v === 'number' && v >= lo && v <= hi;
+    const best = (f: (d: any) => any, dir: number, lo: number, hi: number) =>
+      live.filter((x) => ok(f(x.d), lo, hi)).sort((a, b) => dir * (f(b.d) - f(a.d)))[0];
+    const mx = best((d) => d.max, 1, -40, 48);
+    const mn = best((d) => d.min, -1, -40, 48);
+    const gs = best((d) => d.gustMax ?? d.gust, 1, 0, 250);
+    const rn = best((d) => d.rain, 1, 0, 500);
+    const rainy = live.filter((x) => ok(x.d.rain, 0.1, 500)).length;
+    const set = (k: string, v: number | undefined, color: string, whoTxt: string) => {
+      const val = card.querySelector<HTMLElement>(`[data-rsv="${k}"]`);
+      const num = val?.querySelector<HTMLElement>('[data-count]');
+      if (!val || !num || v == null) return;
+      val.style.color = color;
+      num.dataset.count = String(v);
+      if (todayShown) num.textContent = fmt1(v);
+      const w = card.querySelector<HTMLElement>(`[data-rsw="${k}"]`);
+      if (w) w.textContent = whoTxt;
+    };
+    if (mx) set('max', mx.d.max, tempColor(mx.d.max), whoOf(mx.s));
+    if (mn) set('min', mn.d.min, tempColor(mn.d.min), whoOf(mn.s));
+    if (gs) { const g = gs.d.gustMax ?? gs.d.gust; set('gust', g, g >= 40 ? '#fbbf24' : '#e6edf6', whoOf(gs.s)); }
+    const r = rn?.d.rain ?? 0;
+    set('rain', r, r > 0 ? '#60a5fa' : '#93a3b8', r > 0 && rn ? `${whoOf(rn.s)} · ${rainy} ${rainy === 1 ? 'estació' : 'estacions'} amb pluja` : "Cap estació n'ha recollit");
+    const lab = card.querySelector<HTMLElement>('[data-resum-label]');
+    if (lab) lab.textContent = `AVUI FINS ARA · ${hourMadrid(new Date(j.updated || Date.now()))}`;
+    const sub = card.querySelector<HTMLElement>('[data-rs-sub]');
+    if (sub) sub.textContent = `Els extrems de les ${live.length} estacions en directe`;
+    const foot = card.querySelector<HTMLElement>('[data-rs-foot]');
+    if (foot) foot.textContent = "En directe · s'actualitza cada 15 minuts";
+    if (!todayShown) {
+      todayShown = true;
+      card.classList.remove('is-wait');
+      countUp(Array.from(card.querySelectorAll<HTMLElement>('[data-count]')), 0);
+    }
+  }
+  document.addEventListener('meteocadi:ara', (e) => today((e as CustomEvent).detail));
+  startLive();
 </script>
