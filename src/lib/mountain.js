@@ -64,7 +64,19 @@ export function parseMountain(json, points) {
   });
 }
 
+// En temps de build, la mateixa petició (p. ex. la pàgina en català i en castellà) es fa un sol cop
+const BUILD_CACHE = typeof window === 'undefined' ? new Map() : null;
+
 export async function fetchMountain(points, days = 3, ms = 6000, past = 0) {
+  if (BUILD_CACHE) {
+    const key = mountainUrl(points, days, past);
+    if (!BUILD_CACHE.has(key)) BUILD_CACHE.set(key, fetchMountainNow(points, days, ms, past));
+    return BUILD_CACHE.get(key);
+  }
+  return fetchMountainNow(points, days, ms, past);
+}
+
+async function fetchMountainNow(points, days, ms, past) {
   try {
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), ms);

@@ -14,6 +14,8 @@ export default defineConfig({
     sitemap({
       filter: (page) => !HIDDEN.test(page) && !(NO_EPISODES && /\/episodis$/.test(page)),
       changefreq: 'hourly',
+      // Data del build: les pàgines es regeneren cada dia amb la previsió i l'arxiu nous
+      serialize: (item) => ({ ...item, lastmod: new Date().toISOString() }),
     }),
   ],
 });

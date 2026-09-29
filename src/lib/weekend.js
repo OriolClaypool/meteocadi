@@ -1,5 +1,5 @@
 // "Aquest cap de setmana": dies a mostrar i previsió de tots els llocs en una sola crida.
-import { PLACES } from './places.js';
+import { CADI as PLACES } from './places.js';
 import { parseDay, todayMadrid } from './format.js';
 
 const addDays = (iso, n) => {

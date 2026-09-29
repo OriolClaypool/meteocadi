@@ -2,7 +2,10 @@
 // si canvies un text a places.js, canvia'l també aquí. Els topònims es mantenen en català.
 // points / roads / cameras: etiquetes en el mateix ordre que a places.js.
 
+import { PIRINEU_ES } from './places-pirineu-es.js';
+
 export const PLACES_ES = {
+  ...PIRINEU_ES,
   baga: {
     name: 'Bagà',
     a: 'en Bagà',

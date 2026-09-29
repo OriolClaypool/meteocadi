@@ -1,0 +1,233 @@
+---
+// Pàgina d'una zona (comarca o Andorra): /temps/<zona> i /es/tiempo/<zona>. Previsió de 48 hores dels pobles,
+// avui i demà a cada lloc, estacions d'esquí, carreteres i enllaços a totes les pàgines de la zona.
+import Base from '../layouts/Base.astro';
+import Forecast from './Forecast.astro';
+import RoadStatus from './RoadStatus.astro';
+import { placesIn } from '../lib/places.js';
+import { REGIONS, REGION_BY_SLUG, localizeRegion, deA } from '../lib/regions.js';
+import { localize, esPath, caPath } from '../lib/places-es.js';
+import { dailyForecast } from '../lib/forecast-build.js';
+import { fetchSki, skiCompactHTML, inSeason } from '../lib/ski.js';
+import { wmoIcon, wmoText, iconUrl } from '../lib/wmo.js';
+import { fmtAlt } from '../lib/stations.js';
+import { num, todayMadrid, cap, longDate } from '../lib/format.js';
+
+interface Props { slug: string; lang?: 'ca' | 'es' }
+const { slug, lang = 'ca' } = Astro.props;
+const es = lang === 'es';
+const r = localizeRegion(REGION_BY_SLUG[slug], lang);
+const andorra = r.country === 'AD';
+const base = es ? '/es/tiempo/' : '/temps/';
+const all = placesIn(slug).map((p) => localize(p, lang));
+const capital = all.find((p) => p.slug === r.capital);
+const towns = [capital, ...all.filter((p) => p.kind === 'poble' && p !== capital)].filter(Boolean);
+const resorts = all.filter((p) => p.ski);
+const rest = all.filter((p) => !p.ski && p.kind !== 'poble');
+const ordered = [...towns, ...resorts, ...rest];
+const today = todayMadrid();
+const season = inSeason(today);
+
+// Avui i demà a cada lloc (al build; el navegador ho actualitza)
+const fcs = await Promise.all(ordered.map((p) => dailyForecast(p, 3)));
+const KIND = es
+  ? { poble: 'Pueblo', cim: 'Cima', coll: 'Collado', esqui: 'Esquí', refugi: 'Refugio', carretera: 'Puerto' }
+  : { poble: 'Poble', cim: 'Cim', coll: 'Coll', esqui: 'Esquí', refugi: 'Refugi', carretera: 'Port' };
+const cell = (d) =>
+  d
+    ? `<img src="${iconUrl(wmoIcon(d.code, true))}" alt="${wmoText(d.code, lang)}" title="${wmoText(d.code, lang)}" width="34" height="34" loading="lazy"><span><b>${Math.round(d.max)}°</b> / ${Math.round(d.min)}°</span><small>${d.rain >= 0.2 ? `${num(d.rain)} mm` : ''}</small>`
+    : '—';
+const rows = ordered.map((p, i) => ({ p, d0: fcs[i]?.[0], d1: fcs[i]?.[1] }));
+const dates = fcs.find((f) => f?.length)?.slice(0, 2).map((d) => d.date) ?? [];
+
+// Estacions d'esquí de la zona
+const skiLight = resorts.map((p) => ({ slug: p.slug, name: p.name, points: p.points, ski: p.ski }));
+const skiGroups = skiLight.length ? await fetchSki(skiLight) : null;
+const skiHTML = skiGroups ? skiCompactHTML(skiGroups, { today, lang, season, base }) : '';
+
+const chips = towns.slice(0, 6).map((p) => ({ name: p.name, lat: p.lat, lng: p.lng, alt: p.alt }));
+const heading = es ? `El tiempo ${r.title ? `en ${r.title}` : r.a}` : `El temps ${r.a}`;
+const names = (l) => {
+  const n = l.map((p) => p.name);
+  return n.length > 1 ? `${n.slice(0, -1).join(', ')} ${es ? 'y' : 'i'} ${n[n.length - 1]}` : n[0] ?? '';
+};
+const title = es
+  ? `${heading}: previsión por pueblos y pistas de esquí | Meteocadí`
+  : `${heading}: previsió per pobles i pistes d'esquí | Meteocadí`;
+const description = es
+  ? `Previsión por horas y a 7 días ${r.a}, calculada para la altitud de cada lugar: ${names(towns.slice(0, 6))}${resorts.length ? `, y las estaciones de esquí de ${names(resorts)}` : ''}.`
+  : `Previsió per hores i per a 7 dies ${r.a}, calculada per a l'altitud de cada lloc: ${names(towns.slice(0, 6))}${resorts.length ? `, i les estacions d'esquí de ${names(resorts)}` : ''}.`;
+const path = es ? esPath(slug) : caPath(slug);
+const W = 'https://www.meteocadi.cat';
+const ld = [
+  {
+    '@type': andorra ? 'Country' : 'AdministrativeArea',
+    name: REGION_BY_SLUG[slug].name,
+    geo: { '@type': 'GeoCoordinates', latitude: r.lat, longitude: r.lng },
+    url: W + path,
+  },
+  {
+    '@type': 'ItemList',
+    name: heading,
+    itemListElement: ordered.map((p, i) => ({ '@type': 'ListItem', position: i + 1, name: `${es ? 'El tiempo' : 'El temps'} ${p.a}`, url: `${W}${base}${p.slug}` })),
+  },
+  {
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: es ? 'Inicio' : 'Inici', item: `${W}/` },
+      { '@type': 'ListItem', position: 2, name: es ? 'El tiempo' : 'El temps', item: `${W}${es ? '/es/tiempo' : '/temps'}` },
+      { '@type': 'ListItem', position: 3, name: heading, item: W + path },
+    ],
+  },
+];
+const others = REGIONS.filter((x) => x.slug !== slug).map((x) => localizeRegion(x, lang));
+const tabData = ordered.map((p) => ({ s: p.slug, lat: p.lat, lng: p.lng, alt: p.alt }));
+---
+<Base title={title} description={description} path={path} jsonLd={ld} current="temps" lang={lang} alternates={{ ca: caPath(slug), es: esPath(slug) }}>
+  <section class="phead">
+    <div class="wrap">
+      <nav class="crumbs" aria-label="Ruta"><a href="/">{es ? 'Inicio' : 'Inici'}</a><span>›</span><a href={es ? '/es/tiempo' : '/temps'}>{es ? 'El tiempo' : 'El temps'}</a><span>›</span><span>{r.name}</span></nav>
+      <h1>{heading}</h1>
+      <div class="prose" style="margin-top:18px;font-size:17px;">
+        {r.intro.map((t) => <p>{t}</p>)}
+      </div>
+      <p style="margin-top:18px;display:flex;flex-wrap:wrap;gap:10px;">
+        {resorts.length > 0 && <a class="btn btn--blue" href="#esqui" style="height:46px;font-size:16px;">{es ? 'Estaciones de esquí' : "Estacions d'esquí"}</a>}
+        <a class="btn btn--line" href="#llocs" style="height:46px;font-size:16px;background:#fff;">{es ? 'Hoy y mañana en cada lugar' : 'Avui i demà a cada lloc'}</a>
+      </p>
+    </div>
+  </section>
+
+  {chips.length > 0 && (
+    <section class="sec">
+      <div class="wrap">
+        <Forecast chips={chips} lang={lang} title={es ? 'Las próximas 48 horas' : 'Les pròximes 48 hores'} sub={es ? 'Previsión cada tres horas para la altitud de cada pueblo.' : 'Previsió cada tres hores per a l\'altitud de cada poble.'} />
+      </div>
+    </section>
+  )}
+
+  <section class="sec sec--pale" id="llocs">
+    <div class="wrap">
+      <h2 class="h2" style="font-size:38px;">{es ? 'Hoy y mañana' : 'Avui i demà'} <em>{es ? 'en cada lugar' : 'a cada lloc'}</em></h2>
+      <p class="sub" style="margin:10px 0 22px;">{es ? 'Calculada para la altitud de cada lugar. Toca un nombre para ver su previsión por horas.' : "Calculada per a l'altitud de cada lloc. Toca un nom per veure'n la previsió per hores."}</p>
+      <div class="tscroll">
+        <table class="rtab" data-rtab={JSON.stringify(tabData)}>
+          <thead><tr><th>{es ? 'Lugar' : 'Lloc'}</th><th>{es ? 'Altitud' : 'Altitud'}</th><th data-rdate="0">{dates[0] ? cap(longDate(dates[0], lang)) : es ? 'Hoy' : 'Avui'}</th><th data-rdate="1">{dates[1] ? cap(longDate(dates[1], lang)) : es ? 'Mañana' : 'Demà'}</th></tr></thead>
+          <tbody>
+            {rows.map(({ p, d0, d1 }) => (
+              <tr>
+                <th><a href={`${base}${p.slug}`}>{p.name}</a><small>{KIND[p.kind] ?? ''}</small></th>
+                <td class="mono">{fmtAlt(p.ski ? p.points[p.points.length - 1].alt : p.alt)}</td>
+                <td class="rtab__d" data-c={`${p.slug}-0`} set:html={cell(d0)}></td>
+                <td class="rtab__d" data-c={`${p.slug}-1`} set:html={cell(d1)}></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p class="mfc__note">{es ? 'Fuente: Open-Meteo. En las estaciones de esquí, la previsión es para la base de las pistas.' : "Font: Open-Meteo. A les estacions d'esquí, la previsió és per a la base de les pistes."}</p>
+    </div>
+  </section>
+
+  {resorts.length > 0 && (
+    <section class="sec sec--ski" id="esqui">
+      <div class="wrap">
+        <div class="sec__head">
+          <div>
+            <span class="eyebrow" style="color:#0e6e8c;">{es ? 'NIEVE · 7 DÍAS' : 'NEU · 7 DIES'}</span>
+            <h2 class="h2">{es ? 'Esquí' : 'Esquí'} <em>{r.a}</em></h2>
+          </div>
+          <a class="btn btn--blue" href={es ? '/es/esqui' : '/esqui'}>{es ? 'Todas las estaciones' : 'Totes les estacions'}</a>
+        </div>
+        <div class="skcs" data-skir={JSON.stringify({ resorts: skiLight, lang, base })} set:html={skiHTML || `<p class="mfc__load">${es ? 'Cargando la previsión…' : 'Carregant la previsió…'}</p>`}></div>
+      </div>
+    </section>
+  )}
+
+  {r.areas?.length > 0 && (
+    <section class="sec" style="padding:64px 0;">
+      <div class="wrap">
+        <RoadStatus areas={r.areas} lang={lang} sub={es ? `Incidencias comunicadas en las carreteras ${deA(r.a, lang)}.` : `Incidències comunicades a les carreteres ${deA(r.a, lang)}.`} />
+      </div>
+    </section>
+  )}
+
+  <section class="sec sec--pale" style="padding:64px 0;">
+    <div class="wrap">
+      <h2 style="font-size:24px;font-weight:800;margin-bottom:16px;">{es ? `Todos los lugares ${deA(r.a, lang)}` : `Tots els llocs ${deA(r.a, lang)}`}</h2>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;">
+        {ordered.map((p) => <a class="btn btn--line" style="height:44px;font-size:15px;background:#fff;" href={`${base}${p.slug}`}>{p.name}</a>)}
+      </div>
+      <h2 style="font-size:20px;font-weight:800;margin:32px 0 14px;">{es ? 'Otras zonas' : 'Altres zones'}</h2>
+      <div style="display:flex;flex-wrap:wrap;gap:8px 18px;font-weight:600;">
+        {others.map((x) => <a href={`${base}${x.slug}`}>{es ? 'El tiempo' : 'El temps'} {x.a}</a>)}
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style is:global>
+  .rtab { width: 100%; border-collapse: collapse; background: #fff; border-radius: 14px; overflow: hidden; min-width: 560px; }
+  .rtab th, .rtab td { padding: 10px 14px; border-top: 1px solid var(--line); text-align: left; vertical-align: middle; }
+  .rtab thead th { border-top: 0; font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+  .rtab tbody th a { font-weight: 800; font-size: 16px; color: var(--ink); }
+  .rtab tbody th a:hover { color: var(--accent); }
+  .rtab tbody th small { display: block; font-size: 12px; color: var(--muted); font-weight: 500; }
+  .rtab td.mono { font-size: 13.5px; color: var(--ink2); white-space: nowrap; }
+  .rtab__d { white-space: nowrap; }
+  .rtab__d img { display: inline-block; vertical-align: middle; margin-right: 6px; }
+  .rtab__d span { font-family: var(--f-mono); font-size: 14.5px; }
+  .rtab__d small { display: inline-block; margin-left: 8px; font-family: var(--f-mono); font-size: 12.5px; color: #1d4ed8; }
+  .sec--ski { background: linear-gradient(180deg, #f2f9ff 0%, #e6f3fc 100%); padding: 72px 0; }
+  .sec--ski .sec__head { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; flex-wrap: wrap; margin-bottom: 24px; }
+</style>
+
+<script>
+  import { fetchSki, skiCompactHTML, inSeason } from '../lib/ski.js';
+  import { wmoIcon, wmoText, iconUrl } from '../lib/wmo.js';
+  import { num, todayMadrid, longDate, cap } from '../lib/format.js';
+
+  // Taula d'avui i demà: una sola petició a Open-Meteo per a tots els llocs
+  const tab = document.querySelector<HTMLElement>('[data-rtab]');
+  if (tab) {
+    const list = JSON.parse(tab.dataset.rtab || '[]');
+    const lang = document.documentElement.lang === 'es' ? 'es' : 'ca';
+    const q = new URLSearchParams({
+      latitude: list.map((x: any) => x.lat).join(','),
+      longitude: list.map((x: any) => x.lng).join(','),
+      elevation: list.map((x: any) => x.alt).join(','),
+      daily: 'weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum',
+      timezone: 'Europe/Madrid',
+      forecast_days: '2',
+    });
+    fetch(`https://api.open-meteo.com/v1/forecast?${q}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (!j) return;
+        const arr = Array.isArray(j) ? j : [j];
+        arr.forEach((res: any, i: number) => {
+          const d = res?.daily;
+          if (!d?.time) return;
+          [0, 1].forEach((k) => {
+            const el = tab.querySelector(`[data-c="${list[i].s}-${k}"]`);
+            if (!el || d.time[k] == null) return;
+            const code = d.weather_code[k], rain = d.precipitation_sum[k];
+            el.innerHTML = `<img src="${iconUrl(wmoIcon(code, true))}" alt="${wmoText(code, lang)}" title="${wmoText(code, lang)}" width="34" height="34" loading="lazy"><span><b>${Math.round(d.temperature_2m_max[k])}°</b> / ${Math.round(d.temperature_2m_min[k])}°</span><small>${rain >= 0.2 ? `${num(rain)} mm` : ''}</small>`;
+          });
+          if (i === 0) [0, 1].forEach((k) => { const th = tab.querySelector(`[data-rdate="${k}"]`); if (th && d.time[k]) th.textContent = cap(longDate(d.time[k], lang)); });
+        });
+      })
+      .catch(() => {});
+  }
+
+  const box = document.querySelector<HTMLElement>('[data-skir]');
+  if (box) {
+    const { resorts, lang, base } = JSON.parse(box.dataset.skir || '{}');
+    const today = todayMadrid();
+    const season = inSeason(today) || new URLSearchParams(location.search).has('temporada');
+    fetchSki(resorts, 12000).then((groups) => {
+      const html = skiCompactHTML(groups, { today, lang, season, base });
+      if (html) box.innerHTML = html;
+    }).catch(() => {});
+  }
+</script>

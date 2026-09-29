@@ -17,6 +17,13 @@ Weather-station network site for Cadí-Moixeró / Berguedà. **All user-facing c
 ## Pages
 `/` home · `/estacions` + `/estacions/[slug]` · `/temps` + `/temps/[slug]` (places in `src/lib/places.js`) · `/cap-de-setmana` · `/mapa` (Leaflet, bundled) · `/radar` (Meteocat giny) · `/historial` · `/sobre` · `/contacte` (email from env `CONTACT_EMAIL`) · `/webcams` (noindex until cameras exist) · `/estudi` (internal, noindex + robots-disallowed: builds the 1080×1920 social images — forecast text editor, daily summary and rankings — drawn on canvas in `src/scripts/estudi/`; archive data from the static `/estudi-dades.json`, today's data from `/api/ara`).
 
+## Places and zones (Pirineu)
+- `src/lib/places.js` = the Cadí places (zona 'cadi', with our stations) + `src/lib/places-pirineu.js` (Cerdanya, Ripollès, Alt Urgell, Solsonès, Pallars, Ribagorça, Aran, Andorra; zona 'pirineu'). Spanish texts: `places-es.js` + `places-pirineu-es.js`. `CADI` is what the footer place list, /muntanya and the weekend page use; `PLACES` is everything.
+- Every place has a `region` (`src/lib/regions.js`); each region has a page at `/temps/<region>` and `/es/tiempo/<region>` (`RegionPage.astro`: 48 h chart with the towns as chips, today and tomorrow for every place, ski cards, SCT roads for `areas`).
+- Places without a Meteocadí station show the nearest XEMA stations live (`NearbyXema.astro`, from `/api/xema`) and SCT incidents near them (`near` km); Andorra has no SCT data. Place pages link to their region, siblings and the nearest places (`nearbyPlaces`).
+- Facts in new intros come from Catalan Wikipedia and official sites; ski figures change every season (`ski.km` approximate, `ski.kmMin` for "més de"): review them before each winter. Don't add claims without a source.
+- Titles: places with our station keep the original "ara, previsió per hores i historial" titles; the rest use per-kind titles (town, ski resort, pass). Check duplicates after adding places (all titles and descriptions must be unique).
+
 ## Mountain pages
 - Places with `kind` cim / coll / esqui / refugi (see `MOUNTAIN_KINDS` in `src/lib/places.js`) are mountain pages: they need `points` (label, lat, lng, alt) for the forecast at altitude, and show the liability notice (`MountainNotice`) at the top and bottom.
 - `src/lib/mountain.js` builds the Open-Meteo multi-point request (temperature, feels-like, wind/gusts, precipitation, snow, freezing level) and the tables/text, both at build time and in the browser.
@@ -35,7 +42,8 @@ Weather-station network site for Cadí-Moixeró / Berguedà. **All user-facing c
 - Bagà Nord and Bagà Sud are hidden on this map (`HIDDEN_HERE`) so the three Bagà stations don't pile up; Bagà Centre stays.
 
 ## Ski (Meteocadí Neu)
-- `/esqui` and `/es/esqui` (`SkiHub.astro`): 7-day board for every place with a `ski` attribute in `places.js` (type, region, official web, webcams), roads near the resorts (`/api/transit?near=lat:lng:km`) and official links.
+- `/esqui` and `/es/esqui` (`SkiHub.astro`): compact cards (`skiCompactHTML`) for every place with a `ski` attribute, grouped by zone, roads on the busiest accesses (`/api/transit?near=lat:lng:km`, max 4 zones) and official links. The full 7-day table (`skiCardsHTML`) is on each resort's own page, with its facts (cotes, km, opening year).
+- The header has a highlighted Esquí button (also next to the burger on mobile). The home shows `SKI_HOME` resorts, above the 48 h forecast in season.
 - `src/lib/ski.js` rates the weather for skiing (wind at the top, snowfall, rain at the base, sun, cold, heat, fresh snow). It is weather only, never slope status or whether a resort is open; the rating is hidden out of season (15 Nov–30 Apr), `?temporada` forces it for testing.
 - Resort facts must be verifiable; the official site of each resort is the reference for opening, snow and prices.
 

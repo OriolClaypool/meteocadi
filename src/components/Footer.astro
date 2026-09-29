@@ -1,5 +1,6 @@
 ---
-import { PLACES } from '../lib/places.js';
+import { CADI as PLACES } from '../lib/places.js';
+import { REGIONS, localizeRegion } from '../lib/regions.js';
 import { PLACES_ES } from '../lib/places-es.js';
 interface Props { lang?: 'ca' | 'es' }
 const { lang = 'ca' } = Astro.props;
@@ -32,6 +33,7 @@ const SITE_CA = [
   ['/avis-legal', 'Avís legal'],
 ];
 const SITE = es ? SITE_ES : SITE_CA;
+const regions = REGIONS.filter((r) => r.slug !== 'bergueda').map((r) => localizeRegion(r, lang)).map((r) => ({ href: `${es ? '/es/tiempo/' : '/temps/'}${r.slug}`, label: `${es ? 'El tiempo' : 'El temps'} ${r.a}` }));
 const places = es ? PLACES.map((p) => ({ href: `/es/tiempo/${p.slug}`, label: `El tiempo ${PLACES_ES[p.slug].a}` })) : PLACES.map((p) => ({ href: `/temps/${p.slug}`, label: `El temps ${p.a}` }));
 ---
 <footer class="foot">
@@ -49,6 +51,11 @@ const places = es ? PLACES.map((p) => ({ href: `/es/tiempo/${p.slug}`, label: `E
       <h2>{es ? 'El tiempo en la zona' : 'El temps a la zona'}</h2>
       <ul class="cols">
         {places.map((p) => <li><a href={p.href}>{p.label}</a></li>)}
+      </ul>
+      <h2 style="margin-top:32px;">{es ? 'El tiempo en el Pirineo' : 'El temps al Pirineu'}</h2>
+      <ul class="cols">
+        {regions.map((p) => <li><a href={p.href}>{p.label}</a></li>)}
+        <li><a href={es ? '/es/tiempo' : '/temps'}>{es ? 'Todos los lugares' : 'Tots els llocs'}</a></li>
       </ul>
     </div>
     <div>
