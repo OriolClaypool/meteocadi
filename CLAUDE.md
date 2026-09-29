@@ -37,15 +37,19 @@ Weather-station network site for Cadí-Moixeró / Berguedà. **All user-facing c
 - Always credit: Servei Meteorològic de Catalunya (XEMA) · dades obertes de la Generalitat; comarca borders: ICGC.
 - Colour layer ("Mapa de color", every variable except snow): IDW (power 3) on a 340×290 canvas clipped to the comarques. Temperatures are reduced to sea level with the lapse rate fitted on the same stations and then re-projected on the terrain height from `api/dem.js` (Copernicus DEM via Open-Meteo, 0.04° grid, CDN cache 1 year); without the DEM it falls back to plain IDW. Wind and gust layers are labelled as only indicative.
 - Outside Catalonia nothing is shown: a mask polygon (world minus `src/lib/catalunya-contorn.json`, the union of the comarques, static) covers the basemap. The page CSS lifts the global `svg { max-width }` for Leaflet panes, otherwise the mask SVG collapses to 0 px.
-- Station selector (top right): all, "Capitals" (nearest station with data to each comarca capital, ≤ 20 km, list `CAPITALS`) or none (colour only).
+- Station selector (top right): "Selecció" (default: labels that would overlap are hidden, so zooming in shows more), all (overlapping ones as dots), "Capitals" (nearest station with data to each comarca capital, ≤ 20 km, list `CAPITALS`) or none (colour only). The downloaded image follows the same mode.
 - Download: `src/scripts/mapa-imatge.js` (lazy-loaded) draws a 1080×1350 post or 1080×1920 story on canvas from the same state (variable, station mode, colour layer): only Catalonia, labels decluttered at image scale, legend in the sea corner, data credits (XEMA licence requires them) and meteocadi.cat. Preview dialog with Download and, where the browser supports it, Share.
 - Bagà Nord and Bagà Sud are hidden on this map (`HIDDEN_HERE`) so the three Bagà stations don't pile up; Bagà Centre stays.
 
 ## Ski (Meteocadí Neu)
 - `/esqui` and `/es/esqui` (`SkiHub.astro`): compact cards (`skiCompactHTML`) for every place with a `ski` attribute, grouped by zone, roads on the busiest accesses (`/api/transit?near=lat:lng:km`, max 4 zones) and official links. The full 7-day table (`skiCardsHTML`) is on each resort's own page, with its facts (cotes, km, opening year).
 - The header has a highlighted Esquí button (also next to the burger on mobile). The home shows `SKI_HOME` resorts, above the 48 h forecast in season.
+- Hub: a Leaflet snow map (7-day snow per resort, labels shrink to number or dot when they overlap) and zone tabs (first zone by default, `#zona` selects one). Cards (`skiCompactHTML`): snow bars per day, resort profile with today's 0 °C level (`skiProfileSVG`). Resort pages: key figures (`skiHeadHTML`) and the 7-day chart of snow and freezing level against the pistes band (`skiChartSVG`), then the detailed table.
 - `src/lib/ski.js` rates the weather for skiing (wind at the top, snowfall, rain at the base, sun, cold, heat, fresh snow). It is weather only, never slope status or whether a resort is open; the rating is hidden out of season (15 Nov–30 Apr), `?temporada` forces it for testing.
 - Resort facts must be verifiable; the official site of each resort is the reference for opening, snow and prices.
+
+## Navigation
+Top menu: El temps (/temps), Mapa (/mapa/catalunya), Estacions, Muntanya, plus the Esquí and Contacte buttons. Radar, Historial, Sobre el projecte and the network map (/mapa) are linked from the home (Explora section), the stations page and the footer.
 
 ## Episodes (automatic reports)
 - `src/lib/episodes.js` scans the daily archive at build time for heavy rain, strong wind, heat, cold and the first valley frost of the autumn (thresholds in `LLINDARS`; another station must corroborate). Consecutive days merge into one episode; slug `/episodis/YYYY-MM-DD-type` (start date, stable while the episode grows).

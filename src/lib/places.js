@@ -153,7 +153,7 @@ const CADI_PLACES = [
     name: 'La Molina',
     a: 'a la Molina',
     kind: 'esqui',
-    ski: { type: 'alpi', region: 'Cerdanya', web: 'https://www.lamolina.cat/' },
+    ski: { type: 'alpi', region: 'Cerdanya', web: 'https://www.lamolina.cat/', base: 1700, top: 2536, km: 71, opened: 1943 },
     lat: 42.3436, lng: 1.9561, alt: 1700,
     stations: ['IGUARD34', 'IBAG67'],
     points: [
@@ -171,7 +171,7 @@ const CADI_PLACES = [
     name: 'Masella',
     a: 'a Masella',
     kind: 'esqui',
-    ski: { type: 'alpi', region: 'Cerdanya', web: 'https://www.masella.com/', webcams: 'https://www.masella.com/es/webcam' },
+    ski: { type: 'alpi', region: 'Cerdanya', web: 'https://www.masella.com/', webcams: 'https://www.masella.com/es/webcam', base: 1600, top: 2536, km: 74, opened: 1967 },
     lat: 42.3512, lng: 1.9021, alt: 1600,
     stations: ['IGUARD34', 'IBAG67'],
     points: [
@@ -189,7 +189,7 @@ const CADI_PLACES = [
     name: 'Port del Comte',
     a: 'a Port del Comte',
     kind: 'esqui',
-    ski: { type: 'alpi', region: 'Solsonès', web: 'https://portdelcomte.net/', webcams: 'https://portdelcomte.net/webcams-i-meteo/' },
+    ski: { type: 'alpi', region: 'Solsonès', web: 'https://portdelcomte.net/', webcams: 'https://portdelcomte.net/webcams-i-meteo/', base: 1700, top: 2300, km: 54, opened: 1973 },
     lat: 42.1728, lng: 1.5619, alt: 1700,
     stations: ['IGSOL4', 'IGSOL7'],
     points: [
@@ -206,7 +206,7 @@ const CADI_PLACES = [
     name: 'Rasos de Peguera',
     a: 'als Rasos de Peguera',
     kind: 'esqui',
-    ski: { type: 'alpi', region: 'Berguedà', web: 'https://www.rasos.net/' },
+    ski: { type: 'alpi', region: 'Berguedà', web: 'https://www.rasos.net/', base: 1850, top: 2050, opened: 1975 },
     lat: 42.1367, lng: 1.7627, alt: 1850,
     stations: ['IGSOL7', 'ILANOU4'],
     points: [
@@ -223,7 +223,7 @@ const CADI_PLACES = [
     name: 'Tuixent-La Vansa',
     a: 'a Tuixent-La Vansa',
     kind: 'esqui',
-    ski: { type: 'nordic', region: 'Alt Urgell', web: 'https://www.tuixent-lavansa.com/' },
+    ski: { type: 'nordic', region: 'Alt Urgell', web: 'https://www.tuixent-lavansa.com/', base: 1830, top: 2150 },
     lat: 42.2228, lng: 1.5383, alt: 1830,
     stations: ['IGSOL4', 'IGSOL7'],
     points: [

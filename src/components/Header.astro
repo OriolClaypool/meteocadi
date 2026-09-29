@@ -4,21 +4,17 @@ const { variant, current = '', lang = 'ca', alt } = Astro.props;
 const es = lang === 'es';
 // Les pàgines en castellà enllacen a les catalanes quan no tenen versió pròpia
 const LINKS_ES = [
-  { href: '/estacions', label: 'Estaciones', key: 'estacions' },
   { href: '/es/tiempo', label: 'El tiempo', key: 'temps' },
+  { href: '/mapa/catalunya', label: 'Mapa', key: 'mapa' },
+  { href: '/estacions', label: 'Estaciones', key: 'estacions' },
   { href: '/es/montana', label: 'Montaña', key: 'muntanya' },
-  { href: '/mapa', label: 'Mapa', key: 'mapa' },
-  { href: '/radar', label: 'Radar', key: 'radar' },
-  { href: '/historial', label: 'Historial', key: 'historial' },
 ];
+// Radar, historial i "Sobre el projecte" són al peu i a la portada
 const LINKS_CA = [
+  { href: '/temps', label: 'El temps', key: 'temps' },
+  { href: '/mapa/catalunya', label: 'Mapa', key: 'mapa' },
   { href: '/estacions', label: 'Estacions', key: 'estacions' },
-  { href: '/temps', label: 'Pobles i cims', key: 'temps' },
   { href: '/muntanya', label: 'Muntanya', key: 'muntanya' },
-  { href: '/mapa', label: 'Mapa', key: 'mapa' },
-  { href: '/radar', label: 'Radar', key: 'radar' },
-  { href: '/historial', label: 'Historial', key: 'historial' },
-  { href: '/sobre', label: 'Sobre el projecte', key: 'sobre' },
 ];
 const LINKS = es ? LINKS_ES : LINKS_CA;
 ---
