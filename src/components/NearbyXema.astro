@@ -1,0 +1,74 @@
+---
+// Estacions automàtiques del Meteocat més properes a un lloc, en directe (des de /api/xema, dades obertes).
+// Es fa servir a les pàgines de lloc, sobretot a les que no tenen estació de Meteocadí a prop.
+interface Props { lat: number; lng: number; n?: number; km?: number; lang?: 'ca' | 'es' }
+const { lat, lng, n = 4, km = 30, lang = 'ca' } = Astro.props;
+const es = lang === 'es';
+---
+<div class="nx" data-nx={JSON.stringify({ lat, lng, n, km, lang })} aria-live="polite">
+  <p class="nx__load">{es ? 'Cargando las estaciones del Meteocat…' : 'Carregant les estacions del Meteocat…'}</p>
+</div>
+<p class="nx__src">{es
+  ? 'Estaciones automáticas del Servei Meteorològic de Catalunya (datos abiertos de la Generalitat), con 45-75 minutos de retraso. Son datos sin validar.'
+  : 'Estacions automàtiques del Servei Meteorològic de Catalunya (dades obertes de la Generalitat), amb 45-75 minuts de retard. Són dades sense validar.'}</p>
+
+<style is:global>
+  .nx { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+  .nx__load, .nx__none { color: var(--a-mut); font-size: 15px; }
+  .nx__c { background: rgba(255, 255, 255, 0.04); border: 1px solid var(--a-line); border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  .nx__h { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+  .nx__n { font-family: var(--f-head); font-size: 17px; font-weight: 800; letter-spacing: -0.01em; color: #f1f5fb; line-height: 1.2; }
+  .nx__s { display: block; font-family: var(--f-mono); font-size: 11.5px; color: var(--a-mut); margin-top: 3px; }
+  .nx__t { font-family: var(--f-mono); font-size: 30px; font-weight: 600; line-height: 1; white-space: nowrap; }
+  .nx__v { display: flex; flex-wrap: wrap; gap: 4px 14px; font-family: var(--f-mono); font-size: 12.5px; color: var(--a-txt2); }
+  .nx__v b { color: #f1f5fb; font-weight: 600; }
+  .nx__src { margin-top: 12px; font-size: 12.5px; color: var(--a-mut); }
+  @media (max-width: 640px) { .nx .nx__c:nth-child(n + 5) { display: none; } }
+</style>
+
+<script>
+  import { tempColor, num, dirLabel, todayMadrid } from '../lib/format.js';
+  const thousands = (v: number) => String(v).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const km = (a: number, b: number, c: number, d: number) => {
+    const R = 6371, rad = (x: number) => (x * Math.PI) / 180;
+    const h = Math.sin(rad(c - a) / 2) ** 2 + Math.cos(rad(a)) * Math.cos(rad(c)) * Math.sin(rad(d - b) / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(h));
+  };
+  const month = Number(todayMadrid().slice(5, 7));
+  const snowSeason = month >= 11 || month <= 5;
+  let data: Promise<any> | null = null;
+  const load = () => (data ??= fetch('/api/xema').then((r) => (r.ok ? r.json() : null)).catch(() => null));
+  document.querySelectorAll<HTMLElement>('[data-nx]').forEach(async (box) => {
+    const o = JSON.parse(box.dataset.nx || '{}');
+    const es = o.lang === 'es';
+    const j = await load();
+    const list = (j?.stations || [])
+      .filter((s: any) => s.t != null || s.rain != null)
+      .map((s: any) => ({ ...s, d: km(o.lat, o.lng, s.lat, s.lng) }))
+      .filter((s: any) => s.d <= o.km)
+      .sort((a: any, b: any) => a.d - b.d)
+      .slice(0, o.n);
+    if (!list.length) {
+      box.innerHTML = `<p class="nx__none">${!j || j.error
+        ? es ? 'Ahora no se han podido cargar los datos del Meteocat.' : "Ara no s'han pogut carregar les dades del Meteocat."
+        : es ? `No hay ninguna estación del Meteocat a menos de ${o.km} km.` : `No hi ha cap estació del Meteocat a menys de ${o.km} km.`}</p>`;
+      return;
+    }
+    const L = es
+      ? { at: 'a', max: 'máx.', min: 'mín.', wind: 'viento', gust: 'racha', rain: 'lluvia', snow: 'nieve' }
+      : { at: 'a', max: 'màx.', min: 'mín.', wind: 'vent', gust: 'ratxa', rain: 'pluja', snow: 'neu' };
+    box.innerHTML = list
+      .map((s: any) => {
+        const v: string[] = [];
+        if (s.tmax != null) v.push(`${L.max} <b>${num(s.tmax)}°</b>`);
+        if (s.tmin != null) v.push(`${L.min} <b>${num(s.tmin)}°</b>`);
+        if (s.wind != null) v.push(`${L.wind} <b>${Math.round(s.wind)}</b> km/h ${dirLabel(s.dir)}`);
+        if (s.gust != null) v.push(`${L.gust} <b>${Math.round(s.gust)}</b> km/h`);
+        if (s.rain != null) v.push(`${L.rain} <b>${num(s.rain)}</b> mm`);
+        if (snowSeason && s.snow != null && s.snow >= 1) v.push(`${L.snow} <b>${Math.round(s.snow)}</b> cm`);
+        const dist = s.d < 1 ? (es ? 'a menos de 1 km' : "a menys d'1 km") : `${L.at} ${num(s.d, 1)} km`;
+        return `<div class="nx__c"><div class="nx__h"><div><span class="nx__n">${s.name}</span><span class="nx__s">${s.alt != null ? `${thousands(s.alt)} m · ` : ''}${dist}</span></div>${s.t != null ? `<span class="nx__t" style="color:${tempColor(s.t)}">${num(s.t)}°</span>` : ''}</div><div class="nx__v">${v.map((x) => `<span>${x}</span>`).join('')}</div></div>`;
+      })
+      .join('');
+  });
+</script>

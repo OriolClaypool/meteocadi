@@ -2,7 +2,9 @@
 // stations: estacions de la xarxa associades, la primera és la de referència.
 // intro: text propi de cada lloc. Revisa'l i afegeix-hi coneixement local: és el que el fa únic.
 
-export const PLACES = [
+import { PIRINEU } from './places-pirineu.js';
+
+const CADI_PLACES = [
   {
     slug: 'baga',
     name: 'Bagà',
@@ -297,14 +299,32 @@ export const PLACES = [
   },
 ];
 
+// Zona de cada lloc del Cadí (la de places-pirineu.js ja hi va escrita). zona 'cadi': la zona de la xarxa,
+// la que surt al peu, a /muntanya i al cap de setmana.
+const REGION_OF = { 'la-molina': 'cerdanya', masella: 'cerdanya', 'port-del-comte': 'solsones', 'tuixent-la-vansa': 'alt-urgell' };
+export const PLACES = [
+  ...CADI_PLACES.map((p) => ({ ...p, region: REGION_OF[p.slug] ?? 'bergueda', zona: 'cadi' })),
+  ...PIRINEU.map((p) => ({ ...p, zona: 'pirineu' })),
+];
+export const CADI = PLACES.filter((p) => p.zona === 'cadi');
+
 export const PLACE_BY_SLUG = Object.fromEntries(PLACES.map((p) => [p.slug, p]));
+export const placesIn = (region) => PLACES.filter((p) => p.region === region);
 
 // Llocs de muntanya (tenen la secció de condicions de muntanya i surten a /muntanya)
 export const MOUNTAIN_KINDS = ['cim', 'coll', 'esqui', 'refugi'];
 // Llocs amb previsió per altitud (muntanya i carreteres de port)
 export const isMountain = (p) => MOUNTAIN_KINDS.includes(p.kind) || p.kind === 'carretera';
 export const isRoad = (p) => p.kind === 'carretera';
-export const MOUNTAINS = PLACES.filter((p) => MOUNTAIN_KINDS.includes(p.kind));
+export const MOUNTAINS = CADI.filter((p) => MOUNTAIN_KINDS.includes(p.kind));
+
+// Llocs més propers a un lloc (per a l'enllaçat entre pàgines)
+export function nearbyPlaces(p, n = 6) {
+  return PLACES.filter((x) => x.slug !== p.slug)
+    .map((x) => ({ x, d: distanceKm(p, x) }))
+    .sort((a, b) => a.d - b.d)
+    .slice(0, n);
+}
 
 // Distància en línia recta (km) entre un lloc i una estació
 export function distanceKm(a, b) {

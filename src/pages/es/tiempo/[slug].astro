@@ -1,10 +1,16 @@
 ---
-// El tiempo en cada lugar (versión en castellano). La versión principal, en catalán, es /temps/[slug].
+// El tiempo en cada lugar y en cada zona (castellano). La versión principal, en catalán, es /temps/[slug].
 import PlacePage from '../../../components/PlacePage.astro';
+import RegionPage from '../../../components/RegionPage.astro';
 import { PLACES } from '../../../lib/places.js';
+import { REGIONS } from '../../../lib/regions.js';
 
 export function getStaticPaths() {
-  return PLACES.map((p) => ({ params: { slug: p.slug } }));
+  return [
+    ...PLACES.map((p) => ({ params: { slug: p.slug }, props: { region: false } })),
+    ...REGIONS.map((r) => ({ params: { slug: r.slug }, props: { region: true } })),
+  ];
 }
+const { region } = Astro.props;
 ---
-<PlacePage slug={Astro.params.slug} lang="es" />
+{region ? <RegionPage slug={Astro.params.slug} lang="es" /> : <PlacePage slug={Astro.params.slug} lang="es" />}

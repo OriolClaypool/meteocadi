@@ -1,0 +1,101 @@
+---
+// Índex de llocs per zones: /temps (català) i /es/tiempo (castellà).
+import Base from '../layouts/Base.astro';
+import { placesIn } from '../lib/places.js';
+import { REGIONS, localizeRegion } from '../lib/regions.js';
+import { localize } from '../lib/places-es.js';
+import { BY_ID, fmtAlt } from '../lib/stations.js';
+
+interface Props { lang?: 'ca' | 'es' }
+const { lang = 'ca' } = Astro.props;
+const es = lang === 'es';
+const base = es ? '/es/tiempo/' : '/temps/';
+const KIND = es
+  ? { poble: 'Pueblo', cim: 'Cima', coll: 'Collado', esqui: 'Estación de esquí', refugi: 'Refugio', carretera: 'Carretera y puerto' }
+  : { poble: 'Poble', cim: 'Cim', coll: 'Coll', esqui: "Estació d'esquí", refugi: 'Refugi', carretera: 'Carretera i port' };
+const ORDER = { poble: 0, esqui: 1, cim: 2, coll: 2, refugi: 3, carretera: 4 };
+const regions = REGIONS.map((r) => {
+  const R = localizeRegion(r, lang);
+  const list = placesIn(r.slug)
+    .map((p) => localize(p, lang))
+    .sort((a, b) => (ORDER[a.kind] ?? 5) - (ORDER[b.kind] ?? 5) || (a.slug === r.capital ? -1 : b.slug === r.capital ? 1 : 0));
+  return { ...R, list };
+});
+const all = regions.flatMap((r) => r.list);
+const W = 'https://www.meteocadi.cat';
+const ld = [
+  {
+    '@type': 'ItemList',
+    name: es ? 'El tiempo en los pueblos, cimas y estaciones de esquí del Pirineo' : "El temps als pobles, cims i estacions d'esquí del Pirineu",
+    itemListElement: all.map((p, i) => ({ '@type': 'ListItem', position: i + 1, name: `${es ? 'El tiempo' : 'El temps'} ${p.a}`, url: `${W}${base}${p.slug}` })),
+  },
+];
+const sub = (p) =>
+  p.stations?.length
+    ? `${es ? 'Estación' : 'Estació'}: ${BY_ID[p.stations[0]].name}`
+    : p.ski
+    ? `${p.ski.type === 'nordic' ? (es ? 'Esquí nórdico' : 'Esquí nòrdic') : es ? 'Esquí alpino' : 'Esquí alpí'}`
+    : KIND[p.kind] ?? '';
+const alt = (p) => (p.ski ? `${fmtAlt(p.points[p.points.length - 1].alt)} – ${fmtAlt(p.points[0].alt)}` : fmtAlt(p.alt));
+---
+<Base
+  title={es ? 'El tiempo en el Pirineo: pueblos, cimas y estaciones de esquí | Meteocadí' : "El temps al Pirineu: pobles, cims i estacions d'esquí | Meteocadí"}
+  description={es
+    ? "Previsión por horas y a 7 días calculada para la altitud de cada lugar en el Berguedà, la Cerdanya, el Ripollès, el Alt Urgell, el Solsonès, el Pallars, la Ribagorça, el Valle de Arán y Andorra, con datos en directo de las estaciones más cercanas."
+    : "Previsió per hores i per a 7 dies calculada per a l'altitud de cada lloc al Berguedà, la Cerdanya, el Ripollès, l'Alt Urgell, el Solsonès, el Pallars, la Ribagorça, la Vall d'Aran i Andorra, amb dades en directe de les estacions més properes."}
+  path={es ? '/es/tiempo' : '/temps'}
+  jsonLd={ld}
+  current="temps"
+  lang={lang}
+  alternates={{ ca: '/temps', es: '/es/tiempo' }}
+>
+  <section class="phead">
+    <div class="wrap">
+      {es ? <h1>El tiempo en el <em>Pirineo</em></h1> : <h1>El temps al <em>Pirineu</em></h1>}
+      <p>{es
+        ? 'Cada lugar tiene la previsión por horas calculada para su altitud y los datos en directo de las estaciones más cercanas: las de la red Meteocadí en el Cadí y el Berguedà, y las del Meteocat en el resto.'
+        : "Cada lloc té la previsió per hores calculada per a la seva altitud i les dades en directe de les estacions més properes: les de la xarxa Meteocadí al Cadí i el Berguedà, i les del Meteocat a la resta."}</p>
+      <p style="margin-top:16px;display:flex;flex-wrap:wrap;gap:12px;">
+        <a class="btn btn--blue" href={es ? '/es/esqui' : '/esqui'} style="height:46px;font-size:16px;">{es ? 'Nieve y esquí' : 'Neu i esquí'}</a>
+        <a class="btn btn--line" href={es ? '/es/montana' : '/muntanya'} style="height:46px;font-size:16px;background:#fff;">{es ? 'Condiciones en la montaña' : 'Condicions a la muntanya'}</a>
+        {!es && <a class="btn btn--line" href="/cap-de-setmana" style="height:46px;font-size:16px;background:#fff;">Previsió per al cap de setmana</a>}
+      </p>
+      <nav class="rjump" aria-label={es ? 'Zonas' : 'Zones'}>
+        {regions.map((r) => <a href={`#${r.slug}`}>{r.name}</a>)}
+      </nav>
+    </div>
+  </section>
+  <section class="sec">
+    <div class="wrap" style="display:flex;flex-direction:column;gap:64px;">
+      {regions.map((r) => (
+        <div id={r.slug} style="scroll-margin-top:24px;">
+          <div class="rhead">
+            <h2 class="h2" style="font-size:34px;">{r.name}</h2>
+            <a href={`${base}${r.slug}`} class="link-arrow">{es ? 'El tiempo' : 'El temps'} {r.a} →</a>
+          </div>
+          <div class="places">
+            {r.list.map((p) => (
+              <a href={`${base}${p.slug}`} class="place">
+                <span class="place__n">{p.name}</span>
+                <span class="place__a mono">{alt(p)}</span>
+                <span class="place__s">{sub(p)}</span>
+              </a>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  </section>
+</Base>
+<style>
+  .rjump { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
+  .rjump a { padding: 8px 14px; border-radius: 999px; background: #fff; border: 1px solid var(--line); font-weight: 600; font-size: 15px; }
+  .rjump a:hover { border-color: var(--blue); }
+  .rhead { display: flex; justify-content: space-between; align-items: baseline; gap: 12px 24px; flex-wrap: wrap; margin-bottom: 20px; }
+  .places { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+  .place { display: flex; flex-direction: column; gap: 6px; padding: 20px 22px; border-radius: 14px; border: 1px solid var(--line); background: #fff; color: var(--ink); transition: border-color .15s, transform .2s; }
+  .place:hover { border-color: var(--blue); transform: translateY(-2px); color: var(--ink); }
+  .place__n { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; }
+  .place__a { font-size: 13.5px; color: var(--blue); }
+  .place__s { font-size: 14px; color: var(--muted); }
+</style>
