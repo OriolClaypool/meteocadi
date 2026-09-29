@@ -24,12 +24,26 @@ import Base from '../../layouts/Base.astro';
         <span class="cm-when" id="cmWhen">Carregant les dades…</span>
       </div>
       <div id="cmap" class="cmap" aria-label="Mapa de Catalunya amb les dades de les estacions"></div>
+      <div class="cm-dl" role="group" aria-label="Descarrega el mapa com a imatge">
+        <span>Descarrega el mapa com a imatge</span>
+        <button type="button" data-f="post">Publicació 4:5</button>
+        <button type="button" data-f="story">Història 9:16</button>
+      </div>
       <p class="cm-note">
-        Dades: <a href="https://www.meteo.cat/" rel="noopener" target="_blank">Servei Meteorològic de Catalunya</a> (Xarxa d'Estacions Meteorològiques Automàtiques, a través de les <a href="https://analisi.transparenciacatalunya.cat/Medi-Ambient/Dades-meteorol-giques-de-la-XEMA/nzvn-apee" rel="noopener" target="_blank">dades obertes de la Generalitat</a>) i xarxa Meteocadí (voltades en negre). Límits comarcals: ICGC. El mapa de color és una estimació entre estacions (a la temperatura, tenint en compte l'altitud del terreny, Copernicus DEM): serveix per veure com es reparteix, no el valor exacte d'un punt. Són dades automàtiques sense validar: una lectura estranya pot ser un error del sensor. Quan les etiquetes no hi caben, algunes estacions es mostren com un punt: toca-les o apropa't per veure'n el valor.
+        Dades: <a href="https://www.meteo.cat/" rel="noopener" target="_blank">Servei Meteorològic de Catalunya</a> (Xarxa d'Estacions Meteorològiques Automàtiques, a través de les <a href="https://analisi.transparenciacatalunya.cat/Medi-Ambient/Dades-meteorol-giques-de-la-XEMA/nzvn-apee" rel="noopener" target="_blank">dades obertes de la Generalitat</a>) i xarxa Meteocadí (voltades en negre). Límits comarcals: ICGC. El mapa de color és una estimació entre estacions (a la temperatura, tenint en compte l'altitud del terreny, Copernicus DEM): serveix per veure com es reparteix, no el valor exacte d'un punt, i al vent és només orientatiu, perquè canvia molt d'un lloc a l'altre. Amb el selector d'estacions pots deixar-ne només una per capital de comarca o amagar-les totes. Són dades automàtiques sense validar: una lectura estranya pot ser un error del sensor. Quan les etiquetes no hi caben, algunes estacions es mostren com un punt: toca-les o apropa't per veure'n el valor.
       </p>
       <div class="cm-ext" id="cmExt" aria-live="polite"></div>
     </div>
   </section>
+
+  <dialog class="cm-dlg" id="cmDlg" aria-label="Imatge del mapa">
+    <img id="cmDlgImg" alt="Imatge del mapa per a xarxes socials" />
+    <div class="cm-dlg__bar">
+      <button type="button" id="cmDlgShare" hidden>Comparteix</button>
+      <a id="cmDlgSave" href="#" download="meteocadi-catalunya.png">Descarrega</a>
+      <button type="button" id="cmDlgClose" class="is-ghost">Tanca</button>
+    </div>
+  </dialog>
 </Base>
 
 <style is:global>
@@ -41,25 +55,40 @@ import Base from '../../layouts/Base.astro';
   .cmap { width: 100%; height: min(82vh, 920px); min-height: 520px; border-radius: 16px; border: 1px solid var(--line); background: #e9eef3; overflow: hidden; }
   .cmap .leaflet-tile-pane { filter: saturate(0.3) contrast(0.9) brightness(1.08); opacity: 0.6; }
   .cmap.leaflet-container { font-family: var(--f-ui); background: #e9eef3; }
+  /* Leaflet només ho treu a la capa d'objectes; la màscara és en una capa pròpia */
+  .cmap .leaflet-pane svg { max-width: none !important; max-height: none !important; }
   .xpin { width: 0 !important; height: 0 !important; }
   .xp { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); padding: 3px 8px; border-radius: 999px; font-family: var(--f-ui); font-size: 13.5px; font-weight: 700; line-height: 1.25; letter-spacing: -0.01em; white-space: nowrap; box-shadow: 0 1px 3px rgba(16, 35, 59, 0.28); cursor: pointer; font-variant-numeric: tabular-nums; }
   .xp--mc { box-shadow: 0 0 0 2px #10233b, 0 1px 3px rgba(16, 35, 59, 0.3); }
   .xp.is-dot { width: 11px; height: 11px; padding: 0; font-size: 0; border-radius: 50%; }
   .xp.is-dot.xp--mc { width: 13px; height: 13px; }
   .cm-note { font-size: 13.5px; color: var(--muted); max-width: 980px; line-height: 1.55; }
-  .cm-lg { background: rgba(255, 255, 255, 0.94); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font-family: var(--f-ui); font-size: 12px; color: var(--ink2); box-shadow: 0 2px 8px rgba(16, 35, 59, 0.08); }
-  .cm-lg b { display: block; font-family: var(--f-mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 500; margin-bottom: 6px; }
+  .cm-lg, .cm-st { background: rgba(255, 255, 255, 0.94); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font-family: var(--f-ui); font-size: 12px; color: var(--ink2); box-shadow: 0 2px 8px rgba(16, 35, 59, 0.08); }
+  .cm-lg b, .cm-st b { display: block; font-family: var(--f-mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 500; margin-bottom: 6px; }
   .cm-lg .sw { display: flex; gap: 3px; }
   .cm-lg .sw span { display: flex; flex-direction: column; align-items: center; gap: 3px; font-family: var(--f-mono); font-size: 10.5px; }
   .cm-lg .sw i { display: block; width: 26px; height: 10px; border-radius: 3px; }
   .cm-fl { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
-  .cm-fl button { height: 28px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--line); background: #fff; color: var(--ink); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
-  .cm-fl button[aria-pressed='true'] { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .cm-fl button, .cm-st button { height: 28px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--line); background: #fff; color: var(--ink); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .cm-fl button[aria-pressed='true'], .cm-st button[aria-pressed='true'] { background: var(--ink); border-color: var(--ink); color: #fff; }
   .cm-fl button:disabled { opacity: 0.45; cursor: default; }
-  .cm-fl span { font-size: 11.5px; color: var(--muted); max-width: 170px; line-height: 1.3; }
+  .cm-fl span { font-size: 11.5px; color: var(--muted); max-width: 190px; line-height: 1.3; }
+  .cm-st .seg { display: flex; gap: 4px; }
   .cm-field { image-rendering: auto; }
   .cmap.has-field .xp { box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.95), 0 1px 3px rgba(16, 35, 59, 0.35); }
   .cmap.has-field .xp--mc { box-shadow: 0 0 0 2px #10233b, 0 0 0 3.5px rgba(255, 255, 255, 0.95); }
+  .cm-dl { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; }
+  .cm-dl span { font-size: 14px; font-weight: 600; color: var(--ink2); margin-right: 4px; }
+  .cm-dl button { height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: #fff; color: var(--ink); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
+  .cm-dl button::before { content: ''; width: 14px; height: 14px; background: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3v12m0 0-5-5m5 5 5-5M4 20h16'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3v12m0 0-5-5m5 5 5-5M4 20h16'/%3E%3C/svg%3E") center / contain no-repeat; }
+  .cm-dl button:hover { border-color: var(--ink); }
+  .cm-dl button[aria-busy='true'] { opacity: 0.6; cursor: progress; }
+  .cm-dlg { border: 0; border-radius: 16px; padding: 16px; max-width: min(92vw, 560px); background: #fff; box-shadow: 0 20px 60px rgba(16, 35, 59, 0.35); }
+  .cm-dlg::backdrop { background: rgba(16, 35, 59, 0.6); }
+  .cm-dlg img { display: block; max-width: 100%; max-height: 72vh; width: auto; height: auto; margin: 0 auto; border-radius: 8px; border: 1px solid var(--line); }
+  .cm-dlg__bar { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .cm-dlg__bar a, .cm-dlg__bar button { height: 40px; padding: 0 18px; border-radius: 999px; border: 1px solid var(--ink); background: var(--ink); color: #fff; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; text-decoration: none; }
+  .cm-dlg__bar .is-ghost { background: #fff; color: var(--ink); border-color: var(--line); }
   .cm-pop { min-width: 210px; }
   .cm-pop h3 { font-family: var(--f-head); font-size: 17px; font-weight: 800; letter-spacing: -0.01em; margin: 0; }
   .cm-pop .sub { font-size: 12.5px; color: var(--muted); margin: 2px 0 8px; }
@@ -80,9 +109,14 @@ import Base from '../../layouts/Base.astro';
     .cmap { height: 72vh; min-height: 440px; }
     .xp { font-size: 12px; padding: 2px 6px; }
     .cm-vars button { height: 36px; padding: 0 12px; font-size: 14px; }
-    .cm-lg { padding: 6px 8px; }
+    .cm-lg, .cm-st { padding: 6px 8px; }
     .cm-lg .sw i { width: 17px; height: 8px; }
     .cm-lg .sw span { font-size: 9.5px; }
+    .cm-st button { height: 26px; padding: 0 8px; font-size: 11.5px; }
+    /* L'atribució ocupa dues línies: la llegenda (i el botó del mapa de color) queda per sobre */
+    .cmap .leaflet-control-attribution { font-size: 10px; }
+    .cmap .leaflet-bottom.leaflet-left { margin-bottom: 30px; }
+    .cm-dl span { width: 100%; }
   }
 </style>
 
@@ -91,6 +125,7 @@ import Base from '../../layouts/Base.astro';
   import 'leaflet/dist/leaflet.css';
   import { loadAra } from '../../scripts/live.js';
   import { STATIONS } from '../../lib/stations.js';
+  import CONTORN from '../../lib/catalunya-contorn.json';
   import { tempColor, tempColorLight, windColor, precipColor, num, dirLabel, hourMadrid, todayMadrid } from '../../lib/format.js';
 
   type St = { id: string; name: string; lat: number; lng: number; alt: number | null; com?: string; mun?: string; mc?: boolean; slug?: string;
@@ -100,19 +135,42 @@ import Base from '../../layouts/Base.astro';
   const snowSeason = month >= 11 || month <= 5;
   const humColor = (h: number) => (h < 30 ? '#fde68a' : h < 50 ? '#bfdbfe' : h < 70 ? '#93c5fd' : h < 85 ? '#60a5fa' : '#3b82f6');
   const snowColor = (s: number) => (s < 1 ? '#e2e8f0' : s < 5 ? '#e0f2fe' : s < 20 ? '#bae6fd' : s < 50 ? '#7dd3fc' : s < 100 ? '#38bdf8' : '#0ea5e9');
+  // title: títol de la imatge per a xarxes (segona part en color); unit: unitat a la llegenda de la imatge
   const VARS = [
-    { key: 't', label: 'Temperatura', legend: 'Temperatura ara (°C)', fmt: (v: number) => num(v), color: tempColor, steps: [-5, 0, 5, 10, 15, 20, 25, 30, 35], two: true },
-    { key: 'tmax', label: 'Màxima', legend: "Màxima d'avui (°C)", fmt: (v: number) => num(v), color: tempColor, steps: [0, 5, 10, 15, 20, 25, 30, 35], two: true },
-    { key: 'tmin', label: 'Mínima', legend: "Mínima d'avui (°C)", fmt: (v: number) => num(v), color: tempColor, steps: [-10, -5, 0, 5, 10, 15, 20, 25], two: true, low: true },
-    { key: 'rain', label: 'Pluja', legend: "Pluja d'avui (mm)", fmt: (v: number) => num(v), color: (v: number) => (v < 0.1 ? '#e2e8f0' : precipColor(v)), steps: [0.2, 1, 5, 10, 15, 30, 50, 80] },
-    { key: 'gust', label: 'Ratxa màxima', legend: "Ratxa màxima d'avui (km/h)", fmt: (v: number) => String(Math.round(v)), color: windColor, steps: [10, 20, 30, 40, 55, 70, 90] },
-    { key: 'wind', label: 'Vent', legend: 'Vent ara (km/h)', fmt: (v: number) => String(Math.round(v)), color: windColor, steps: [10, 20, 30, 40, 55, 70] },
-    { key: 'hr', label: 'Humitat', legend: 'Humitat relativa (%)', fmt: (v: number) => String(Math.round(v)), color: humColor, steps: [30, 50, 70, 85], two: true },
-    ...(snowSeason ? [{ key: 'snow', label: 'Neu', legend: 'Gruix de neu (cm)', fmt: (v: number) => String(Math.round(v)), color: snowColor, steps: [1, 5, 20, 50, 100] }] : []),
+    { key: 't', label: 'Temperatura', legend: 'Temperatura ara (°C)', title: ['Temperatura', 'ara a Catalunya'], accent: '#c2410c', unit: 'Temperatura (°C)', fmt: (v: number) => num(v), color: tempColor, steps: [-5, 0, 5, 10, 15, 20, 25, 30, 35], two: true },
+    { key: 'tmax', label: 'Màxima', legend: "Màxima d'avui (°C)", title: ['Temperatura màxima', "d'avui a Catalunya"], accent: '#c2410c', unit: 'Màxima (°C)', fmt: (v: number) => num(v), color: tempColor, steps: [0, 5, 10, 15, 20, 25, 30, 35], two: true, today: true },
+    { key: 'tmin', label: 'Mínima', legend: "Mínima d'avui (°C)", title: ['Temperatura mínima', "d'avui a Catalunya"], accent: '#0369a1', unit: 'Mínima (°C)', fmt: (v: number) => num(v), color: tempColor, steps: [-10, -5, 0, 5, 10, 15, 20, 25], two: true, low: true, today: true },
+    { key: 'rain', label: 'Pluja', legend: "Pluja d'avui (mm)", title: ["Pluja d'avui", 'a Catalunya'], accent: '#1d4ed8', unit: 'Pluja (mm)', fmt: (v: number) => num(v), color: (v: number) => (v < 0.1 ? '#e2e8f0' : precipColor(v)), steps: [0.2, 1, 5, 10, 15, 30, 50, 80], today: true },
+    { key: 'gust', label: 'Ratxa màxima', legend: "Ratxa màxima d'avui (km/h)", title: ['Ratxa màxima de vent', "d'avui a Catalunya"], accent: '#b45309', unit: 'Ratxa màxima (km/h)', fmt: (v: number) => String(Math.round(v)), color: windColor, steps: [10, 20, 30, 40, 55, 70, 90], today: true },
+    { key: 'wind', label: 'Vent', legend: 'Vent ara (km/h)', title: ['Vent', 'ara a Catalunya'], accent: '#0f766e', unit: 'Vent (km/h)', fmt: (v: number) => String(Math.round(v)), color: windColor, steps: [10, 20, 30, 40, 55, 70] },
+    { key: 'hr', label: 'Humitat', legend: 'Humitat relativa (%)', title: ['Humitat relativa', 'ara a Catalunya'], accent: '#1d4ed8', unit: 'Humitat relativa (%)', fmt: (v: number) => String(Math.round(v)), color: humColor, steps: [30, 50, 70, 85], two: true },
+    ...(snowSeason ? [{ key: 'snow', label: 'Neu', legend: 'Gruix de neu (cm)', title: ['Gruix de neu', 'ara a Catalunya'], accent: '#0369a1', unit: 'Gruix de neu (cm)', fmt: (v: number) => String(Math.round(v)), color: snowColor, steps: [1, 5, 20, 50, 100] }] : []),
   ];
   let cur = VARS[0];
   // Estacions de la xarxa que no es mostren en aquest mapa: a Bagà n'hi ha tres molt juntes i només hi deixem la del centre
   const HIDDEN_HERE = new Set(['IBAG65', 'IBAG72']);
+
+  // Capitals de comarca (per al mode "Capitals": l'estació més propera a cadascuna, a menys de 20 km)
+  const CAPITALS: [string, number, number][] = [
+    ['Valls', 41.286, 1.25], ['Figueres', 42.267, 2.961], ['Vilafranca del Penedès', 41.346, 1.698], ["La Seu d'Urgell", 42.358, 1.456],
+    ['El Pont de Suert', 42.408, 0.74], ['Igualada', 41.579, 1.617], ['Vielha', 42.702, 0.796], ['Manresa', 41.728, 1.824],
+    ['Reus', 41.155, 1.107], ['Tortosa', 40.812, 0.521], ["La Bisbal d'Empordà", 41.96, 3.038], ['Sant Feliu de Llobregat', 41.381, 2.045],
+    ['El Vendrell', 41.219, 1.535], ['Barcelona', 41.387, 2.17], ['Berga', 42.104, 1.845], ['Puigcerdà', 42.432, 1.928],
+    ['Montblanc', 41.376, 1.162], ['Vilanova i la Geltrú', 41.224, 1.725], ['Les Borges Blanques', 41.522, 0.869], ['Olot', 42.181, 2.49],
+    ['Girona', 41.979, 2.821], ['Mataró', 41.54, 2.444], ['Moià', 41.811, 2.097], ['Amposta', 40.713, 0.581],
+    ['Balaguer', 41.79, 0.805], ['Vic', 41.93, 2.255], ['Tremp', 42.167, 0.895], ['Sort', 42.413, 1.131],
+    ['Mollerussa', 41.631, 0.894], ['Banyoles', 42.117, 2.766], ['Falset', 41.146, 0.82], ["Móra d'Ebre", 41.093, 0.643],
+    ['Ripoll', 42.201, 2.19], ['Cervera', 41.671, 1.271], ['Lleida', 41.617, 0.62], ['Santa Coloma de Farners', 41.86, 2.668],
+    ['Solsona', 41.994, 1.518], ['Tarragona', 41.119, 1.245], ['Gandesa', 41.052, 0.437], ['Tàrrega', 41.647, 1.14],
+    ['Sabadell', 41.548, 2.107], ['Terrassa', 41.563, 2.009], ['Granollers', 41.608, 2.288], ['Prats de Lluçanès', 42.01, 2.03],
+  ];
+  const MODES = [
+    { key: 'totes', label: 'Totes', title: 'Totes les estacions' },
+    { key: 'capitals', label: 'Capitals', title: "L'estació més propera a cada capital de comarca" },
+    { key: 'cap', label: 'Cap', title: 'Només el mapa de color' },
+  ] as const;
+  let mode: 'totes' | 'capitals' | 'cap' = 'totes';
+  let capIds = new Set<string>();
 
   // Text fosc o blanc segons la lluminositat del color de fons
   const ink = (hex: string) => {
@@ -122,14 +180,23 @@ import Base from '../../layouts/Base.astro';
     return lum < 0.5 ? '#ffffff' : '#10233b';
   };
   const thousands = (v: number) => String(v).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const km = (la1: number, lo1: number, la2: number, lo2: number) => {
+    const dx = (lo2 - lo1) * 111.32 * Math.cos((((la1 + la2) / 2) * Math.PI) / 180), dy = (la2 - la1) * 111.32;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
 
-  const map = L.map('cmap', { zoomControl: true, scrollWheelZoom: false, zoomSnap: 0.25, minZoom: 7 });
+  const map = L.map('cmap', { zoomControl: true, scrollWheelZoom: false, zoomSnap: 0.25, minZoom: 7, maxBounds: [[39.7, -0.8], [43.6, 4.3]], maxBoundsViscosity: 0.8 });
   map.fitBounds([[40.52, 0.16], [42.86, 3.33]]);
   L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
     attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, SRTM · estil © <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA) · límits: ICGC',
     subdomains: 'abc',
     maxZoom: 15,
   }).addTo(map);
+
+  // Fora de Catalunya no es veu res: una capa del color del fons amb el contorn de Catalunya retallat
+  const RINGS = (CONTORN as any).coordinates.map((p: number[][][]) => p[0].map(([x, y]) => [y, x]));
+  map.createPane('mask').style.zIndex = '300';
+  L.polygon([[[-85, -180], [-85, 180], [85, 180], [85, -180]], ...RINGS] as any, { pane: 'mask', interactive: false, stroke: false, fillColor: '#e9eef3', fillOpacity: 1, fillRule: 'evenodd' }).addTo(map);
 
   // Comarques
   let comarques: any = null;
@@ -139,6 +206,7 @@ import Base from '../../layouts/Base.astro';
       if (!g?.features) return;
       comarques = g;
       L.geoJSON(g, { interactive: false, style: { color: '#1f2d3d', weight: 1.1, opacity: 0.55, fillColor: '#ffffff', fillOpacity: 0.35 } }).addTo(map);
+      L.polygon(RINGS, { interactive: false, fill: false, color: '#10233b', weight: 1.8, opacity: 0.85 }).addTo(map);
       mask = null;
       field();
     })
@@ -146,7 +214,7 @@ import Base from '../../layouts/Base.astro';
 
   // ---------------------------------------------------------------- capa de color (interpolació)
   // Temperatura: s'interpola la temperatura "reduïda" (treient l'efecte de l'altitud amb el gradient calculat amb les
-  // mateixes estacions) i es torna a sumar l'altitud del terreny de cada punt (graella de /api/dem). Pluja: IDW directe.
+  // mateixes estacions) i es torna a sumar l'altitud del terreny de cada punt (graella de /api/dem). La resta: IDW directe.
   const FB = { lat0: 40.48, lat1: 42.9, lng0: 0.12, lng1: 3.36 };
   const FW = 340, FH = 290;
   const mercY = (lat: number) => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
@@ -159,6 +227,8 @@ import Base from '../../layouts/Base.astro';
   let demState: 'idle' | 'loading' | 'ok' | 'error' = 'idle';
   let fieldOn = true;
   let fieldLayer: any = null;
+  // Darrera capa calculada, sense retallar (per a la imatge descarregable, que la retalla amb el contorn vectorial)
+  let fieldRaw: { canvas: HTMLCanvasElement; key: string; alpha: number; note: string } | null = null;
   map.createPane('field').style.zIndex = '350';
 
   function buildMask() {
@@ -188,6 +258,8 @@ import Base from '../../layouts/Base.astro';
   };
   const TSTOP = [[-10, 167, 139, 250], [-5, 129, 140, 248], [0, 96, 165, 250], [5, 56, 189, 248], [10, 45, 212, 191], [15, 74, 222, 128], [20, 163, 230, 53], [25, 251, 191, 36], [30, 251, 146, 60], [35, 239, 68, 68], [40, 220, 38, 38]];
   const RSTOP = [[0.2, 186, 230, 253], [1, 125, 211, 252], [5, 56, 189, 248], [10, 45, 212, 191], [15, 74, 222, 128], [30, 251, 191, 36], [50, 251, 146, 60], [80, 239, 68, 68], [150, 244, 114, 182]];
+  const WSTOP = [[0, 214, 222, 232], [10, 56, 189, 248], [20, 45, 212, 191], [30, 163, 230, 53], [40, 251, 191, 36], [55, 251, 146, 60], [70, 239, 68, 68], [90, 220, 38, 38]];
+  const HSTOP = [[20, 253, 230, 138], [30, 191, 219, 254], [50, 147, 197, 253], [70, 96, 165, 250], [85, 59, 130, 246], [100, 37, 99, 235]];
   const ramp = (stops: number[][], v: number) => {
     if (v <= stops[0][0]) return stops[0];
     for (let i = 0; i < stops.length - 1; i++) {
@@ -196,15 +268,23 @@ import Base from '../../layouts/Base.astro';
     }
     return stops[stops.length - 1];
   };
-  const FIELD_KEYS = ['t', 'tmax', 'tmin', 'rain'];
+  // Variables amb capa de color. rain: transparent on no ha plogut o no hi ha cap estació a menys de 35 km
+  const FIELD: Record<string, { stops: number[][]; alpha: number; dem?: boolean; min?: number; maxKm?: number }> = {
+    t: { stops: TSTOP, alpha: 0.62, dem: true },
+    tmax: { stops: TSTOP, alpha: 0.62, dem: true },
+    tmin: { stops: TSTOP, alpha: 0.62, dem: true },
+    rain: { stops: RSTOP, alpha: 0.7, min: 0.2, maxKm: 35 },
+    gust: { stops: WSTOP, alpha: 0.6 },
+    wind: { stops: WSTOP, alpha: 0.6 },
+    hr: { stops: HSTOP, alpha: 0.6 },
+  };
 
   function field() {
     const cmapEl = document.getElementById('cmap');
-    const can = fieldOn && FIELD_KEYS.includes(cur.key);
-    cmapEl?.classList.toggle('has-field', !!(can && fieldLayer));
+    const cfg = FIELD[cur.key];
+    const can = fieldOn && !!cfg;
     if (!can) { fieldLayer?.remove(); fieldLayer = null; cmapEl?.classList.remove('has-field'); fieldNote(); return; }
-    const temp = cur.key !== 'rain';
-    if (temp && demState === 'idle') {
+    if (cfg.dem && demState === 'idle') {
       demState = 'loading';
       fetch('/api/dem').then((r) => (r.ok ? r.json() : Promise.reject())).then((j) => { dem = j; demState = 'ok'; field(); }).catch(() => { demState = 'error'; field(); });
     }
@@ -214,7 +294,7 @@ import Base from '../../layouts/Base.astro';
     if (pts.length < 5 || !mask) return;
     // Gradient d'altitud (regressió lineal de la variable amb l'altitud), limitat a valors físics
     let slope = 0;
-    const useDem = temp && demState === 'ok';
+    const useDem = !!cfg.dem && demState === 'ok';
     if (useDem) {
       const n = pts.length, mx = pts.reduce((a, p) => a + p.alt, 0) / n, my = pts.reduce((a, p) => a + p.v, 0) / n;
       const sxx = pts.reduce((a, p) => a + (p.alt - mx) ** 2, 0);
@@ -222,17 +302,20 @@ import Base from '../../layouts/Base.astro';
       slope = Math.max(-0.0098, Math.min(-0.002, slope));
     }
     const P = pts.map((p) => ({ x: p.lng, y: p.lat, r: p.v - slope * p.alt }));
-    const cv = document.createElement('canvas');
-    cv.width = FW; cv.height = FH;
-    const ctx = cv.getContext('2d')!;
-    const img = ctx.createImageData(FW, FH);
+    const raw = document.createElement('canvas');
+    raw.width = FW; raw.height = FH;
+    const rctx = raw.getContext('2d')!;
+    const img = rctx.createImageData(FW, FH);
+    const web = new ImageData(FW, FH);
+    const maxD2 = cfg.maxKm ? cfg.maxKm * cfg.maxKm : Infinity;
     for (let py = 0; py < FH; py++) {
       const lat = rowLat(py);
       const kx = 111.32 * Math.cos((lat * Math.PI) / 180);
       for (let px = 0; px < FW; px++) {
         const i = py * FW + px;
-        const a = mask[i];
-        if (!a) continue;
+        // Es calcula també una mica fora del contorn perquè la imatge el pugui retallar net
+        const inside = mask[i];
+        if (!inside && !(mask[i - 3] || mask[i + 3] || mask[i - 3 * FW] || mask[i + 3 * FW])) continue;
         const lng = colLng(px);
         let sw = 0, sv = 0, near = 1e9;
         for (const p of P) {
@@ -244,40 +327,39 @@ import Base from '../../layouts/Base.astro';
         }
         let v = sv / sw;
         if (useDem) v += slope * elevAt(lat, lng);
-        let c: number[] | null;
-        let alpha: number;
-        if (temp) { c = ramp(TSTOP, v); alpha = 0.62; }
-        else if (v < 0.2 || near > 35 * 35) { c = null; alpha = 0; }
-        else { c = ramp(RSTOP, v); alpha = 0.7; }
-        if (!c) continue;
+        if ((cfg.min != null && v < cfg.min) || near > maxD2) continue;
+        const c = ramp(cfg.stops, v);
         const k = i * 4;
-        img.data[k] = c[1]; img.data[k + 1] = c[2]; img.data[k + 2] = c[3];
-        img.data[k + 3] = Math.round((a / 255) * alpha * 255);
+        img.data[k] = web.data[k] = c[1];
+        img.data[k + 1] = web.data[k + 1] = c[2];
+        img.data[k + 2] = web.data[k + 2] = c[3];
+        img.data[k + 3] = 255;
+        web.data[k + 3] = Math.round(inside * cfg.alpha);
       }
     }
-    ctx.putImageData(img, 0, 0);
-    const url = cv.toDataURL();
+    rctx.putImageData(img, 0, 0);
+    const wcv = document.createElement('canvas');
+    wcv.width = FW; wcv.height = FH;
+    wcv.getContext('2d')!.putImageData(web, 0, 0);
+    const url = wcv.toDataURL();
     const bounds: any = [[FB.lat0, FB.lng0], [FB.lat1, FB.lng1]];
     if (fieldLayer) fieldLayer.setUrl(url);
     else fieldLayer = L.imageOverlay(url, bounds, { pane: 'field', interactive: false, className: 'cm-field' }).addTo(map);
     cmapEl?.classList.add('has-field');
-    fieldNote(temp && !useDem);
+    const note = useDem ? 'dem' : cur.key === 'wind' || cur.key === 'gust' ? 'wind' : 'plain';
+    fieldRaw = { canvas: raw, key: cur.key, alpha: Math.min(0.8, cfg.alpha + 0.1), note };
+    fieldNote(cfg.dem && !useDem);
   }
+  const noteFor = (key: string) =>
+    FIELD[key]?.dem ? "interpolada tenint en compte l'altitud" : key === 'wind' || key === 'gust' ? "orientatiu: el vent canvia molt d'un lloc a l'altre" : 'interpolada entre estacions';
   function fieldNote(plain = false) {
     const el = document.getElementById('cmFieldNote');
     if (!el) return;
-    const can = FIELD_KEYS.includes(cur.key);
+    const can = !!FIELD[cur.key];
     const btn = document.getElementById('cmFieldBtn') as HTMLButtonElement | null;
     if (btn) { btn.disabled = !can; btn.setAttribute('aria-pressed', String(fieldOn && can)); }
-    el.textContent = !can
-      ? 'Només per a temperatura i pluja'
-      : !fieldOn
-      ? ''
-      : cur.key === 'rain'
-      ? 'Pluja interpolada entre estacions'
-      : plain
-      ? 'Interpolada entre estacions'
-      : "Interpolada tenint en compte l'altitud";
+    const t = !can ? 'no disponible per al gruix de neu' : !fieldOn ? '' : plain ? 'interpolada entre estacions' : noteFor(cur.key);
+    el.textContent = t ? t[0].toUpperCase() + t.slice(1) : '';
   }
 
   // Llegenda
@@ -299,9 +381,45 @@ import Base from '../../layouts/Base.astro';
     fieldNote();
   }
 
+  // Selector d'estacions: totes, una per capital de comarca o cap (només el mapa de color)
+  const Modes = L.Control.extend({
+    options: { position: 'topright' },
+    onAdd() {
+      const div = L.DomUtil.create('div', 'cm-st');
+      div.innerHTML = `<b>Estacions</b><div class="seg" role="group" aria-label="Estacions que es mostren">${MODES.map((m) => `<button type="button" data-m="${m.key}" title="${m.title}" aria-pressed="${m.key === mode}">${m.label}</button>`).join('')}</div>`;
+      L.DomEvent.disableClickPropagation(div);
+      div.querySelectorAll('button').forEach((b) =>
+        b.addEventListener('click', () => {
+          mode = (b as HTMLElement).dataset.m as typeof mode;
+          div.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+          // Sense estacions, el que queda és el mapa de color
+          if (mode === 'cap' && !fieldOn) fieldOn = true;
+          draw();
+        }),
+      );
+      return div;
+    },
+  });
+  new Modes().addTo(map);
+
   let stations: St[] = [];
   const markers = new Map<string, any>();
   const val = (s: St) => (s as any)[cur.key] as number | null;
+  const shown = (s: St) => val(s) != null && (mode === 'totes' || (mode === 'capitals' && capIds.has(s.id)));
+
+  function capitals() {
+    const ids = new Set<string>();
+    const list = stations.filter((s) => val(s) != null);
+    for (const [, lat, lng] of CAPITALS) {
+      let best: St | null = null, bd = 20;
+      for (const s of list) {
+        const d = km(lat, lng, s.lat, s.lng);
+        if (d < bd) { bd = d; best = s; }
+      }
+      if (best) ids.add(best.id);
+    }
+    return ids;
+  }
 
   function popup(s: St) {
     const rows: [string, string][] = [];
@@ -321,6 +439,7 @@ import Base from '../../layouts/Base.astro';
   }
 
   function draw() {
+    capIds = capitals();
     const seen = new Set<string>();
     for (const s of stations) {
       const v = val(s);
@@ -335,7 +454,7 @@ import Base from '../../layouts/Base.astro';
       m.setPopupContent(popup(s));
       const el = m.getElement()?.firstElementChild as HTMLElement | null;
       if (!el) continue;
-      if (v == null) {
+      if (v == null || !shown(s)) {
         el.style.display = 'none';
         continue;
       }
@@ -353,17 +472,21 @@ import Base from '../../layouts/Base.astro';
     field();
   }
 
-  // Si dues etiquetes es trepitgen, la menys destacada queda com un punt
-  function declutter() {
-    const list = stations.filter((s) => val(s) != null);
-    const vs = list.map((s) => val(s) as number).sort((a, b) => a - b);
+  // Prioritat de les etiquetes quan es trepitgen: primer les de Meteocadí, després les més extremes
+  function priority() {
+    const vs = stations.filter((s) => val(s) != null).map((s) => val(s) as number).sort((a, b) => a - b);
     const med = vs.length ? vs[Math.floor(vs.length / 2)] : 0;
-    const pri = (s: St) => {
+    return (s: St) => {
       const v = val(s) as number;
       return (s.mc ? 1e6 : 0) + ((cur as any).two ? Math.abs(v - med) : v);
     };
+  }
+
+  // Si dues etiquetes es trepitgen, la menys destacada queda com un punt
+  function declutter() {
+    const pri = priority();
     const placed: number[][] = [];
-    for (const s of [...list].sort((a, b) => pri(b) - pri(a))) {
+    for (const s of stations.filter(shown).sort((a, b) => pri(b) - pri(a))) {
       const m = markers.get(s.id);
       const el = m?.getElement()?.firstElementChild as HTMLElement | null;
       if (!el) continue;
@@ -413,6 +536,71 @@ import Base from '../../layouts/Base.astro';
     bar.appendChild(b);
   });
 
+  // ---------------------------------------------------------------- imatge per a xarxes
+  let latest: Date | null = null;
+  const dlg = document.getElementById('cmDlg') as HTMLDialogElement;
+  const dlgImg = document.getElementById('cmDlgImg') as HTMLImageElement;
+  const dlgSave = document.getElementById('cmDlgSave') as HTMLAnchorElement;
+  const dlgShare = document.getElementById('cmDlgShare') as HTMLButtonElement;
+  let dlgFile: File | null = null;
+  let dlgUrl = '';
+  document.getElementById('cmDlgClose')?.addEventListener('click', () => dlg.close());
+  // Tocar fora de la finestra la tanca
+  dlg?.addEventListener('click', (e) => {
+    const r = dlg.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) dlg.close();
+  });
+  dlgShare?.addEventListener('click', async () => {
+    if (!dlgFile) return;
+    try { await navigator.share({ files: [dlgFile] }); } catch {}
+  });
+
+  document.querySelectorAll<HTMLButtonElement>('.cm-dl button').forEach((b) =>
+    b.addEventListener('click', async () => {
+      if (!stations.length || b.getAttribute('aria-busy') === 'true') return;
+      b.setAttribute('aria-busy', 'true');
+      try {
+        const { renderMapImage } = await import('../../scripts/mapa-imatge.js');
+        const pri = priority();
+        const list = stations.filter(shown).sort((a, x) => pri(x) - pri(a)).map((s) => {
+          const v = val(s) as number, bg = cur.color(v);
+          return { lat: s.lat, lng: s.lng, mc: !!s.mc, text: cur.fmt(v), bg, fg: ink(bg) };
+        });
+        const hasField = fieldOn && !!FIELD[cur.key] && fieldRaw?.key === cur.key;
+        const when = latest || new Date();
+        const canvas = await renderMapImage({
+          format: b.dataset.f,
+          title: cur.title,
+          accent: cur.accent,
+          today: !!(cur as any).today,
+          when,
+          stations: list,
+          comarques,
+          field: hasField ? { canvas: fieldRaw!.canvas, bounds: FB, alpha: fieldRaw!.alpha, note: fieldRaw!.note } : null,
+          legend: { title: cur.unit, steps: cur.steps.map((s) => ({ color: cur.color(s), label: num(s, s % 1 ? 1 : 0) })) },
+        });
+        const blob: Blob | null = await new Promise((r) => canvas.toBlob(r, 'image/png'));
+        if (!blob) return;
+        const day = todayMadrid(when);
+        const hhmm = hourMadrid(when).replace(':', '');
+        const name = `meteocadi-catalunya-${cur.key}-${day}-${hhmm}${b.dataset.f === 'story' ? '-historia' : ''}.png`;
+        if (dlgUrl) URL.revokeObjectURL(dlgUrl);
+        dlgUrl = URL.createObjectURL(blob);
+        dlgFile = new File([blob], name, { type: 'image/png' });
+        dlgImg.src = dlgUrl;
+        dlgSave.href = dlgUrl;
+        dlgSave.download = name;
+        // Al mòbil, per desar-la a Fotos o publicar-la directament; a l'ordinador, per enviar-la al mòbil (AirDrop, etc.)
+        dlgShare.hidden = !(navigator.canShare && navigator.canShare({ files: [dlgFile] }));
+        dlg.showModal();
+      } catch (e) {
+        console.error('[mapa-imatge]', e);
+      } finally {
+        b.removeAttribute('aria-busy');
+      }
+    }),
+  );
+
   // Dades: XEMA (dades obertes) + xarxa Meteocadí
   async function load(force = false) {
     const [x, a] = await Promise.all([
@@ -429,6 +617,7 @@ import Base from '../../layouts/Base.astro';
         t: d.temp ?? null, tmax: d.max ?? null, tmin: d.min ?? null, rain: d.rain ?? null, wind: d.wind ?? null, dir: d.dir ?? null, gust: d.gustMax ?? d.gust ?? null, hr: d.hum ?? null, snow: null });
     }
     stations = list;
+    latest = x?.latest ? new Date(x.latest) : (a as any)?.updated ? new Date((a as any).updated) : null;
     const when = document.getElementById('cmWhen');
     if (when) {
       const parts = [];

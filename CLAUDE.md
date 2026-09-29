@@ -28,7 +28,10 @@ Weather-station network site for Cadí-Moixeró / Berguedà. **All user-facing c
 - `api/comarques.js`: ICGC comarca borders (dataset `aasi-gwnd`), simplified server-side, CDN cache 30 days.
 - The page merges our stations from `/api/ara` (dark outline). Labels that collide become dots (priority: our stations, then the most extreme values). Snow depth only in season (sensors report a few cm of noise in summer).
 - Always credit: Servei Meteorològic de Catalunya (XEMA) · dades obertes de la Generalitat; comarca borders: ICGC.
-- Colour layer ("Mapa de color", temperature and rain only): IDW (power 3) on a 340×290 canvas clipped to the comarques. Temperatures are reduced to sea level with the lapse rate fitted on the same stations and then re-projected on the terrain height from `api/dem.js` (Copernicus DEM via Open-Meteo, 0.04° grid, CDN cache 1 year); without the DEM it falls back to plain IDW. Wind and humidity have no layer (too local to interpolate).
+- Colour layer ("Mapa de color", every variable except snow): IDW (power 3) on a 340×290 canvas clipped to the comarques. Temperatures are reduced to sea level with the lapse rate fitted on the same stations and then re-projected on the terrain height from `api/dem.js` (Copernicus DEM via Open-Meteo, 0.04° grid, CDN cache 1 year); without the DEM it falls back to plain IDW. Wind and gust layers are labelled as only indicative.
+- Outside Catalonia nothing is shown: a mask polygon (world minus `src/lib/catalunya-contorn.json`, the union of the comarques, static) covers the basemap. The page CSS lifts the global `svg { max-width }` for Leaflet panes, otherwise the mask SVG collapses to 0 px.
+- Station selector (top right): all, "Capitals" (nearest station with data to each comarca capital, ≤ 20 km, list `CAPITALS`) or none (colour only).
+- Download: `src/scripts/mapa-imatge.js` (lazy-loaded) draws a 1080×1350 post or 1080×1920 story on canvas from the same state (variable, station mode, colour layer): only Catalonia, labels decluttered at image scale, legend in the sea corner, data credits (XEMA licence requires them) and meteocadi.cat. Preview dialog with Download and, where the browser supports it, Share.
 - Bagà Nord and Bagà Sud are hidden on this map (`HIDDEN_HERE`) so the three Bagà stations don't pile up; Bagà Centre stays.
 
 ## Ski (Meteocadí Neu)
