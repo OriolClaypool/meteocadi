@@ -467,6 +467,147 @@ export function drawRanking(ctx, d) {
   footer(ctx, false);
 }
 
+// Rànquing horitzontal (1600 × 900, per a X i webs): títol i frase a l'esquerra, llista a la dreta
+export const WIDE = { W: 1600, H: 900 };
+export function drawRankingWide(ctx, d) {
+  const { W: WW, H: HH } = WIDE;
+  const LX0 = 64, LX1 = 560, RX0 = 640, RX1 = 1536;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = L.bg;
+  ctx.fillRect(0, 0, WW, HH);
+  const cfg = RANK_VARS[d.variable];
+  const list = rankRows(d.rows, d.variable);
+
+  // Columna esquerra: data, títol de dues línies (la segona en color) i frase
+  ctx.textBaseline = 'middle';
+  font(ctx, 'mono', 21);
+  ctx.fillStyle = L.blue;
+  spaced(ctx, `${dayName(d.date)} ${dayMonth(d.date)}`.toLocaleUpperCase('ca'), LX0, 92, 2.9);
+  tracking(ctx, -2.8);
+  const s1 = fitFont(ctx, 'head', 84, 800, cfg.t1, LX1 - LX0);
+  const s2 = fitFont(ctx, 'head', 84, 800, d.when, LX1 - LX0);
+  font(ctx, 'head', Math.min(s1, s2), 800);
+  ctx.fillStyle = L.ink;
+  ctx.fillText(cfg.t1, LX0, 168);
+  ctx.fillStyle = cfg.color;
+  ctx.fillText(d.when, LX0, 250);
+  tracking(ctx, 0);
+  const sentence = nbsp(d.sentence);
+  if (sentence.trim()) {
+    font(ctx, 'ui', 28);
+    ctx.fillStyle = L.ink2;
+    wrap(ctx, sentence, LX1 - LX0).slice(0, 6).forEach((line, i) => ctx.fillText(line, LX0, 330 + i * 40));
+  }
+  tracking(ctx, -0.36);
+  font(ctx, 'head', 36, 800);
+  ctx.fillStyle = L.ink;
+  ctx.fillText('meteocadi.cat', LX0, 820);
+  tracking(ctx, 0);
+  const sw = WW / 4;
+  STRIP.forEach((c, i) => {
+    ctx.fillStyle = c;
+    ctx.fillRect(i * sw, HH - 8, sw + 1, 8);
+  });
+
+  // Columna dreta: la llista
+  const vals = list.map((r) => r.v);
+  const temp = d.variable === 'max' || d.variable === 'min';
+  const dots = d.variable === 'min' && list.length > 0;
+  let y = 56;
+  const NX = RX0 + 62, BX = RX0 + 420, BAR = 300;
+  let sc = null;
+  if (dots) {
+    let a = Math.floor(Math.min(...vals)) - 1;
+    let b = Math.ceil(Math.max(...vals)) + 1;
+    if (b - a < 6) { const m = (a + b) / 2; a = Math.floor(m - 3); b = Math.ceil(m + 3); }
+    const step = b - a <= 12 ? 2 : b - a <= 30 ? 5 : 10;
+    sc = { s0: a, s1: b, step, x0: BX, x1: BX + 280 };
+    sc.x = (v) => sc.x0 + ((v - sc.s0) / (sc.s1 - sc.s0)) * (sc.x1 - sc.x0);
+    ctx.textAlign = 'center';
+    font(ctx, 'mono', 17);
+    for (let t = Math.ceil(a / step) * step; t <= b; t += step) {
+      ctx.fillStyle = t === 0 ? '#1d4ed8' : L.mut;
+      ctx.fillText(`${num(t, 0)}°`, sc.x(t), y + 12);
+    }
+    ctx.textAlign = 'left';
+    y += 30;
+  }
+  hline(ctx, RX0, RX1, y, L.ink, 2);
+  const RH = Math.min(72, Math.floor((860 - y) / Math.max(list.length, 1)));
+  if (dots) {
+    const yEnd = y + RH * list.length;
+    for (let t = Math.ceil(sc.s0 / sc.step) * sc.step; t <= sc.s1; t += sc.step) {
+      ctx.save();
+      ctx.strokeStyle = t === 0 ? '#7fb2e5' : '#cfd9e4';
+      ctx.lineWidth = t === 0 ? 2 : 1.5;
+      if (t !== 0) ctx.setLineDash([4, 8]);
+      ctx.beginPath();
+      ctx.moveTo(Math.round(sc.x(t)) + 0.5, y);
+      ctx.lineTo(Math.round(sc.x(t)) + 0.5, yEnd);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+  const hi = Math.max(...vals, 0);
+  const lo = temp ? Math.min(...vals) - Math.max(2, (hi - Math.min(...vals)) * 0.5) : 0;
+  const big = Math.min(36, Math.round(RH * 0.55));
+  list.forEach((r, i) => {
+    const cy = y + RH / 2;
+    ctx.textBaseline = 'middle';
+    font(ctx, 'mono', 22);
+    ctx.fillStyle = L.rank;
+    ctx.fillText(String(i + 1).padStart(2, '0'), RX0, cy);
+    fitFont(ctx, 'head', Math.min(28, RH * 0.42), 700, r.name, BX - NX - 24, 18);
+    ctx.fillStyle = L.ink;
+    ctx.fillText(r.name, NX, cy - RH * 0.15);
+    font(ctx, 'mono', Math.min(17, RH * 0.26));
+    ctx.fillStyle = L.mut;
+    ctx.fillText(altTxt(r.alt), NX, cy + RH * 0.22);
+    if (dots) {
+      ctx.strokeStyle = L.line;
+      ctx.lineWidth = 6;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(sc.x0, cy);
+      ctx.lineTo(sc.x1, cy);
+      ctx.stroke();
+      ctx.lineCap = 'butt';
+      ctx.beginPath();
+      ctx.arc(sc.x(r.v), cy, Math.min(13, RH * 0.2), 0, Math.PI * 2);
+      ctx.fillStyle = tempColor(r.v);
+      ctx.fill();
+      ctx.lineWidth = 3.5;
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
+      font(ctx, 'mono', big, 500);
+      ctx.fillStyle = tempColorLight(r.v);
+      ctx.fillText(`${num(r.v)}°`, sc.x1 + 36, cy + 1);
+    } else {
+      const len = hi - lo > 0 ? Math.max(0, ((r.v - lo) / (hi - lo)) * BAR) : 0;
+      const barColor = temp ? tempColor(r.v) : d.variable === 'pluja' ? (r.v > 0 ? '#60a5fa' : '#c9d5e3') : '#fbbf24';
+      if (len > 0) {
+        ctx.fillStyle = barColor;
+        ctx.beginPath();
+        ctx.roundRect(BX, cy - RH * 0.2, Math.max(len, 10), RH * 0.4, 5);
+        ctx.fill();
+      }
+      const vx = BX + (len > 0 ? Math.max(len, 10) + 16 : 0);
+      font(ctx, 'mono', big, 500);
+      ctx.fillStyle = temp ? tempColorLight(r.v) : r.v > 0 ? cfg.color : L.rank;
+      const txt = temp ? `${num(r.v)}°` : num(r.v);
+      ctx.fillText(txt, vx, cy + 1);
+      if (!temp) {
+        const tw = ctx.measureText(txt).width;
+        font(ctx, 'mono', 19);
+        ctx.fillStyle = L.mut;
+        ctx.fillText(cfg.unit, vx + tw + 7, cy + 4);
+      }
+    }
+    y += RH;
+    hline(ctx, RX0, RX1, y, L.line);
+  });
+}
+
 // ------------------------------------------------------------------ Previsió
 // st: { date, days: [{ headline, text, mode, weather, morning, afternoon, alert, alertType }, …], summary }
 const hasWeather = (day) => !!(day.mode === 'split' ? day.morning || day.afternoon : day.weather);

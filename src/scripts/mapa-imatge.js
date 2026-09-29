@@ -1,4 +1,5 @@
-// Imatge del mapa de Catalunya per a xarxes socials (publicació 4:5 o història 9:16), dibuixada en canvas.
+// Imatge del mapa de Catalunya per a xarxes socials (publicació 4:5, història 9:16 o horitzontal 16:9 per a X i webs),
+// dibuixada en canvas.
 // Només es veu Catalunya (la resta queda en blanc), amb la capa de color, les etiquetes de les estacions com al web,
 // la llegenda, els crèdits de les dades i meteocadi.cat al peu. Mateix sistema visual que les imatges de /estudi.
 import CONTORN from '../lib/catalunya-contorn.json';
@@ -14,6 +15,8 @@ const X1 = 1016;
 const FORMATS = {
   post: { W: 1080, H: 1350, top: 58, size: 62, eyebrow: 22, map: [40, 246, 1040, 1196], credits: 1232, foot: 1300, pill: 21, dot: 6.5, sw: 44 },
   story: { W: 1080, H: 1920, top: 180, size: 92, eyebrow: 24, map: [28, 440, 1052, 1466], credits: 1516, foot: 1718, pill: 23, dot: 7, sw: 48 },
+  // Horitzontal: text i llegenda a l'esquerra, mapa a la dreta
+  wide: { W: 1600, H: 900, top: 76, size: 70, eyebrow: 20, map: [650, 26, 1574, 866], x1: 596, legendAt: [64, 372], credits: 700, foot: 836, pill: 20, dot: 6.5, sw: 50 },
 };
 
 const NOTES = {
@@ -43,6 +46,17 @@ function fitFont(ctx, fam, size, weight, text, maxW, min = size * 0.6) {
     font(ctx, fam, s, weight);
   }
   return s;
+}
+
+function wrapText(ctx, text, width) {
+  const lines = [];
+  let line = '';
+  for (const w of text.split(' ')) {
+    const t = line ? `${line} ${w}` : w;
+    if (ctx.measureText(t).width > width && line) { lines.push(line); line = w; } else line = t;
+  }
+  if (line) lines.push(line);
+  return lines;
 }
 
 function roundRect(ctx, x, y, w, h, r) {
@@ -122,7 +136,8 @@ export async function renderMapImage(o) {
   spaced(ctx, eyebrow, X0, f.top + 15, f.eyebrow * 0.14);
   tracking(ctx, -0.035 * f.size);
   const [l1, l2] = o.title;
-  const s = Math.min(fitFont(ctx, 'head', f.size, 800, l1, X1 - X0), fitFont(ctx, 'head', f.size, 800, l2, X1 - X0));
+  const TX1 = f.x1 ?? X1;
+  const s = Math.min(fitFont(ctx, 'head', f.size, 800, l1, TX1 - X0), fitFont(ctx, 'head', f.size, 800, l2, TX1 - X0));
   font(ctx, 'head', s, 800);
   const y1 = f.top + 15 + 0.81 * f.size;
   ctx.fillStyle = C.ink;
@@ -231,7 +246,7 @@ export async function renderMapImage(o) {
   const gap = 5, lp = 20;
   const bw = steps.length * f.sw + (steps.length - 1) * gap + 2 * lp;
   const bh = 116;
-  const bx = Math.round(right - bw), by = Math.round(bottom - bh);
+  const [bx, by] = f.legendAt ?? [Math.round(right - bw), Math.round(bottom - bh)];
   ctx.save();
   ctx.shadowColor = 'rgba(16, 35, 59, 0.12)';
   ctx.shadowBlur = 16;
@@ -264,12 +279,22 @@ export async function renderMapImage(o) {
   ctx.textBaseline = 'middle';
   ctx.fillStyle = C.mut;
   const credit = 'Dades: Servei Meteorològic de Catalunya (XEMA, dades obertes de la Generalitat) i xarxa Meteocadí. Límits comarcals: ICGC.';
-  fitFont(ctx, 'ui', 17, 400, credit, X1 - X0, 13);
-  ctx.fillText(credit, X0, f.credits);
-  if (o.field) {
-    const note = NOTES[o.field.note] || NOTES.plain;
-    fitFont(ctx, 'ui', 17, 400, note, X1 - X0, 13);
-    ctx.fillText(note, X0, f.credits + 26);
+  const note = o.field ? NOTES[o.field.note] || NOTES.plain : '';
+  if (f.x1) {
+    // Columna estreta: el text es parteix en línies
+    font(ctx, 'ui', 18);
+    let cy = f.credits;
+    for (const t of [credit, note].filter(Boolean)) {
+      for (const line of wrapText(ctx, t, TX1 - X0)) { ctx.fillText(line, X0, cy); cy += 26; }
+      cy += 8;
+    }
+  } else {
+    fitFont(ctx, 'ui', 17, 400, credit, X1 - X0, 13);
+    ctx.fillText(credit, X0, f.credits);
+    if (note) {
+      fitFont(ctx, 'ui', 17, 400, note, X1 - X0, 13);
+      ctx.fillText(note, X0, f.credits + 26);
+    }
   }
   tracking(ctx, -0.36);
   font(ctx, 'head', 36, 800);
