@@ -23,6 +23,12 @@ Weather-station network site for Cadí-Moixeró / Berguedà. **All user-facing c
 - `/muntanya` is the hub (high stations live + summary table); `/avis-legal` holds the full disclaimer. Keep both linked from the footer.
 - Facts in place intros must be verifiable (altitudes, municipalities, routes); don't add claims without a source.
 
+## Catalonia map (/mapa/catalunya)
+- `api/xema.js`: all operating XEMA stations of the Meteocat from the Generalitat open data portal (Socrata datasets `yqwd-vj5e` stations, `nzvn-apee` semi-hourly readings; no key needed, optional `SOCRATA_APP_TOKEN`). Latest value per variable (last 3 h) plus today's max/min/rain/gust aggregates. CDN cache 15 min. Readings arrive ~45–75 min late; `data_lectura` is the UTC start of each 30-min slot.
+- `api/comarques.js`: ICGC comarca borders (dataset `aasi-gwnd`), simplified server-side, CDN cache 30 days.
+- The page merges our stations from `/api/ara` (dark outline). Labels that collide become dots (priority: our stations, then the most extreme values). Snow depth only in season (sensors report a few cm of noise in summer).
+- Always credit: Servei Meteorològic de Catalunya (XEMA) · dades obertes de la Generalitat; comarca borders: ICGC.
+
 ## Ski (Meteocadí Neu)
 - `/esqui` and `/es/esqui` (`SkiHub.astro`): 7-day board for every place with a `ski` attribute in `places.js` (type, region, official web, webcams), roads near the resorts (`/api/transit?near=lat:lng:km`) and official links.
 - `src/lib/ski.js` rates the weather for skiing (wind at the top, snowfall, rain at the base, sun, cold, heat, fresh snow). It is weather only, never slope status or whether a resort is open; the rating is hidden out of season (15 Nov–30 Apr), `?temporada` forces it for testing.
