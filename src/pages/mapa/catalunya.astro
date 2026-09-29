@@ -25,7 +25,7 @@ import Base from '../../layouts/Base.astro';
       </div>
       <div id="cmap" class="cmap" aria-label="Mapa de Catalunya amb les dades de les estacions"></div>
       <p class="cm-note">
-        Dades: <a href="https://www.meteo.cat/" rel="noopener" target="_blank">Servei Meteorològic de Catalunya</a> (Xarxa d'Estacions Meteorològiques Automàtiques, a través de les <a href="https://analisi.transparenciacatalunya.cat/Medi-Ambient/Dades-meteorol-giques-de-la-XEMA/nzvn-apee" rel="noopener" target="_blank">dades obertes de la Generalitat</a>) i xarxa Meteocadí (voltades en negre). Límits comarcals: ICGC. Són dades automàtiques sense validar: una lectura estranya pot ser un error del sensor. Quan les etiquetes no hi caben, algunes estacions es mostren com un punt: toca-les o apropa't per veure'n el valor.
+        Dades: <a href="https://www.meteo.cat/" rel="noopener" target="_blank">Servei Meteorològic de Catalunya</a> (Xarxa d'Estacions Meteorològiques Automàtiques, a través de les <a href="https://analisi.transparenciacatalunya.cat/Medi-Ambient/Dades-meteorol-giques-de-la-XEMA/nzvn-apee" rel="noopener" target="_blank">dades obertes de la Generalitat</a>) i xarxa Meteocadí (voltades en negre). Límits comarcals: ICGC. El mapa de color és una estimació entre estacions (a la temperatura, tenint en compte l'altitud del terreny, Copernicus DEM): serveix per veure com es reparteix, no el valor exacte d'un punt. Són dades automàtiques sense validar: una lectura estranya pot ser un error del sensor. Quan les etiquetes no hi caben, algunes estacions es mostren com un punt: toca-les o apropa't per veure'n el valor.
       </p>
       <div class="cm-ext" id="cmExt" aria-live="polite"></div>
     </div>
@@ -52,6 +52,14 @@ import Base from '../../layouts/Base.astro';
   .cm-lg .sw { display: flex; gap: 3px; }
   .cm-lg .sw span { display: flex; flex-direction: column; align-items: center; gap: 3px; font-family: var(--f-mono); font-size: 10.5px; }
   .cm-lg .sw i { display: block; width: 26px; height: 10px; border-radius: 3px; }
+  .cm-fl { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+  .cm-fl button { height: 28px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--line); background: #fff; color: var(--ink); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+  .cm-fl button[aria-pressed='true'] { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .cm-fl button:disabled { opacity: 0.45; cursor: default; }
+  .cm-fl span { font-size: 11.5px; color: var(--muted); max-width: 170px; line-height: 1.3; }
+  .cm-field { image-rendering: auto; }
+  .cmap.has-field .xp { box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.95), 0 1px 3px rgba(16, 35, 59, 0.35); }
+  .cmap.has-field .xp--mc { box-shadow: 0 0 0 2px #10233b, 0 0 0 3.5px rgba(255, 255, 255, 0.95); }
   .cm-pop { min-width: 210px; }
   .cm-pop h3 { font-family: var(--f-head); font-size: 17px; font-weight: 800; letter-spacing: -0.01em; margin: 0; }
   .cm-pop .sub { font-size: 12.5px; color: var(--muted); margin: 2px 0 8px; }
@@ -103,6 +111,8 @@ import Base from '../../layouts/Base.astro';
     ...(snowSeason ? [{ key: 'snow', label: 'Neu', legend: 'Gruix de neu (cm)', fmt: (v: number) => String(Math.round(v)), color: snowColor, steps: [1, 5, 20, 50, 100] }] : []),
   ];
   let cur = VARS[0];
+  // Estacions de la xarxa que no es mostren en aquest mapa: a Bagà n'hi ha tres molt juntes i només hi deixem la del centre
+  const HIDDEN_HERE = new Set(['IBAG65', 'IBAG72']);
 
   // Text fosc o blanc segons la lluminositat del color de fons
   const ink = (hex: string) => {
@@ -122,13 +132,153 @@ import Base from '../../layouts/Base.astro';
   }).addTo(map);
 
   // Comarques
+  let comarques: any = null;
   fetch('/api/comarques')
     .then((r) => (r.ok ? r.json() : null))
     .then((g) => {
       if (!g?.features) return;
+      comarques = g;
       L.geoJSON(g, { interactive: false, style: { color: '#1f2d3d', weight: 1.1, opacity: 0.55, fillColor: '#ffffff', fillOpacity: 0.35 } }).addTo(map);
+      mask = null;
+      field();
     })
     .catch(() => {});
+
+  // ---------------------------------------------------------------- capa de color (interpolació)
+  // Temperatura: s'interpola la temperatura "reduïda" (treient l'efecte de l'altitud amb el gradient calculat amb les
+  // mateixes estacions) i es torna a sumar l'altitud del terreny de cada punt (graella de /api/dem). Pluja: IDW directe.
+  const FB = { lat0: 40.48, lat1: 42.9, lng0: 0.12, lng1: 3.36 };
+  const FW = 340, FH = 290;
+  const mercY = (lat: number) => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
+  const Y0 = mercY(FB.lat1), Y1 = mercY(FB.lat0);
+  const rowLat = (py: number) => ((2 * Math.atan(Math.exp(Y0 + ((py + 0.5) / FH) * (Y1 - Y0))) - Math.PI / 2) * 180) / Math.PI;
+  const colLng = (px: number) => FB.lng0 + ((px + 0.5) / FW) * (FB.lng1 - FB.lng0);
+  const toPx = (lng: number, lat: number) => [((lng - FB.lng0) / (FB.lng1 - FB.lng0)) * FW, ((mercY(lat) - Y0) / (Y1 - Y0)) * FH];
+  let mask: Uint8ClampedArray | null = null;
+  let dem: any = null;
+  let demState: 'idle' | 'loading' | 'ok' | 'error' = 'idle';
+  let fieldOn = true;
+  let fieldLayer: any = null;
+  map.createPane('field').style.zIndex = '350';
+
+  function buildMask() {
+    if (!comarques) return null;
+    const cv = document.createElement('canvas');
+    cv.width = FW; cv.height = FH;
+    const c = cv.getContext('2d')!;
+    c.fillStyle = '#000';
+    for (const f of comarques.features) {
+      for (const poly of f.geometry.coordinates) {
+        c.beginPath();
+        for (const ring of poly) ring.forEach(([x, y]: number[], i: number) => { const [px, py] = toPx(x, y); i ? c.lineTo(px, py) : c.moveTo(px, py); });
+        c.fill('evenodd');
+      }
+    }
+    const d = c.getImageData(0, 0, FW, FH).data;
+    const m = new Uint8ClampedArray(FW * FH);
+    for (let i = 0; i < m.length; i++) m[i] = d[i * 4 + 3];
+    return m;
+  }
+  const elevAt = (lat: number, lng: number) => {
+    const fr = (lat - dem.lat0) / dem.step, fc = (lng - dem.lng0) / dem.step;
+    const r0 = Math.max(0, Math.min(dem.rows - 2, Math.floor(fr))), c0 = Math.max(0, Math.min(dem.cols - 2, Math.floor(fc)));
+    const tr = Math.max(0, Math.min(1, fr - r0)), tc = Math.max(0, Math.min(1, fc - c0));
+    const z = (r: number, c: number) => dem.z[r * dem.cols + c];
+    return (z(r0, c0) * (1 - tc) + z(r0, c0 + 1) * tc) * (1 - tr) + (z(r0 + 1, c0) * (1 - tc) + z(r0 + 1, c0 + 1) * tc) * tr;
+  };
+  const TSTOP = [[-10, 167, 139, 250], [-5, 129, 140, 248], [0, 96, 165, 250], [5, 56, 189, 248], [10, 45, 212, 191], [15, 74, 222, 128], [20, 163, 230, 53], [25, 251, 191, 36], [30, 251, 146, 60], [35, 239, 68, 68], [40, 220, 38, 38]];
+  const RSTOP = [[0.2, 186, 230, 253], [1, 125, 211, 252], [5, 56, 189, 248], [10, 45, 212, 191], [15, 74, 222, 128], [30, 251, 191, 36], [50, 251, 146, 60], [80, 239, 68, 68], [150, 244, 114, 182]];
+  const ramp = (stops: number[][], v: number) => {
+    if (v <= stops[0][0]) return stops[0];
+    for (let i = 0; i < stops.length - 1; i++) {
+      const a = stops[i], b = stops[i + 1];
+      if (v < b[0]) { const f = (v - a[0]) / (b[0] - a[0]); return [v, a[1] + f * (b[1] - a[1]), a[2] + f * (b[2] - a[2]), a[3] + f * (b[3] - a[3])]; }
+    }
+    return stops[stops.length - 1];
+  };
+  const FIELD_KEYS = ['t', 'tmax', 'tmin', 'rain'];
+
+  function field() {
+    const cmapEl = document.getElementById('cmap');
+    const can = fieldOn && FIELD_KEYS.includes(cur.key);
+    cmapEl?.classList.toggle('has-field', !!(can && fieldLayer));
+    if (!can) { fieldLayer?.remove(); fieldLayer = null; cmapEl?.classList.remove('has-field'); fieldNote(); return; }
+    const temp = cur.key !== 'rain';
+    if (temp && demState === 'idle') {
+      demState = 'loading';
+      fetch('/api/dem').then((r) => (r.ok ? r.json() : Promise.reject())).then((j) => { dem = j; demState = 'ok'; field(); }).catch(() => { demState = 'error'; field(); });
+    }
+    if (!comarques) return;
+    if (!mask) mask = buildMask();
+    const pts = stations.filter((s) => val(s) != null && s.lat != null).map((s) => ({ lat: s.lat, lng: s.lng, alt: s.alt ?? 0, v: val(s) as number }));
+    if (pts.length < 5 || !mask) return;
+    // Gradient d'altitud (regressió lineal de la variable amb l'altitud), limitat a valors físics
+    let slope = 0;
+    const useDem = temp && demState === 'ok';
+    if (useDem) {
+      const n = pts.length, mx = pts.reduce((a, p) => a + p.alt, 0) / n, my = pts.reduce((a, p) => a + p.v, 0) / n;
+      const sxx = pts.reduce((a, p) => a + (p.alt - mx) ** 2, 0);
+      slope = sxx > 0 ? pts.reduce((a, p) => a + (p.alt - mx) * (p.v - my), 0) / sxx : -0.0065;
+      slope = Math.max(-0.0098, Math.min(-0.002, slope));
+    }
+    const P = pts.map((p) => ({ x: p.lng, y: p.lat, r: p.v - slope * p.alt }));
+    const cv = document.createElement('canvas');
+    cv.width = FW; cv.height = FH;
+    const ctx = cv.getContext('2d')!;
+    const img = ctx.createImageData(FW, FH);
+    for (let py = 0; py < FH; py++) {
+      const lat = rowLat(py);
+      const kx = 111.32 * Math.cos((lat * Math.PI) / 180);
+      for (let px = 0; px < FW; px++) {
+        const i = py * FW + px;
+        const a = mask[i];
+        if (!a) continue;
+        const lng = colLng(px);
+        let sw = 0, sv = 0, near = 1e9;
+        for (const p of P) {
+          const dx = (lng - p.x) * kx, dy = (lat - p.y) * 111.32;
+          const d2 = dx * dx + dy * dy + 0.25;
+          if (d2 < near) near = d2;
+          const w = 1 / (d2 * Math.sqrt(d2)); // IDW amb potència 3: prou local sense fer "diana" a cada estació
+          sw += w; sv += w * p.r;
+        }
+        let v = sv / sw;
+        if (useDem) v += slope * elevAt(lat, lng);
+        let c: number[] | null;
+        let alpha: number;
+        if (temp) { c = ramp(TSTOP, v); alpha = 0.62; }
+        else if (v < 0.2 || near > 35 * 35) { c = null; alpha = 0; }
+        else { c = ramp(RSTOP, v); alpha = 0.7; }
+        if (!c) continue;
+        const k = i * 4;
+        img.data[k] = c[1]; img.data[k + 1] = c[2]; img.data[k + 2] = c[3];
+        img.data[k + 3] = Math.round((a / 255) * alpha * 255);
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+    const url = cv.toDataURL();
+    const bounds: any = [[FB.lat0, FB.lng0], [FB.lat1, FB.lng1]];
+    if (fieldLayer) fieldLayer.setUrl(url);
+    else fieldLayer = L.imageOverlay(url, bounds, { pane: 'field', interactive: false, className: 'cm-field' }).addTo(map);
+    cmapEl?.classList.add('has-field');
+    fieldNote(temp && !useDem);
+  }
+  function fieldNote(plain = false) {
+    const el = document.getElementById('cmFieldNote');
+    if (!el) return;
+    const can = FIELD_KEYS.includes(cur.key);
+    const btn = document.getElementById('cmFieldBtn') as HTMLButtonElement | null;
+    if (btn) { btn.disabled = !can; btn.setAttribute('aria-pressed', String(fieldOn && can)); }
+    el.textContent = !can
+      ? 'Només per a temperatura i pluja'
+      : !fieldOn
+      ? ''
+      : cur.key === 'rain'
+      ? 'Pluja interpolada entre estacions'
+      : plain
+      ? 'Interpolada entre estacions'
+      : "Interpolada tenint en compte l'altitud";
+  }
 
   // Llegenda
   const Legend = L.Control.extend({
@@ -143,7 +293,10 @@ import Base from '../../layouts/Base.astro';
   function legend() {
     const el = document.getElementById('cmLegend');
     if (!el) return;
-    el.innerHTML = `<b>${cur.legend}</b><div class="sw">${cur.steps.map((s) => `<span><i style="background:${cur.color(s)}"></i>${num(s, s % 1 ? 1 : 0)}</span>`).join('')}</div>`;
+    el.innerHTML = `<b>${cur.legend}</b><div class="sw">${cur.steps.map((s) => `<span><i style="background:${cur.color(s)}"></i>${num(s, s % 1 ? 1 : 0)}</span>`).join('')}</div><div class="cm-fl"><button type="button" id="cmFieldBtn" aria-pressed="${fieldOn}">Mapa de color</button><span id="cmFieldNote"></span></div>`;
+    L.DomEvent.disableClickPropagation(el);
+    el.querySelector('#cmFieldBtn')?.addEventListener('click', () => { fieldOn = !fieldOn; field(); });
+    fieldNote();
   }
 
   let stations: St[] = [];
@@ -197,6 +350,7 @@ import Base from '../../layouts/Base.astro';
     legend();
     declutter();
     extremes();
+    field();
   }
 
   // Si dues etiquetes es trepitgen, la menys destacada queda com un punt
@@ -268,6 +422,7 @@ import Base from '../../layouts/Base.astro';
     const list: St[] = (x?.stations || []).map((s: any) => ({ ...s, mc: false }));
     const ara = (a as any)?.stations || {};
     for (const st of STATIONS as any[]) {
+      if (HIDDEN_HERE.has(st.id)) continue;
       const d = ara[st.id];
       if (!d || d.stale) continue;
       list.push({ id: st.id, slug: st.slug, name: st.name, lat: st.lat, lng: st.lng, alt: st.alt, com: st.comarca, mun: st.loc, mc: true,
