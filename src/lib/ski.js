@@ -124,7 +124,7 @@ export function skiSummary(g, today, lang = 'ca') {
   const days = g.top?.days ?? [];
   const i0 = firstIndex(days, today);
   const idx = days.map((_, i) => i).filter((i) => i >= i0).slice(0, SKI_DAYS);
-  const snow = idx.reduce((a, i) => a + (days[i].snow ?? 0), 0);
+  const snow = idx.reduce((a, i) => a + Math.max(0, days[i].snow ?? 0), 0);
   const rated = idx.map((i) => ({ i, r: rateDay(g.top, g.base, i) })).filter((x) => x.r);
   const best = rated.reduce((a, b) => (!a || b.r.score > a.r.score ? b : a), null);
   return { idx, snow, rated, best: best && best.r.level >= 3 ? { ...best, date: days[best.i].date } : null };
@@ -176,8 +176,37 @@ ${rateRow}
     .join('');
 }
 
-// Targeta resumida d'una estació (portada i tauler): neu prevista, tira de 7 dies i temps d'avui a dalt.
-// La taula completa és a la pàgina de cada estació.
+// ------------------------------------------------------------------ vistes gràfiques
+
+const frzMid = (d) => (d?.frz ? Math.round((d.frz.min + d.frz.max) / 200) * 100 : null);
+const dayWord = (days, best, idx, lang) => (best.i === idx[0] ? tx(lang).today.toLowerCase() : best.i === idx[1] ? tx(lang).tomorrow.toLowerCase() : `${dayName(best.date, lang)} ${parseDay(best.date).getUTCDate()}`);
+
+// On queda la isoterma respecte de les pistes
+function frzWhere(f, base, top, lang) {
+  const es = lang === 'es';
+  if (f == null) return '';
+  if (f <= base) return es ? 'por debajo de las pistas' : 'per sota de les pistes';
+  if (f >= top) return es ? 'por encima de la cima' : 'per sobre del cim';
+  return es ? 'a media estación' : "a mitja estació";
+}
+
+// Esquema de l'estació, de la base al cim, amb la isoterma de 0 °C del dia (per sobre, zona de neu)
+export function skiProfileSVG(id, base, top, frz, lang = 'ca', w = 78, h = 94) {
+  const f = frz ? (frz.min + frz.max) / 2 : null;
+  const lo = Math.min(base, f ?? base) - 250;
+  const hi = Math.max(top, f ?? top) + 250;
+  const y = (a) => +(h - 4 - ((a - lo) / (hi - lo)) * (h - 8)).toFixed(1);
+  const yb = y(base), yt = y(top);
+  const m = `M3 ${yb} L${(w * 0.44).toFixed(1)} ${yt} L${(w * 0.6).toFixed(1)} ${(yt + (yb - yt) * 0.22).toFixed(1)} L${w - 3} ${yb} Z`;
+  const yf = f != null ? Math.max(0, Math.min(h, y(f))) : null;
+  const label = f != null
+    ? `${lang === 'es' ? 'Isoterma de 0 °C' : 'Isoterma de 0 °C'}: ${thousands(Math.round(f / 100) * 100)} m · ${lang === 'es' ? 'pistas' : 'pistes'} ${thousands(base)}–${thousands(top)} m`
+    : `${lang === 'es' ? 'Pistas' : 'Pistes'} ${thousands(base)}–${thousands(top)} m`;
+  return `<svg class="skp" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" role="img" aria-label="${label}"><title>${label}</title><defs><clipPath id="skp-${id}"><path d="${m}"/></clipPath></defs><path d="${m}" fill="#d6dde6"/>${yf != null ? `<rect x="0" y="0" width="${w}" height="${yf}" fill="#dff1ff" clip-path="url(#skp-${id})"/>` : ''}<path d="${m}" fill="none" stroke="#5b6b7e" stroke-width="1.3" stroke-linejoin="round"/>${yf != null ? `<line x1="0" x2="${w}" y1="${yf}" y2="${yf}" stroke="#ea580c" stroke-width="1.8" stroke-dasharray="4 3"/>` : ''}</svg>`;
+}
+
+// Targeta d'una estació (portada, zones i tauler): neu prevista, millor dia, barres de neu de 7 dies,
+// esquema de l'estació amb la isoterma d'avui i temps a dalt. La taula completa és a la pàgina de l'estació.
 export function skiCompactHTML(groups, { today, lang = 'ca', season = true, base = '/temps/' }) {
   if (!groups?.length || !groups[0].top?.days?.length) return '';
   const L = tx(lang);
@@ -187,36 +216,140 @@ export function skiCompactHTML(groups, { today, lang = 'ca', season = true, base
       const r = g.resort;
       const days = g.top.days;
       const { idx, snow, rated, best } = skiSummary(g, today, lang);
-      const alts = `${thousands(r.points[r.points.length - 1].alt)}–${thousands(r.points[0].alt)} m`;
+      const bAlt = r.points[r.points.length - 1].alt, tAlt = r.points[0].alt;
       const rate = Object.fromEntries(rated.map((x) => [x.i, x.r]));
-      const strip = idx
+      const maxCm = Math.max(12, ...idx.map((i) => days[i].snow ?? 0));
+      const t0 = days[idx[0]];
+      const f0 = frzMid(t0);
+      const bars = idx
         .map((i, k) => {
           const d = days[i];
+          const cm = d.snow ?? 0;
+          const hgt = cm >= 0.5 ? Math.max(8, Math.round((cm / maxCm) * 100)) : 0;
           const rt = season && rate[i] ? `<span class="rt rt--${rate[i].level}" title="${L.levels[rate[i].level]}"></span>` : '';
-          const cm = d.snow != null && d.snow >= 0.5 ? `<b>${num(d.snow, 0)}</b>` : '<i>—</i>';
-          const ic = d.code == null ? '' : `<img src="${iconUrl(wmoIcon(d.code, true))}" alt="${wmoText(d.code, lang)}" title="${wmoText(d.code, lang)}" width="30" height="30" loading="lazy">`;
-          return `<li><span>${k === 0 ? L.today : `${cap(dayShort(d.date, lang))}`}</span>${ic}${cm}${rt}</li>`;
+          const ic = d.code == null ? '' : `<img src="${iconUrl(wmoIcon(d.code, true))}" alt="${wmoText(d.code, lang)}" title="${wmoText(d.code, lang)}" width="28" height="28" loading="lazy">`;
+          return `<li><span class="skc__d">${k === 0 ? L.today : cap(dayShort(d.date, lang))}</span>${ic}<span class="skc__bar">${hgt ? `<b>${num(cm, 0)}</b><i style="height:${hgt}%"></i>` : '<em></em>'}</span>${rt}</li>`;
         })
         .join('');
-      const t0 = days[idx[0]];
-      const now = t0 ? `${es ? 'Hoy arriba' : 'Avui a dalt'}: <b>${num(t0.min, 0)}° / ${num(t0.max, 0)}°</b>${t0.gust != null ? ` · ${es ? 'racha' : 'ratxa'} <b${t0.gust >= 70 ? ' class="ski__hi"' : ''}>${Math.round(t0.gust)} km/h</b>` : ''}` : '';
-      const bestTxt = season
+      const kpi2 = season
         ? best
-          ? `<p class="skc__best"><span class="rt rt--${best.r.level}"></span>${L.best}: <b>${best.i === idx[0] ? L.today.toLowerCase() : best.i === idx[1] ? L.tomorrow.toLowerCase() : `${dayName(best.date, lang)} ${parseDay(best.date).getUTCDate()}`}</b></p>`
-          : `<p class="skc__best skc__best--none">${L.none}</p>`
+          ? `<div><span class="skc__kl">${L.best}</span><b class="skc__kb"><span class="rt rt--${best.r.level}"></span>${cap(dayWord(days, best, idx, lang))}</b></div>`
+          : `<div><span class="skc__kl">${L.best}</span><b class="skc__kb skc__kb--no">${es ? 'Ninguno bueno' : 'Cap de bo'}</b></div>`
+        : `<div><span class="skc__kl">${es ? 'Hoy arriba' : 'Avui a dalt'}</span><b class="skc__kb">${num(t0?.min, 0)}° / ${num(t0?.max, 0)}°</b></div>`;
+      const now = t0
+        ? `${season ? `${es ? 'Hoy arriba' : 'Avui a dalt'}: <b>${num(t0.min, 0)}° / ${num(t0.max, 0)}°</b> · ` : ''}${es ? 'racha' : 'ratxa'} <b${t0.gust >= 70 ? ' class="ski__hi"' : ''}>${Math.round(t0.gust ?? 0)} km/h</b>${f0 != null ? ` · 0 °C ${es ? 'a' : 'a'} <b>${thousands(f0)} m</b>` : ''}`
         : '';
       return `<article class="skc skc--${r.ski.type}">
 <a class="skc__a" href="${base}${r.slug}">
-<div class="skc__head"><div><span class="ski__k">${L.type[r.ski.type]} · ${r.ski.region}</span><h3>${r.name}</h3><span class="ski__alt">${alts}</span></div>
-<div class="skc__snow">${snow >= 1 ? `<b>${num(snow, 0)}</b><span>${es ? 'cm de nieve<br>en 7 días' : 'cm de neu<br>en 7 dies'}</span>` : `<span>${es ? 'Sin nieve<br>en 7 días' : 'Sense neu<br>en 7 dies'}</span>`}</div></div>
-<ol class="skc__days" aria-label="${es ? 'Nieve prevista cada día, en cm' : 'Neu prevista cada dia, en cm'}">${strip}</ol>
+<div class="skc__head"><div><span class="ski__k">${L.type[r.ski.type]} · ${r.ski.region}</span><h3>${r.name}</h3><span class="ski__alt">${thousands(bAlt)}–${thousands(tAlt)} m</span></div>
+<div class="skc__prof">${skiProfileSVG(r.slug, bAlt, tAlt, t0?.frz, lang)}${f0 != null ? `<span>${frzWhere(f0, bAlt, tAlt, lang)}</span>` : ''}</div></div>
+<div class="skc__kpi"><div><span class="skc__kl">${es ? 'Nieve en 7 días' : 'Neu en 7 dies'}</span><b class="skc__kb skc__kb--snow">${num(snow, 0)} <small>cm</small></b></div>${kpi2}</div>
+<ol class="skc__bars" aria-label="${es ? 'Nieve nueva prevista arriba cada día, en cm' : 'Neu nova prevista a dalt cada dia, en cm'}">${bars}</ol>
 <p class="skc__now">${now}</p>
-${bestTxt}
 <span class="skc__more">${es ? 'Previsión completa' : 'Previsió completa'} →</span>
 </a>
 </article>`;
     })
     .join('');
+}
+
+// Xifres clau a dalt de la pàgina d'una estació
+export function skiHeadHTML(g, { today, lang = 'ca', season = true }) {
+  if (!g?.top?.days?.length) return '';
+  const L = tx(lang);
+  const es = lang === 'es';
+  const r = g.resort;
+  const days = g.top.days;
+  const { idx, snow, best } = skiSummary(g, today, lang);
+  const bAlt = r.points[r.points.length - 1].alt, tAlt = r.points[0].alt;
+  const t0 = days[idx[0]];
+  const f0 = frzMid(t0);
+  const most = idx.reduce((a, i) => ((days[i].snow ?? 0) > (days[a]?.snow ?? 0) ? i : a), idx[0]);
+  const mostTxt = (days[most]?.snow ?? 0) >= 1 ? `${es ? 'el día que más' : 'el dia que més'}: ${most === idx[0] ? L.today.toLowerCase() : most === idx[1] ? L.tomorrow.toLowerCase() : dayName(days[most].date, lang)} (${num(days[most].snow, 0)} cm)` : es ? 'sin nevadas a la vista' : 'sense nevades a la vista';
+  const tiles = [
+    [es ? 'Nieve nueva en 7 días' : 'Neu nova en 7 dies', `${num(snow, 0)} <small>cm</small>`, mostTxt, 'snow'],
+    season
+      ? [L.best, best ? `<span class="rt rt--${best.r.level}"></span>${cap(dayWord(days, best, idx, lang))}` : es ? 'Ninguno' : 'Cap', best ? `${L.levels[best.r.level]}${best.r.why.length ? ` · ${best.r.why.map((w) => L.why[w]).join(', ')}` : ''}` : L.none, '']
+      : [L.best, es ? 'Fuera de temporada' : 'Fora de temporada', es ? 'La valoración se muestra del 15 de noviembre al 30 de abril' : "La valoració es mostra del 15 de novembre al 30 d'abril", 'off'],
+    [es ? 'Hoy en la cima' : 'Avui al cim', t0 ? `${num(t0.min, 0)}° / ${num(t0.max, 0)}°` : '—', t0?.gust != null ? `${es ? 'racha' : 'ratxa'} de ${Math.round(t0.gust)} km/h` : '', ''],
+    [es ? 'Isoterma de 0 °C hoy' : 'Isoterma de 0 °C avui', f0 != null ? `${thousands(f0)} <small>m</small>` : '—', f0 != null ? frzWhere(f0, bAlt, tAlt, lang) : '', 'frz'],
+  ];
+  return `<div class="skh">${tiles.map(([k, v, s, c]) => `<div class="skh__t${c ? ` skh__t--${c}` : ''}"><span class="skh__k">${k}</span><b class="skh__v">${v}</b><span class="skh__s">${s}</span></div>`).join('')}</div>`;
+}
+
+// Gràfic de 7 dies d'una estació: franja de les pistes, isoterma de 0 °C (mínim i màxim del dia) i neu nova al cim
+export function skiChartSVG(g, { today, lang = 'ca', season = true }) {
+  if (!g?.top?.days?.length) return '';
+  const L = tx(lang);
+  const es = lang === 'es';
+  const r = g.resort;
+  const days = g.top.days;
+  const { idx, rated } = skiSummary(g, today, lang);
+  const rate = Object.fromEntries(rated.map((x) => [x.i, x.r]));
+  const bAlt = r.points[r.points.length - 1].alt, tAlt = r.points[0].alt;
+  const W = 760, X0 = 70, X1 = W - 14, TOP = 50, BOT = 222, S0 = 250, S1 = 318, DAY = 342, H = season ? 370 : 356;
+  const n = idx.length;
+  const cw = (X1 - X0) / n;
+  const cx = (k) => X0 + cw * (k + 0.5);
+  const fr = idx.map((i) => days[i].frz).filter(Boolean);
+  const lo = Math.max(0, Math.floor((Math.min(bAlt, ...fr.map((f) => f.min)) - 250) / 250) * 250);
+  const hi = Math.ceil((Math.max(tAlt, ...fr.map((f) => f.max)) + 250) / 250) * 250;
+  const y = (a) => +(BOT - ((a - lo) / (hi - lo)) * (BOT - TOP)).toFixed(1);
+  const step = hi - lo > 2500 ? 1000 : 500;
+  const ticks = [];
+  for (let a = Math.ceil(lo / step) * step; a <= hi; a += step) ticks.push(a);
+  const maxCm = Math.max(10, ...idx.map((i) => days[i].snow ?? 0));
+  const out = [];
+  out.push(`<svg class="skchart" viewBox="0 0 ${W} ${H}" role="img" aria-label="${es ? 'Nieve nueva e isoterma de 0 °C respecto a las pistas, día a día' : 'Neu nova i isoterma de 0 °C respecte de les pistes, dia a dia'}">`);
+  // eix d'altitud
+  ticks.forEach((a) => out.push(`<line x1="${X0}" x2="${X1}" y1="${y(a)}" y2="${y(a)}" stroke="#e3e9f0"/><text x="${X0 - 8}" y="${y(a) + 4}" text-anchor="end" class="skchart__ax">${thousands(a)} m</text>`));
+  // franja de les pistes
+  out.push(`<rect x="${X0}" y="${y(tAlt)}" width="${X1 - X0}" height="${(y(bAlt) - y(tAlt)).toFixed(1)}" fill="#dff1ff"/>`);
+  out.push(`<line x1="${X0}" x2="${X1}" y1="${y(tAlt)}" y2="${y(tAlt)}" stroke="#7cc4ec" stroke-dasharray="5 4"/><line x1="${X0}" x2="${X1}" y1="${y(bAlt)}" y2="${y(bAlt)}" stroke="#7cc4ec" stroke-dasharray="5 4"/>`);
+  out.push(`<text x="${X0 + 8}" y="${y(tAlt) + 15}" class="skchart__band">${es ? 'Cima' : 'Cim'} · ${thousands(tAlt)} m</text><text x="${X0 + 8}" y="${y(bAlt) - 7}" class="skchart__band">Base · ${thousands(bAlt)} m</text>`);
+  // isoterma: rang del dia i línia pel mig
+  const pts = [];
+  idx.forEach((i, k) => {
+    const f = days[i].frz;
+    if (!f) return;
+    const m = (f.min + f.max) / 2;
+    pts.push([cx(k), y(m)]);
+    if (f.max > f.min) out.push(`<line x1="${cx(k)}" x2="${cx(k)}" y1="${y(f.max)}" y2="${y(f.min)}" stroke="#fdba74" stroke-width="10" stroke-linecap="round"/>`);
+  });
+  if (pts.length > 1) out.push(`<polyline points="${pts.map((p) => p.join(',')).join(' ')}" fill="none" stroke="#ea580c" stroke-width="2.5" stroke-linejoin="round"/>`);
+  idx.forEach((i, k) => {
+    const f = days[i].frz;
+    if (!f) return;
+    const m = (f.min + f.max) / 2;
+    out.push(`<circle cx="${cx(k)}" cy="${y(m)}" r="4.5" fill="#fff" stroke="#ea580c" stroke-width="2.5"/><text x="${cx(k)}" y="${y(m) - 11}" text-anchor="middle" class="skchart__frz">${thousands(Math.round(m / 100) * 100)}</text>`);
+  });
+  // icones del cel
+  idx.forEach((i, k) => {
+    const d = days[i];
+    if (d.code != null) out.push(`<image href="${iconUrl(wmoIcon(d.code, true))}" x="${cx(k) - 17}" y="4" width="34" height="34"><title>${wmoText(d.code, lang)}</title></image>`);
+  });
+  // neu nova al cim
+  out.push(`<line x1="${X0}" x2="${X1}" y1="${S1}" y2="${S1}" stroke="#c9d5e3"/><text x="${X0 - 8}" y="${S1 - 22}" text-anchor="end" class="skchart__ax">${es ? 'Nieve' : 'Neu'}</text><text x="${X0 - 8}" y="${S1 - 8}" text-anchor="end" class="skchart__ax">cm</text>`);
+  idx.forEach((i, k) => {
+    const cm = days[i].snow ?? 0;
+    if (cm >= 0.5) {
+      const hgt = Math.max(4, (cm / maxCm) * (S1 - S0 - 16));
+      out.push(`<rect x="${cx(k) - 16}" y="${(S1 - hgt).toFixed(1)}" width="32" height="${hgt.toFixed(1)}" rx="4" fill="#2563eb"/><text x="${cx(k)}" y="${(S1 - hgt - 6).toFixed(1)}" text-anchor="middle" class="skchart__cm">${num(cm, 0)}</text>`);
+    } else out.push(`<text x="${cx(k)}" y="${S1 - 6}" text-anchor="middle" class="skchart__none">—</text>`);
+  });
+  // dies i valoració
+  idx.forEach((i, k) => {
+    const d = days[i];
+    const lab = k === 0 ? L.today : k === 1 ? L.tomorrow : `${cap(dayShort(d.date, lang))} ${parseDay(d.date).getUTCDate()}`;
+    out.push(`<text x="${cx(k)}" y="${DAY}" text-anchor="middle" class="skchart__day">${lab}</text>`);
+    if (season && rate[i]) {
+      const c = { 4: '#1f9d55', 3: '#8bc34a', 2: '#e0a100', 1: '#c62828' }[rate[i].level];
+      out.push(`<circle cx="${cx(k)}" cy="${DAY + 14}" r="5.5" fill="${c}"><title>${L.levels[rate[i].level]}</title></circle>`);
+    }
+  });
+  out.push('</svg>');
+  const legend = `<div class="skchart__lg"><span><i class="lg-band"></i>${es ? 'Pistas' : 'Pistes'} (${thousands(bAlt)}–${thousands(tAlt)} m)</span><span><i class="lg-frz"></i>${es ? 'Isoterma de 0 °C: por encima nieva, por debajo puede llover' : "Isoterma de 0 °C: per sobre neva, per sota pot ploure"}</span><span><i class="lg-snow"></i>${es ? 'Nieve nueva en la cima' : 'Neu nova al cim'}</span>${season ? `<span><i class="rt rt--4"></i>${es ? 'Día para esquiar' : 'Dia per esquiar'}</span>` : ''}</div>`;
+  return `<div class="skchart__w">${out.join('')}</div>${legend}`;
 }
 
 // Frase per al text de la pàgina (es genera al build): on nevarà més

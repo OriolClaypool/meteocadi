@@ -100,6 +100,7 @@ function ringsPath(p, polys) {
 }
 
 // o: { format, title: [l1, l2], accent, today, when: Date, stations: [{ lat, lng, mc, text, bg, fg }] (per prioritat),
+//      hideOverlap (les que no hi caben no surten, en lloc de sortir com a punt),
 //      comarques (GeoJSON), field: { canvas, bounds, alpha, note } | null, legend: { title, steps: [{ color, label }] } }
 export async function renderMapImage(o) {
   const f = FORMATS[o.format] || FORMATS.post;
@@ -181,8 +182,10 @@ export async function renderMapImage(o) {
   for (const st of o.stations) {
     const [x, y] = p(st.lng, st.lat);
     const w = Math.ceil(ctx.measureText(st.text).width) + 2 * pad;
-    const box = [x - w / 2 - 2, y - ph / 2 - 2, x + w / 2 + 2, y + ph / 2 + 2];
+    const g = o.hideOverlap ? 6 : 2;
+    const box = [x - w / 2 - g, y - ph / 2 - g, x + w / 2 + g, y + ph / 2 + g];
     const hit = placed.some((b) => !(box[2] < b[0] || box[0] > b[2] || box[3] < b[1] || box[1] > b[3]));
+    if (hit && o.hideOverlap) continue;
     if (hit) dots.push({ ...st, x, y });
     else { placed.push(box); pills.push({ ...st, x, y, w }); }
   }

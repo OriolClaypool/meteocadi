@@ -13,7 +13,7 @@ import { PLACE_BY_SLUG, placesIn, nearbyPlaces, isMountain, isRoad, distanceKm }
 import { REGIONS, REGION_BY_SLUG, localizeRegion, deA } from '../lib/regions.js';
 import { localize, esPath, caPath } from '../lib/places-es.js';
 import { fetchMountain, mountainText, lowerCommon } from '../lib/mountain.js';
-import { fetchSki, skiCardsHTML, inSeason } from '../lib/ski.js';
+import { fetchSki, skiCardsHTML, skiHeadHTML, skiChartSVG, inSeason } from '../lib/ski.js';
 import { BY_ID, fmtAlt } from '../lib/stations.js';
 import { stationRecords } from '../lib/archive.js';
 import { dailyForecast } from '../lib/forecast-build.js';
@@ -49,7 +49,13 @@ const today = todayMadrid();
 const season = inSeason(today);
 const skiLight = p.ski ? [{ slug: p.slug, name: p.name, points: p.points, ski: p.ski }] : null;
 const skiGroups = skiLight ? await fetchSki(skiLight) : null;
-const skiHTML = skiGroups ? skiCardsHTML(skiGroups, { today, lang, season, base }) : '';
+const skiHTML = skiGroups ? skiView(skiGroups) : '';
+
+function skiView(groups) {
+  const g = groups?.[0];
+  if (!g?.top?.days?.length) return '';
+  return `${skiHeadHTML(g, { today, lang, season })}${skiChartSVG(g, { today, lang, season })}<h3 class="skt__h">${es ? 'Día a día, en detalle' : 'Dia a dia, en detall'}</h3>${skiCardsHTML(groups, { today, lang, season, base })}`;
+}
 
 // Carreteres: les del lloc (roads) o les incidències a prop (llocs nous de Catalunya)
 const roadAreas = !p.roads?.length && !andorra && p.zona !== 'cadi' ? [{ lat: p.lat, lng: p.lng, km: p.near ?? (p.kind === 'poble' ? 10 : 14) }] : [];
@@ -182,10 +188,10 @@ const skiFacts = p.ski
           <div>
             <span class="eyebrow" style="color:#0e6e8c;">{es ? 'PREVISIÓN · 7 DÍAS' : 'PREVISIÓ · 7 DIES'}</span>
             <h2 class="h2">{es ? 'Para esquiar' : 'Per esquiar'} <em>{p.a}</em></h2>
-            <p class="sub">{es ? 'Nieve nueva, temperatura arriba y abajo, viento en la cima e isoterma, día a día.' : 'Neu nova, temperatura a dalt i a baix, vent al cim i isoterma, dia a dia.'}{season ? '' : es ? ' Fuera de temporada no se muestra la valoración del día para esquiar.' : ' Fora de temporada no es mostra la valoració del dia per esquiar.'}</p>
+            <p class="sub">{es ? 'La nieve nueva y la isoterma de 0 °C respecto a las pistas, día a día: si la línea naranja está por debajo de la base, nieva en toda la estación.' : "La neu nova i la isoterma de 0 °C respecte de les pistes, dia a dia: si la línia taronja és per sota de la base, neva a tota l'estació."}{season ? '' : es ? ' Fuera de temporada no se muestra la valoración del día para esquiar.' : ' Fora de temporada no es mostra la valoració del dia per esquiar.'}</p>
           </div>
         </div>
-        <div class="skis" data-ski-one={JSON.stringify({ resorts: skiLight, lang, base })} set:html={skiHTML || `<p class="mfc__load">${es ? 'Cargando la previsión…' : 'Carregant la previsió…'}</p>`}></div>
+        <div class="skis skis--one" data-ski-one={JSON.stringify({ resorts: skiLight, lang, base })} set:html={skiHTML || `<p class="mfc__load">${es ? 'Cargando la previsión…' : 'Carregant la previsió…'}</p>`}></div>
         <div class="skifacts">
           <dl>{skiFacts.map(([k, v]) => <div><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
           <p class="skilinks">
@@ -317,6 +323,8 @@ const skiFacts = p.ski
 </Base>
 
 <style is:global>
+  .skis--one { display: block; }
+  .skt__h { font-family: var(--f-head); font-size: 20px; font-weight: 800; margin: 8px 0 10px; }
   .nx__title { font-family: var(--f-head); font-size: 20px; font-weight: 800; color: #f1f5fb; margin: 36px 0 14px; }
   .skifacts { margin-top: 20px; display: flex; flex-direction: column; gap: 12px; }
   .skifacts dl { display: flex; flex-wrap: wrap; gap: 10px; margin: 0; }
@@ -333,7 +341,7 @@ const skiFacts = p.ski
 
 <script>
   import { startLive } from '../scripts/live.js';
-  import { fetchSki, skiCardsHTML, inSeason } from '../lib/ski.js';
+  import { fetchSki, skiCardsHTML, skiHeadHTML, skiChartSVG, inSeason } from '../lib/ski.js';
   import { todayMadrid } from '../lib/format.js';
   if (document.querySelector('[data-live-badge], [data-st-table]')) startLive();
   const box = document.querySelector<HTMLElement>('[data-ski-one]');
@@ -343,8 +351,9 @@ const skiFacts = p.ski
       const today = todayMadrid();
       const season = inSeason(today) || new URLSearchParams(location.search).has('temporada');
       return fetchSki(resorts, 12000).then((groups) => {
-        const html = skiCardsHTML(groups, { today, lang, season, base });
-        if (html) box.innerHTML = html;
+        const g = groups?.[0];
+        if (!g?.top?.days?.length) return;
+        box.innerHTML = `${skiHeadHTML(g, { today, lang, season })}${skiChartSVG(g, { today, lang, season })}<h3 class="skt__h">${lang === 'es' ? 'Día a día, en detalle' : 'Dia a dia, en detall'}</h3>${skiCardsHTML(groups, { today, lang, season, base })}`;
       }).catch(() => {});
     };
     paint();

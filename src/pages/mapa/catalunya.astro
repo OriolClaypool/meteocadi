@@ -30,7 +30,7 @@ import Base from '../../layouts/Base.astro';
         <button type="button" data-f="story">Història 9:16</button>
       </div>
       <p class="cm-note">
-        Dades: <a href="https://www.meteo.cat/" rel="noopener" target="_blank">Servei Meteorològic de Catalunya</a> (Xarxa d'Estacions Meteorològiques Automàtiques, a través de les <a href="https://analisi.transparenciacatalunya.cat/Medi-Ambient/Dades-meteorol-giques-de-la-XEMA/nzvn-apee" rel="noopener" target="_blank">dades obertes de la Generalitat</a>) i xarxa Meteocadí (voltades en negre). Límits comarcals: ICGC. El mapa de color és una estimació entre estacions (a la temperatura, tenint en compte l'altitud del terreny, Copernicus DEM): serveix per veure com es reparteix, no el valor exacte d'un punt, i al vent és només orientatiu, perquè canvia molt d'un lloc a l'altre. Amb el selector d'estacions pots deixar-ne només una per capital de comarca o amagar-les totes. Són dades automàtiques sense validar: una lectura estranya pot ser un error del sensor. Quan les etiquetes no hi caben, algunes estacions es mostren com un punt: toca-les o apropa't per veure'n el valor.
+        Dades: <a href="https://www.meteo.cat/" rel="noopener" target="_blank">Servei Meteorològic de Catalunya</a> (Xarxa d'Estacions Meteorològiques Automàtiques, a través de les <a href="https://analisi.transparenciacatalunya.cat/Medi-Ambient/Dades-meteorol-giques-de-la-XEMA/nzvn-apee" rel="noopener" target="_blank">dades obertes de la Generalitat</a>) i xarxa Meteocadí (voltades en negre). Límits comarcals: ICGC. El mapa de color és una estimació entre estacions (a la temperatura, tenint en compte l'altitud del terreny, Copernicus DEM): serveix per veure com es reparteix, no el valor exacte d'un punt, i al vent és només orientatiu, perquè canvia molt d'un lloc a l'altre. Amb el selector d'estacions pots veure-les totes, deixar-ne només una per capital de comarca o amagar-les; per defecte hi surten les que hi caben, i en apropar-te al mapa en van apareixent més. Són dades automàtiques sense validar: una lectura estranya pot ser un error del sensor. Quan les etiquetes no hi caben, algunes estacions es mostren com un punt: toca-les o apropa't per veure'n el valor.
       </p>
       <div class="cm-ext" id="cmExt" aria-live="polite"></div>
     </div>
@@ -166,11 +166,12 @@ import Base from '../../layouts/Base.astro';
     ['Sabadell', 41.548, 2.107], ['Terrassa', 41.563, 2.009], ['Granollers', 41.608, 2.288], ['Prats de Lluçanès', 42.01, 2.03],
   ];
   const MODES = [
-    { key: 'totes', label: 'Totes', title: 'Totes les estacions' },
+    { key: 'auto', label: 'Selecció', title: "Les estacions que hi caben sense trepitjar-se: apropa't al mapa per veure'n més" },
+    { key: 'totes', label: 'Totes', title: 'Totes les estacions (les que no hi caben, com a punt)' },
     { key: 'capitals', label: 'Capitals', title: "L'estació més propera a cada capital de comarca" },
     { key: 'cap', label: 'Cap', title: 'Només el mapa de color' },
   ] as const;
-  let mode: 'totes' | 'capitals' | 'cap' = 'totes';
+  let mode: 'auto' | 'totes' | 'capitals' | 'cap' = 'auto';
   let capIds = new Set<string>();
 
   // Text fosc o blanc segons la lluminositat del color de fons
@@ -301,7 +302,7 @@ import Base from '../../layouts/Base.astro';
   let stations: St[] = [];
   const markers = new Map<string, any>();
   const val = (s: St) => (s as any)[cur.key] as number | null;
-  const shown = (s: St) => val(s) != null && (mode === 'totes' || (mode === 'capitals' && capIds.has(s.id)));
+  const shown = (s: St) => val(s) != null && (mode === 'auto' || mode === 'totes' || (mode === 'capitals' && capIds.has(s.id)));
 
   function capitals() {
     const ids = new Set<string>();
@@ -378,21 +379,26 @@ import Base from '../../layouts/Base.astro';
     };
   }
 
-  // Si dues etiquetes es trepitgen, la menys destacada queda com un punt
+  // Si dues etiquetes es trepitgen, la menys destacada queda com un punt ("Totes") o no surt ("Selecció":
+  // en apropar-se al mapa hi ha més espai i van apareixent)
   function declutter() {
     const pri = priority();
     const placed: number[][] = [];
+    const auto = mode === 'auto';
+    const gap = auto ? 6 : 1;
     for (const s of stations.filter(shown).sort((a, b) => pri(b) - pri(a))) {
       const m = markers.get(s.id);
       const el = m?.getElement()?.firstElementChild as HTMLElement | null;
       if (!el) continue;
       el.classList.remove('is-dot');
+      el.style.display = '';
       const p = map.latLngToContainerPoint([s.lat, s.lng]);
       const w = el.offsetWidth || 40;
       const h = el.offsetHeight || 22;
-      const box = [p.x - w / 2 - 1, p.y - h / 2 - 1, p.x + w / 2 + 1, p.y + h / 2 + 1];
+      const box = [p.x - w / 2 - gap, p.y - h / 2 - gap, p.x + w / 2 + gap, p.y + h / 2 + gap];
       const hit = placed.some((b) => !(box[2] < b[0] || box[0] > b[2] || box[3] < b[1] || box[1] > b[3]));
-      if (hit) el.classList.add('is-dot');
+      if (hit && auto) el.style.display = 'none';
+      else if (hit) el.classList.add('is-dot');
       else placed.push(box);
       // Els punts sempre per sota de les etiquetes
       m.setZIndexOffset((hit ? -2000 : 0) + (s.mc ? 1000 : 0));
@@ -471,6 +477,7 @@ import Base from '../../layouts/Base.astro';
           today: !!(cur as any).today,
           when,
           stations: list,
+          hideOverlap: mode === 'auto',
           comarques,
           field: hasField ? { canvas: fieldRaw!.canvas, bounds: FB, alpha: fieldRaw!.alpha, note: fieldRaw!.note } : null,
           legend: { title: cur.unit, steps: cur.steps.map((s) => ({ color: cur.color(s), label: num(s, s % 1 ? 1 : 0) })) },

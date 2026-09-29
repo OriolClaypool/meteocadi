@@ -7,7 +7,7 @@ import RoadStatus from './RoadStatus.astro';
 import { PLACES } from '../lib/places.js';
 import { REGIONS, localizeRegion } from '../lib/regions.js';
 import { localize } from '../lib/places-es.js';
-import { fetchSki, skiCompactHTML, skiSnowText, inSeason } from '../lib/ski.js';
+import { fetchSki, skiCompactHTML, skiSnowText, skiSummary, inSeason } from '../lib/ski.js';
 import { todayMadrid, longDate, cap } from '../lib/format.js';
 
 interface Props { lang?: 'ca' | 'es' }
@@ -29,6 +29,7 @@ const zones = [...REGIONS].sort((a, b) => ORDER.indexOf(a.slug) - ORDER.indexOf(
     return { ...r, n: idx.length, html };
   })
   .filter((z) => z.n > 0);
+const mapItems = light.map((r, i) => ({ slug: r.slug, name: r.name, lat: r.points[0].lat, lng: r.points[0].lng, snow: groups?.[i] ? Math.round(skiSummary(groups[i], today, lang).snow) : null }));
 
 // Zones per a les incidències de trànsit (lat, lng, radi en km)
 const AREAS = [
@@ -67,7 +68,6 @@ const description = es
       <p>{es
         ? 'La previsión de 7 días para la parte alta y la base de cada estación de esquí del Pirineo catalán y Andorra, con la nieve nueva, el viento en las cimas y el estado de las carreteras para llegar.'
         : "La previsió de 7 dies per a la part alta i la base de cada estació d'esquí del Pirineu català i Andorra, amb la neu nova, el vent als cims i l'estat de les carreteres per arribar-hi."}</p>
-      <nav class="rjump" aria-label={es ? 'Zonas' : 'Zones'}>{zones.map((z) => <a href={`#${z.slug}`}>{z.name} <small>{z.n}</small></a>)}</nav>
       <div class="prose" style="margin-top:18px;font-size:17px;">
         {snowText && <p>{cap(longDate(today, lang))}. {snowText}</p>}
         {season
@@ -82,7 +82,21 @@ const description = es
     </div>
   </section>
 
-  <section class="sec">
+  <section class="sec skmap-sec">
+    <div class="wrap">
+      <div class="sec__head">
+        <div>
+          <span class="eyebrow" style="color:#0e6e8c;">{es ? 'MAPA DE NIEVE · 7 DÍAS' : 'MAPA DE NEU · 7 DIES'}</span>
+          {es ? <h2 class="h2">¿Dónde <em>nevará más?</em></h2> : <h2 class="h2">On nevarà <em>més?</em></h2>}
+          <p class="sub">{es ? 'Cada etiqueta es una estación, con la nieve nueva prevista arriba en los próximos 7 días. Tócala para ver la estación.' : "Cada etiqueta és una estació, amb la neu nova prevista a dalt els pròxims 7 dies. Toca-la per veure l'estació."}</p>
+        </div>
+      </div>
+      <div class="skimap" id="skimap" data-skimap={JSON.stringify({ items: mapItems, base, lang })} aria-label={es ? 'Mapa de las estaciones de esquí con la nieve prevista' : "Mapa de les estacions d'esquí amb la neu prevista"}></div>
+      <div class="skimap__lg" aria-hidden="true"><span><i style="background:#ffffff;border:1px solid #c9d5e3"></i>{es ? 'Sin nieve' : 'Sense neu'}</span><span><i style="background:#bfdbfe"></i>1–9 cm</span><span><i style="background:#60a5fa"></i>10–29 cm</span><span><i style="background:#1d4ed8"></i>30 cm {es ? 'o más' : 'o més'}</span></div>
+    </div>
+  </section>
+
+  <section class="sec" style="padding-top:24px;">
     <div class="wrap">
       <div class="sec__head">
         <div>
@@ -92,6 +106,10 @@ const description = es
             ? 'Calculada para la parte alta y la base de cada estación. Toca una estación para ver su tabla de 7 días, la previsión por horas y las estaciones meteorológicas más cercanas.'
             : "Calculada per a la part alta i la base de cada estació. Toca una estació per veure'n el tauler de 7 dies, la previsió per hores i les estacions meteorològiques més properes."}</p>
         </div>
+      </div>
+      <div class="sktabs" role="tablist" aria-label={es ? 'Zonas' : 'Zones'}>
+        <button type="button" role="tab" data-tab="totes" aria-selected="false">{es ? 'Todas' : 'Totes'} <small>{light.length}</small></button>
+        {zones.map((z, i) => <button type="button" role="tab" data-tab={z.slug} aria-selected={i === 0 ? 'true' : 'false'}>{z.name} <small>{z.n}</small></button>)}
       </div>
       <div class="skzones" data-ski-hub={JSON.stringify({ resorts: light, lang, base })}>
         {zones.map((z) => (
@@ -158,8 +176,72 @@ const description = es
 </Base>
 
 <script>
-  import { fetchSki, skiCompactHTML, inSeason } from '../lib/ski.js';
+  import L from 'leaflet';
+  import 'leaflet/dist/leaflet.css';
+  import { fetchSki, skiCompactHTML, skiSummary, inSeason } from '../lib/ski.js';
   import { todayMadrid } from '../lib/format.js';
+
+  // Pestanyes per zona (la primera per defecte; #zona a l'adreça tria una zona)
+  const tabs = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-tab]'));
+  const zoneEls = Array.from(document.querySelectorAll<HTMLElement>('.skzone'));
+  function show(tab: string) {
+    tabs.forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tab === tab)));
+    zoneEls.forEach((z) => (z.hidden = tab !== 'totes' && z.id !== tab));
+  }
+  tabs.forEach((b) => b.addEventListener('click', () => { show(b.dataset.tab!); history.replaceState(null, '', b.dataset.tab === 'totes' ? location.pathname : `#${b.dataset.tab}`); }));
+  const hash = location.hash.slice(1);
+  show(tabs.some((b) => b.dataset.tab === hash) ? hash : tabs[1]?.dataset.tab || 'totes');
+
+  // Mapa de neu
+  const mapEl = document.getElementById('skimap');
+  const cfg = mapEl ? JSON.parse(mapEl.dataset.skimap || '{}') : null;
+  const markers = new Map<string, any>();
+  const snowBg = (cm: number | null) => (cm == null ? '#eef3f8' : cm >= 30 ? '#1d4ed8' : cm >= 10 ? '#60a5fa' : cm >= 1 ? '#bfdbfe' : '#ffffff');
+  const snowFg = (cm: number | null) => (cm != null && cm >= 30 ? '#ffffff' : '#10233b');
+  let map: any = null;
+  function pin(it: any) {
+    const bg = snowBg(it.snow);
+    return `<a class="skm" href="${cfg.base}${it.slug}" style="--bg:${bg};--fg:${snowFg(it.snow)}"><b>${it.snow == null ? '…' : `${it.snow}<small> cm</small>`}</b><span>${it.name}</span></a>`;
+  }
+  // Si dues etiquetes es trepitgen: primer, la de menys neu perd el nom; si encara es trepitgen, queda com un punt
+  function declutter() {
+    const placed: number[][] = [];
+    const list = [...cfg.items].sort((a: any, b: any) => (b.snow ?? -1) - (a.snow ?? -1));
+    const hit = (box: number[]) => placed.some((b) => !(box[2] < b[0] || box[0] > b[2] || box[3] < b[1] || box[1] > b[3]));
+    for (const it of list) {
+      const el = markers.get(it.slug)?.getElement()?.querySelector('.skm') as HTMLElement | null;
+      if (!el) continue;
+      el.classList.remove('is-short', 'is-dot');
+      const p = map.latLngToContainerPoint([it.lat, it.lng]);
+      const boxOf = () => [p.x - el.offsetWidth / 2, p.y - el.offsetHeight / 2, p.x + el.offsetWidth / 2, p.y + el.offsetHeight / 2];
+      let box = boxOf();
+      if (hit(box)) {
+        el.classList.add('is-short');
+        box = boxOf();
+        if (hit(box)) { el.classList.add('is-dot'); box = boxOf(); }
+      }
+      placed.push(box);
+    }
+  }
+  if (mapEl && cfg?.items?.length) {
+    map = L.map(mapEl, { scrollWheelZoom: false, zoomSnap: 0.25 });
+    L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, SRTM · estil © <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)',
+      subdomains: 'abc',
+      maxZoom: 15,
+    }).addTo(map);
+    const lats = cfg.items.map((x: any) => x.lat), lngs = cfg.items.map((x: any) => x.lng);
+    const small = mapEl.clientWidth < 600;
+    map.fitBounds([[Math.min(...lats), Math.min(...lngs)], [Math.max(...lats), Math.max(...lngs)]], { padding: small ? [14, 14] : [40, 40] });
+    for (const it of cfg.items) {
+      const m = L.marker([it.lat, it.lng], { icon: L.divIcon({ className: 'skm-pin', html: pin(it), iconSize: null as any }), keyboard: false });
+      m.addTo(map);
+      markers.set(it.slug, m);
+    }
+    declutter();
+    map.on('zoomend', declutter);
+  }
+
   const hub = document.querySelector<HTMLElement>('[data-ski-hub]');
   if (hub) {
     const { resorts, lang, base } = JSON.parse(hub.dataset.skiHub || '{}');
@@ -173,6 +255,17 @@ const description = es
           const html = skiCompactHTML(sub, { today, lang, season, base });
           if (html) box.innerHTML = html;
         });
+        if (map) {
+          groups.forEach((g: any) => {
+            const it = cfg.items.find((x: any) => x.slug === g.resort.slug);
+            const m = markers.get(g.resort.slug);
+            if (!it || !m || !g.top?.days?.length) return;
+            it.snow = Math.round(skiSummary(g, today, lang).snow);
+            const el = m.getElement();
+            if (el) el.innerHTML = pin(it);
+          });
+          declutter();
+        }
       }).catch(() => {});
     };
     paint();
@@ -181,10 +274,36 @@ const description = es
 </script>
 
 <style is:global>
-  .rjump { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
-  .rjump a { padding: 8px 14px; border-radius: 999px; background: #fff; border: 1px solid var(--line); font-weight: 600; font-size: 15px; }
-  .rjump a small { font-family: var(--f-mono); font-size: 12px; color: var(--muted); margin-left: 4px; }
-  .rjump a:hover { border-color: var(--blue); }
+  .skmap-sec { padding: 64px 0 40px; }
+  .skimap { width: 100%; height: min(64vh, 620px); min-height: 420px; border-radius: 18px; border: 1px solid var(--line); overflow: hidden; background: #e9eef3; }
+  .skimap .leaflet-tile-pane { filter: saturate(0.35) contrast(0.92) brightness(1.06); opacity: 0.75; }
+  .skimap.leaflet-container { font-family: var(--f-ui); }
+  .skm-pin { width: 0 !important; height: 0 !important; }
+  .skm { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); display: inline-flex; align-items: center; gap: 7px; padding: 4px 11px 4px 4px; border-radius: 999px; background: #fff; box-shadow: 0 2px 8px rgba(16, 35, 59, 0.28); white-space: nowrap; color: var(--ink); text-decoration: none; }
+  .skm:hover { color: var(--ink); box-shadow: 0 0 0 2px #10233b, 0 2px 8px rgba(16, 35, 59, 0.28); z-index: 5; }
+  .skm b { display: inline-flex; align-items: baseline; justify-content: center; min-width: 38px; padding: 3px 8px; border-radius: 999px; background: var(--bg); color: var(--fg); font-family: var(--f-mono); font-size: 14px; font-weight: 700; box-shadow: inset 0 0 0 1px rgba(16, 35, 59, 0.12); }
+  .skm b small { font-size: 10.5px; font-weight: 600; opacity: 0.8; }
+  .skm span { font-family: var(--f-head); font-size: 14px; font-weight: 800; letter-spacing: -0.01em; }
+  .skm.is-short { padding-right: 4px; }
+  .skm.is-short span { display: none; }
+  .skm.is-dot { padding: 0; }
+  .skm.is-dot b { min-width: 0; width: 14px; height: 14px; padding: 0; font-size: 0; }
+  .skm.is-dot b small { display: none; }
+  .skimap__lg { display: flex; flex-wrap: wrap; gap: 8px 18px; margin-top: 12px; font-family: var(--f-mono); font-size: 12.5px; color: var(--ink2); }
+  .skimap__lg span { display: inline-flex; align-items: center; gap: 7px; }
+  .skimap__lg i { display: inline-block; width: 18px; height: 12px; border-radius: 6px; }
+  .sktabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 26px; }
+  .sktabs button { height: 40px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--line); background: #fff; color: var(--ink); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .sktabs button small { font-family: var(--f-mono); font-size: 12px; color: var(--muted); margin-left: 4px; }
+  .sktabs button[aria-selected='true'] { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .sktabs button[aria-selected='true'] small { color: rgba(255, 255, 255, 0.7); }
+  @media (max-width: 640px) {
+    .skimap { height: 62vh; min-height: 400px; }
+    .skm span { font-size: 12.5px; }
+    .skm b { font-size: 12.5px; min-width: 32px; padding: 2px 6px; }
+    .sktabs { flex-wrap: nowrap; overflow-x: auto; margin: 0 calc(-1 * var(--pad)) 22px; padding: 0 var(--pad) 6px; }
+    .sktabs button { flex: none; height: 38px; font-size: 14px; }
+  }
   .skzones { display: flex; flex-direction: column; gap: 44px; }
   .skzone { scroll-margin-top: 24px; }
   .skzone__h { display: flex; justify-content: space-between; align-items: baseline; gap: 8px 20px; flex-wrap: wrap; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 2px solid var(--ink); }
