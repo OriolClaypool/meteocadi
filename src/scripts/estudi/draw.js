@@ -354,14 +354,57 @@ export function drawRanking(ctx, d) {
   }
   y += 40;
   hline(ctx, X0, X1, y, L.ink, 2);
+  const vals = list.map((r) => r.v);
+  const temp = d.variable === 'max' || d.variable === 'min';
+
+  // Mínimes: cada estació és un punt sobre una escala de temperatura (la més freda, més a l'esquerra),
+  // perquè una barra més llarga per a la temperatura més baixa confon. La resta: barres (valor més alt, barra més llarga).
+  const dots = d.variable === 'min' && list.length > 0;
+  let sc = null;
+  if (dots) {
+    let s0 = Math.floor(Math.min(...vals)) - 1;
+    let s1 = Math.ceil(Math.max(...vals)) + 1;
+    if (s1 - s0 < 6) {
+      const m = (s0 + s1) / 2;
+      s0 = Math.floor(m - 3);
+      s1 = Math.ceil(m + 3);
+    }
+    const step = s1 - s0 <= 12 ? 2 : s1 - s0 <= 30 ? 5 : 10;
+    sc = { s0, s1, step, x0: 470, x1: 810 };
+    sc.x = (v) => sc.x0 + ((v - sc.s0) / (sc.s1 - sc.s0)) * (sc.x1 - sc.x0);
+    // Eix: valors de l'escala a sobre de la primera fila
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'center';
+    font(ctx, 'mono', 20);
+    for (let t = Math.ceil(s0 / step) * step; t <= s1; t += step) {
+      ctx.fillStyle = t === 0 ? '#1d4ed8' : L.mut;
+      ctx.fillText(`${num(t, 0)}°`, sc.x(t), y + 28);
+    }
+    ctx.textAlign = 'left';
+    y += 52;
+  }
+
   const RH = Math.min(88, Math.floor((LIMIT - y) / Math.max(list.length, 1)));
 
+  if (dots) {
+    // Línies verticals de l'escala (la de 0 °C, més marcada)
+    const yEnd = y + RH * list.length;
+    for (let t = Math.ceil(sc.s0 / sc.step) * sc.step; t <= sc.s1; t += sc.step) {
+      ctx.save();
+      ctx.strokeStyle = t === 0 ? '#7fb2e5' : '#cfd9e4';
+      ctx.lineWidth = t === 0 ? 2 : 1.5;
+      if (t !== 0) ctx.setLineDash([4, 8]);
+      ctx.beginPath();
+      ctx.moveTo(Math.round(sc.x(t)) + 0.5, y);
+      ctx.lineTo(Math.round(sc.x(t)) + 0.5, yEnd);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+
   // Escala de les barres: la més llarga fa 380 px i totes en tenen una mica
-  const vals = list.map((r) => r.v);
   const hi = Math.max(...vals, 0);
-  const temp = d.variable === 'max' || d.variable === 'min';
   const lo = temp ? Math.min(...vals) - Math.max(2, (hi - Math.min(...vals)) * 0.5) : 0;
-  const lo2 = Math.min(...vals); // per invertir l'escala de les mínimes
   const BAR = 380;
   list.forEach((r, i) => {
     const cy = y + RH / 2;
@@ -375,8 +418,31 @@ export function drawRanking(ctx, d) {
     font(ctx, 'mono', 19);
     ctx.fillStyle = L.mut;
     ctx.fillText(altTxt(r.alt), 120, cy + 21);
-    // A les mínimes la barra més llarga és la de l'estació més freda (la primera del rànquing)
-    const len = hi - lo > 0 ? Math.max(0, ((d.variable === 'min' ? hi + lo2 - r.v - lo : r.v - lo) / (hi - lo)) * BAR) : 0;
+    if (dots) {
+      // Pista de l'escala i punt a la temperatura de l'estació
+      ctx.strokeStyle = L.line;
+      ctx.lineWidth = 6;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(sc.x0, cy);
+      ctx.lineTo(sc.x1, cy);
+      ctx.stroke();
+      ctx.lineCap = 'butt';
+      ctx.beginPath();
+      ctx.arc(sc.x(r.v), cy, 15, 0, Math.PI * 2);
+      ctx.fillStyle = tempColor(r.v);
+      ctx.fill();
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = '#ffffff';
+      ctx.stroke();
+      font(ctx, 'mono', 40, 500);
+      ctx.fillStyle = tempColorLight(r.v);
+      ctx.fillText(`${num(r.v)}°`, 848, cy + 1);
+      y += RH;
+      hline(ctx, X0, X1, y, L.line);
+      return;
+    }
+    const len = hi - lo > 0 ? Math.max(0, ((r.v - lo) / (hi - lo)) * BAR) : 0;
     const barColor = temp ? tempColor(r.v) : d.variable === 'pluja' ? (r.v > 0 ? '#60a5fa' : '#c9d5e3') : '#fbbf24';
     if (len > 0) {
       ctx.fillStyle = barColor;
