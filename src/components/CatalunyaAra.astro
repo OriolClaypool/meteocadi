@@ -1,0 +1,183 @@
+---
+// Portada: la temperatura d'ara a tot Catalunya (estacions del Meteocat i de Meteocadí) en un mapa petit,
+// amb els extrems del moment i l'enllaç al mapa complet. Es carrega quan la secció s'acosta a la pantalla.
+const ARROW = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg>';
+const CARDS = [
+  { k: 'hot', label: 'Més calor ara' },
+  { k: 'cold', label: 'Més fred ara' },
+  { k: 'rain', label: "Més pluja d'avui" },
+  { k: 'gust', label: "Ratxa més forta d'avui" },
+];
+---
+<section class="sec cat-ara" id="catalunya">
+  <div class="wrap cat-ara__in">
+    <div class="cat-ara__txt">
+      <span class="eyebrow" style="color:var(--muted);">MAPA · EN DIRECTE</span>
+      <h2 class="h2">Catalunya, <em>ara</em></h2>
+      <p class="sub">La temperatura a totes les estacions automàtiques del Servei Meteorològic de Catalunya i de la xarxa Meteocadí. Al mapa complet hi ha també la pluja, el vent i la humitat, i el pots descarregar com a imatge.</p>
+      <div class="cat-ara__ext" data-cat-ext>
+        {CARDS.map((c) => (
+          <div class="cat-ara__c" data-k={c.k}>
+            <span class="cat-ara__l">{c.label}</span>
+            <b class="cat-ara__v">—</b>
+            <span class="cat-ara__w">&nbsp;</span>
+          </div>
+        ))}
+      </div>
+      <a class="btn btn--blue" href="/mapa/catalunya" style="margin-top:26px;">Obre el mapa de Catalunya <Fragment set:html={ARROW} /></a>
+    </div>
+    <a class="cat-ara__map" href="/mapa/catalunya" aria-label="Mapa de la temperatura a Catalunya ara">
+      <canvas data-cat-map width="620" height="600" aria-hidden="true"></canvas>
+      <span class="cat-ara__time" data-cat-time></span>
+      <span class="cat-ara__lg" aria-hidden="true"><i></i><span>−5°</span><span>10°</span><span>20°</span><span>35°</span></span>
+    </a>
+  </div>
+</section>
+
+<style is:global>
+  .cat-ara { padding: 96px 0; }
+  .cat-ara__in { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 48px; align-items: center; }
+  .cat-ara__txt .sub { margin-top: 12px; max-width: 540px; }
+  .cat-ara__ext { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 26px; }
+  .cat-ara__c { background: var(--pale); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .cat-ara__l { font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .cat-ara__v { font-family: var(--f-mono); font-size: 28px; font-weight: 600; color: var(--ink); line-height: 1.2; }
+  .cat-ara__w { font-size: 13.5px; color: var(--ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cat-ara__map { position: relative; display: block; border-radius: 20px; background: var(--pale); padding: 12px; }
+  .cat-ara__map canvas { display: block; width: 100%; height: auto; aspect-ratio: 620 / 600; }
+  .cat-ara__time { position: absolute; top: 20px; right: 22px; font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+  .cat-ara__lg { position: absolute; left: 50%; transform: translateX(-50%); bottom: 22px; display: grid; grid-template-columns: repeat(4, auto); column-gap: 26px; font-family: var(--f-mono); font-size: 11px; color: var(--ink2); }
+  .cat-ara__lg i { grid-column: 1 / -1; height: 8px; border-radius: 4px; margin-bottom: 4px; background: linear-gradient(90deg, #818cf8, #60a5fa 12%, #2dd4bf 37%, #4ade80 50%, #a3e635 62%, #fbbf24 75%, #fb923c 87%, #ef4444); }
+  @media (max-width: 900px) {
+    .cat-ara { padding: 72px 0; }
+    .cat-ara__in { grid-template-columns: 1fr; gap: 28px; }
+    .cat-ara__map { order: -1; }
+  }
+</style>
+
+<script>
+  import CONTORN from '../lib/catalunya-contorn.json';
+  import { loadAra } from '../scripts/live.js';
+  import { STATIONS } from '../lib/stations.js';
+  import { FB, computeField, outlineMask, toCanvas } from '../scripts/camp.js';
+  import { tempColor, tempColorLight, num, hourMadrid } from '../lib/format.js';
+
+  const HIDDEN = new Set(['IBAG65', 'IBAG72']);
+  const cv = document.querySelector<HTMLCanvasElement>('[data-cat-map]');
+  const section = document.getElementById('catalunya');
+
+  // Projecció del contorn dins del canvas
+  const W = 620, H = 600, PAD = 18;
+  const my = (lat: number) => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
+  let lng0 = 180, lng1 = -180, lat0 = 90, lat1 = -90;
+  for (const poly of (CONTORN as any).coordinates) for (const [x, y] of poly[0]) { lng0 = Math.min(lng0, x); lng1 = Math.max(lng1, x); lat0 = Math.min(lat0, y); lat1 = Math.max(lat1, y); }
+  const wx = ((lng1 - lng0) * Math.PI) / 180, wy = my(lat1) - my(lat0);
+  const S = Math.min((W - 2 * PAD) / wx, (H - 2 * PAD - 40) / wy);
+  const OX = (W - wx * S) / 2, OY = PAD + (H - 40 - 2 * PAD - wy * S) / 2;
+  const P = (lng: number, lat: number) => [OX + (((lng - lng0) * Math.PI) / 180) * S, OY + (my(lat1) - my(lat)) * S];
+  const land = new Path2D();
+  for (const poly of (CONTORN as any).coordinates)
+    for (const ring of poly) { ring.forEach(([x, y]: number[], i: number) => { const [px, py] = P(x, y); i ? land.lineTo(px, py) : land.moveTo(px, py); }); land.closePath(); }
+
+  function base(ctx: CanvasRenderingContext2D) {
+    ctx.clearRect(0, 0, W, H);
+    ctx.save();
+    ctx.shadowColor = 'rgba(16, 35, 59, 0.14)';
+    ctx.shadowBlur = 24;
+    ctx.shadowOffsetY = 6;
+    ctx.fillStyle = '#ffffff';
+    ctx.fill(land, 'evenodd');
+    ctx.restore();
+  }
+  function outline(ctx: CanvasRenderingContext2D) {
+    ctx.strokeStyle = '#10233b';
+    ctx.lineWidth = 1.6;
+    ctx.lineJoin = 'round';
+    ctx.stroke(land);
+  }
+  function pill(ctx: CanvasRenderingContext2D, lng: number, lat: number, text: string, bg: string) {
+    const [x, y] = P(lng, lat);
+    ctx.font = "700 15px 'Geist Variable', system-ui, sans-serif";
+    const w = ctx.measureText(text).width + 16, h = 24;
+    ctx.save();
+    ctx.shadowColor = 'rgba(16, 35, 59, 0.3)';
+    ctx.shadowBlur = 4;
+    ctx.beginPath();
+    ctx.roundRect ? ctx.roundRect(x - w / 2, y - h / 2, w, h, 12) : ctx.rect(x - w / 2, y - h / 2, w, h);
+    ctx.fillStyle = bg;
+    ctx.fill();
+    ctx.restore();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#ffffff';
+    ctx.stroke();
+    ctx.fillStyle = '#10233b';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, x, y + 1);
+  }
+
+  async function run() {
+    if (!cv) return;
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    cv.width = W * dpr;
+    cv.height = H * dpr;
+    const ctx = cv.getContext('2d')!;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    base(ctx);
+    outline(ctx);
+    const [x, a, dem] = await Promise.all([
+      fetch('/api/xema').then((r) => (r.ok ? r.json() : null)).catch(() => null),
+      loadAra().catch(() => null),
+      fetch('/api/dem').then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    ]);
+    const list: any[] = (x?.stations || []).map((s: any) => ({ ...s, mc: false }));
+    const ara = (a as any)?.stations || {};
+    for (const st of STATIONS as any[]) {
+      const d = ara[st.id];
+      if (HIDDEN.has(st.id) || !d || d.stale) continue;
+      list.push({ id: st.id, name: st.name, lat: st.lat, lng: st.lng, alt: st.alt, com: st.comarca, mc: true, t: d.temp ?? null, rain: d.rain ?? null, gust: d.gustMax ?? d.gust ?? null });
+    }
+    if (!list.length) return;
+    const pts = list.filter((s) => s.t != null).map((s) => ({ lat: s.lat, lng: s.lng, alt: s.alt ?? 0, v: s.t }));
+    const f = computeField(pts, 't', { mask: outlineMask(), dem });
+    base(ctx);
+    if (f) {
+      const [ax, ay] = P(FB.lng0, FB.lat1);
+      const [bx, by] = P(FB.lng1, FB.lat0);
+      ctx.save();
+      ctx.clip(land, 'evenodd');
+      ctx.globalAlpha = 0.78;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(toCanvas(f.raw), ax, ay, bx - ax, by - ay);
+      ctx.restore();
+    }
+    outline(ctx);
+    const by = (k: string, dir: number) => list.filter((s) => s[k] != null).sort((p, q) => dir * (q[k] - p[k]))[0];
+    const hot = by('t', 1), cold = by('t', -1), rain = by('rain', 1), gust = by('gust', 1);
+    if (cold) pill(ctx, cold.lng, cold.lat, `${num(cold.t)}°`, tempColor(cold.t));
+    if (hot) pill(ctx, hot.lng, hot.lat, `${num(hot.t)}°`, tempColor(hot.t));
+    const set = (k: string, s: any, v: string, color?: string) => {
+      const el = document.querySelector(`[data-cat-ext] [data-k="${k}"]`);
+      if (!el || !s) return;
+      const vb = el.querySelector('.cat-ara__v') as HTMLElement;
+      vb.textContent = v;
+      if (color) vb.style.color = color;
+      (el.querySelector('.cat-ara__w') as HTMLElement).textContent = `${s.name}${s.com ? ` · ${s.com}` : ''}`;
+    };
+    set('hot', hot, `${num(hot?.t)}°`, tempColorLight(hot?.t));
+    set('cold', cold, `${num(cold?.t)}°`, tempColorLight(cold?.t));
+    if (rain && rain.rain >= 0.1) set('rain', rain, `${num(rain.rain)} mm`, '#1d4ed8');
+    else {
+      const el = document.querySelector('[data-cat-ext] [data-k="rain"]');
+      if (el) { (el.querySelector('.cat-ara__v') as HTMLElement).textContent = '0 mm'; (el.querySelector('.cat-ara__w') as HTMLElement).textContent = 'No ha plogut enlloc'; }
+    }
+    if (gust) set('gust', gust, `${Math.round(gust.gust)} km/h`, gust.gust >= 70 ? '#c2410c' : undefined);
+    const t = document.querySelector('[data-cat-time]');
+    if (t && x?.latest) t.textContent = `Dades de les ${hourMadrid(new Date(x.latest))}`;
+  }
+
+  if (section && 'IntersectionObserver' in window) {
+    const io = new IntersectionObserver((e) => { if (e.some((i) => i.isIntersecting)) { io.disconnect(); run(); } }, { rootMargin: '400px' });
+    io.observe(section);
+  } else run();
+</script>

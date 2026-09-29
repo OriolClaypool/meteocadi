@@ -316,5 +316,14 @@ export function distanceKm(a, b) {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-// Els llocs per als selectors de previsió de la portada
+// Els llocs per als selectors de previsió de la portada: a l'hivern (novembre-abril), els de la neu
 export const FORECAST_CHIPS = ['baga', 'gosol', 'saldes', 'coll-de-pal', 'la-pobla-de-lillet'];
+export const FORECAST_CHIPS_WINTER = ['la-molina', 'masella', 'puigcerda', 'port-del-comte', 'baga'];
+export function forecastChips(iso) {
+  const m = Number(iso.slice(5, 7));
+  const list = m >= 11 || m <= 4 ? FORECAST_CHIPS_WINTER : FORECAST_CHIPS;
+  return list.filter((s) => PLACE_BY_SLUG[s]);
+}
+
+// Estacions d'esquí de la portada
+export const SKI_HOME = ['la-molina', 'masella', 'port-del-comte', 'rasos-de-peguera', 'tuixent-la-vansa', 'grandvalira'];
