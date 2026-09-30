@@ -44,6 +44,9 @@ const { internal = false } = Astro.props;
   .cm-fl button[aria-pressed='true'], .cm-st button[aria-pressed='true'] { background: var(--ink); border-color: var(--ink); color: #fff; }
   .cm-fl button:disabled { opacity: 0.45; cursor: default; }
   .cm-fl span { font-size: 11.5px; color: var(--muted); max-width: 190px; line-height: 1.3; }
+  .cm-op { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-size: 12px; font-weight: 600; color: var(--ink2); }
+  .cm-op input { flex: 1; min-width: 110px; max-width: 170px; accent-color: #10233b; cursor: pointer; }
+  .cm-op input:disabled { opacity: 0.4; cursor: default; }
   .cm-st .seg { display: flex; gap: 4px; }
   .cm-field { image-rendering: auto; }
   .cmap.has-field .xp { box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.95), 0 1px 3px rgba(16, 35, 59, 0.35); }
@@ -185,6 +188,12 @@ const { internal = false } = Astro.props;
   let fieldLayer: any = null;
   // Darrera capa calculada, sense retallar (per a la imatge descarregable, que la retalla amb el contorn vectorial)
   let fieldRaw: { canvas: HTMLCanvasElement; key: string; alpha: number; note: string } | null = null;
+  // Intensitat del mapa de color (control de la llegenda): multiplica l'opacitat per defecte de cada variable.
+  // Es recorda en aquest navegador; també s'aplica a la imatge descarregada de /estudi/mapa.
+  const K_OP = 'meteocadi-mapa-intensitat';
+  let intensity = 1;
+  try { const v = Number(localStorage.getItem(K_OP)); if (v >= 0.25 && v <= 1.6) intensity = v; } catch {}
+  const fieldOpacity = () => Math.min(1, ((FIELD as any)[cur.key]?.alpha ?? 0.6) * intensity);
   map.createPane('field').style.zIndex = '350';
 
   function field() {
@@ -199,12 +208,13 @@ const { internal = false } = Astro.props;
     if (!comarques) return;
     if (!mask) mask = comarquesMask(comarques);
     const pts = stations.filter((s) => val(s) != null && s.lat != null).map((s) => ({ lat: s.lat, lng: s.lng, alt: s.alt ?? 0, v: val(s) as number }));
-    const f = computeField(pts, cur.key, { mask, dem: demState === 'ok' ? dem : null });
+    const f = computeField(pts, cur.key, { mask, dem: demState === 'ok' ? dem : null, alpha: 1 });
     if (!f) return;
     const url = toCanvas(f.web).toDataURL();
     const bounds: any = [[FB.lat0, FB.lng0], [FB.lat1, FB.lng1]];
     if (fieldLayer) fieldLayer.setUrl(url);
     else fieldLayer = L.imageOverlay(url, bounds, { pane: 'field', interactive: false, className: 'cm-field' }).addTo(map);
+    fieldLayer.setOpacity(fieldOpacity());
     cmapEl?.classList.add('has-field');
     const note = f.useDem ? 'dem' : cur.key === 'wind' || cur.key === 'gust' ? 'wind' : 'plain';
     fieldRaw = { canvas: toCanvas(f.raw), key: cur.key, alpha: Math.min(0.8, cfg.alpha + 0.1), note };
@@ -218,6 +228,8 @@ const { internal = false } = Astro.props;
     const can = !!(FIELD as any)[cur.key];
     const btn = document.getElementById('cmFieldBtn') as HTMLButtonElement | null;
     if (btn) { btn.disabled = !can; btn.setAttribute('aria-pressed', String(fieldOn && can)); }
+    const op = document.getElementById('cmOp') as HTMLInputElement | null;
+    if (op) op.disabled = !(fieldOn && can);
     const t = !can ? 'no disponible per al gruix de neu' : !fieldOn ? '' : plain ? 'interpolada entre estacions' : noteFor(cur.key);
     el.textContent = t ? t[0].toUpperCase() + t.slice(1) : '';
   }
@@ -235,9 +247,15 @@ const { internal = false } = Astro.props;
   function legend() {
     const el = document.getElementById('cmLegend');
     if (!el) return;
-    el.innerHTML = `<b>${cur.legend}</b><div class="sw">${cur.steps.map((s) => `<span><i style="background:${cur.color(s)}"></i>${num(s, s % 1 ? 1 : 0)}</span>`).join('')}</div><div class="cm-fl"><button type="button" id="cmFieldBtn" aria-pressed="${fieldOn}">Mapa de color</button><span id="cmFieldNote"></span></div>`;
+    el.innerHTML = `<b>${cur.legend}</b><div class="sw">${cur.steps.map((s) => `<span><i style="background:${cur.color(s)}"></i>${num(s, s % 1 ? 1 : 0)}</span>`).join('')}</div><div class="cm-fl"><button type="button" id="cmFieldBtn" aria-pressed="${fieldOn}">Mapa de color</button><span id="cmFieldNote"></span></div><label class="cm-op">Intensitat<input type="range" id="cmOp" min="0.25" max="1.6" step="0.05" value="${intensity}" aria-label="Intensitat del mapa de color" /></label>`;
     L.DomEvent.disableClickPropagation(el);
     el.querySelector('#cmFieldBtn')?.addEventListener('click', () => { fieldOn = !fieldOn; field(); });
+    L.DomEvent.disableScrollPropagation(el);
+    el.querySelector('#cmOp')?.addEventListener('input', (e) => {
+      intensity = Number((e.target as HTMLInputElement).value);
+      fieldLayer?.setOpacity(fieldOpacity());
+      try { localStorage.setItem(K_OP, String(intensity)); } catch {}
+    });
     fieldNote();
   }
 
@@ -470,7 +488,7 @@ const { internal = false } = Astro.props;
           stations: list,
           hideOverlap: mode === 'auto',
           comarques,
-          field: hasField ? { canvas: fieldRaw!.canvas, bounds: FB, alpha: fieldRaw!.alpha, note: fieldRaw!.note } : null,
+          field: hasField ? { canvas: fieldRaw!.canvas, bounds: FB, alpha: Math.min(0.97, fieldRaw!.alpha * intensity), note: fieldRaw!.note } : null,
           legend: { title: cur.unit, steps: cur.steps.map((s) => ({ color: cur.color(s), label: num(s, s % 1 ? 1 : 0) })) },
         };
       },

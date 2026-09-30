@@ -73,7 +73,8 @@ function elevAt(dem, lat, lng) {
 // pts: [{ lat, lng, alt, v }]. Retorna { raw, web, useDem } o null:
 // raw: ImageData opac (també una mica fora del contorn, per retallar-lo net amb el contorn vectorial);
 // web: la mateixa capa amb la transparència de la variable i retallada amb la màscara.
-export function computeField(pts, key, { mask, dem = null }) {
+// alpha: opacitat de la capa "web" (per defecte la de la variable; el mapa la demana a 1 i la regula amb el control d'intensitat)
+export function computeField(pts, key, { mask, dem = null, alpha = null }) {
   const cfg = FIELD[key];
   if (!cfg || !mask || pts.length < 5) return null;
   let slope = 0;
@@ -114,7 +115,7 @@ export function computeField(pts, key, { mask, dem = null }) {
       raw.data[k + 1] = web.data[k + 1] = c[2];
       raw.data[k + 2] = web.data[k + 2] = c[3];
       raw.data[k + 3] = 255;
-      web.data[k + 3] = Math.round(inside * cfg.alpha);
+      web.data[k + 3] = Math.round(inside * (alpha ?? cfg.alpha));
     }
   }
   return { raw, web, useDem, alpha: cfg.alpha };
