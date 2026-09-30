@@ -22,7 +22,8 @@ const recent = episodes().find((e) => day && (Date.parse(day.date) - Date.parse(
 const skiSeason = inSeason(todayMadrid());
 const chips = forecastChips(todayMadrid()).map((s) => PLACE_BY_SLUG[s]).map((p) => ({ name: p.name, lat: p.lat, lng: p.lng, alt: p.alt }));
 const ARROW = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg>';
-const altRange = `${fmtAlt(Math.min(...STATIONS.map((s) => s.alt))).replace(' m', '')} i els ${fmtAlt(Math.max(...STATIONS.map((s) => s.alt))).replace(' m', '')} metres`;
+const altLo = fmtAlt(Math.min(...STATIONS.map((s) => s.alt))).replace(' m', '');
+const altHi = fmtAlt(Math.max(...STATIONS.map((s) => s.alt))).replace(' m', '');
 const who = (e) => (e ? `${e.station.name.split(' - ')[0]} · ${fmtAlt(e.station.alt)}` : '');
 const dateLabel = day ? `${dayShort(day.date)} ${dayMonthShort(day.date)}`.toUpperCase() : '';
 
@@ -30,8 +31,8 @@ const CONT = 'M-200 -20C-190 -140 -40 -190 80 -160C200 -130 260 -40 230 60C200 1
 const contours = [...Array(10).keys()].map((j) => `translate(1180 260) rotate(${-8 + 3 * j}) scale(${(0.35 + 0.34 * j + 0.03 * j * j).toFixed(2)})`);
 ---
 <Base
-  title="El temps al Cadí-Moixeró i el Berguedà en directe | Meteocadí"
-  description={`Temperatura, vent i pluja en directe de ${STATIONS.length} estacions meteorològiques entre Bagà, Gósol, el Pedraforca i el Coll de Pal, amb previsió per hores i l'historial diari.`}
+  title="El temps a Catalunya i al Cadí-Moixeró en directe | Meteocadí"
+  description={`El temps en directe a totes les estacions automàtiques de Catalunya, la previsió dels pobles i les pistes del Pirineu i la xarxa Meteocadí: ${STATIONS.length} estacions pròpies entre Bagà, Gósol, el Pedraforca i el Coll de Pal.`}
   path="/"
   header="overlay"
   preload="/imatges/portada-1600.webp"
@@ -47,12 +48,12 @@ const contours = [...Array(10).keys()].map((j) => `translate(1180 260) rotate(${
     <WindLines />
     <div class="wrap hero__body">
       <div class="hero__text a-rise">
-        <span class="kicker">Xarxa meteorològica del Cadí-Moixeró i el Berguedà</span>
-        <h1>El temps al Cadí,<br /><em>de la vall al cim.</em></h1>
-        <p class="hero__lead">{STATIONS.length} estacions entre els {altRange}, en directe: temperatura, vent i pluja de Bagà al Pedraforca.</p>
+        <span class="kicker">Catalunya i Pirineu · dades en directe</span>
+        <h1>El temps a Catalunya,<br /><em>de la vall al cim.</em></h1>
+        <p class="hero__lead">Les estacions automàtiques de tot Catalunya en un sol mapa, la previsió dels pobles i les pistes del Pirineu i la xarxa Meteocadí: {STATIONS.length} estacions pròpies al Cadí-Moixeró, dels {altLo} als {altHi}&nbsp;metres.</p>
         <div class="hero__btns">
-          <a href="/estacions" class="btn btn--light">Veure les estacions <Fragment set:html={ARROW} /></a>
-          <a href="/mapa" class="btn btn--ghost">Mapa en directe</a>
+          <a href="/mapa/catalunya" class="btn btn--light">El mapa de Catalunya <Fragment set:html={ARROW} /></a>
+          <a href="/estacions" class="btn btn--ghost">La xarxa Meteocadí</a>
           <a href="/cap-de-setmana" class="btn" style="color:#fff;text-decoration:underline;text-underline-offset:5px;text-decoration-color:rgba(255,255,255,.5);padding:0 8px;font-weight:600;">Aquest cap de setmana</a>
         </div>
       </div>
@@ -61,7 +62,7 @@ const contours = [...Array(10).keys()].map((j) => `translate(1180 260) rotate(${
           <div class="resum__head">
             <div style="display:flex;flex-direction:column;gap:6px;">
               <span class="eyebrow" id="resum-t" data-resum-label data-date={day.date}>RESUM · {dateLabel}</span>
-              <span style="font-size:15px;color:#c3cfde;" data-rs-sub>Els extrems de les {ex.n} estacions amb dades</span>
+              <span style="font-size:15px;color:#c3cfde;" data-rs-sub>Xarxa Meteocadí · els extrems de les {ex.n} estacions</span>
             </div>
             <a href="/historial" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;">Historial <Fragment set:html={ARROW} /></a>
           </div>
@@ -134,7 +135,8 @@ const contours = [...Array(10).keys()].map((j) => `translate(1180 260) rotate(${
       <div class="sec__head">
         <div>
           <span class="eyebrow" data-live-count>LECTURES EN DIRECTE</span>
-          <h2 class="h2">Les estacions, ara</h2>
+          <h2 class="h2">La xarxa Meteocadí, <em>ara</em></h2>
+          <p class="sec__lead">Les nostres {STATIONS.length} estacions al Cadí-Moixeró i el Berguedà, dels {altLo} als {altHi}&nbsp;metres.</p>
         </div>
         <div class="filters">
           <a href="/estacions" style="display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#7fd0ff;">Les {STATIONS.length} estacions <Fragment set:html={ARROW} /></a>
@@ -269,7 +271,7 @@ const contours = [...Array(10).keys()].map((j) => `translate(1180 260) rotate(${
     const lab = card.querySelector<HTMLElement>('[data-resum-label]');
     if (lab) lab.textContent = `AVUI FINS ARA · ${hourMadrid(new Date(j.updated || Date.now()))}`;
     const sub = card.querySelector<HTMLElement>('[data-rs-sub]');
-    if (sub) sub.textContent = `Els extrems de les ${live.length} estacions en directe`;
+    if (sub) sub.textContent = `Xarxa Meteocadí · les ${live.length} estacions en directe`;
     const foot = card.querySelector<HTMLElement>('[data-rs-foot]');
     if (foot) foot.textContent = "En directe · s'actualitza cada 15 minuts";
     if (!todayShown) {
