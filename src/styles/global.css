@@ -132,9 +132,10 @@ button { font: inherit; }
 .hero__shade2 { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(6, 14, 28, 0.62) 0%, rgba(6, 14, 28, 0.25) 40%, rgba(6, 14, 28, 0) 62%); }
 .hero__wind { position: absolute; left: 0; top: 0; width: 100%; height: 600px; pointer-events: none; }
 .hero__body { position: relative; z-index: 2; min-height: 820px; display: flex; align-items: flex-end; justify-content: space-between; gap: 48px; padding-top: 120px; padding-bottom: 56px; }
-.hero__text { max-width: 700px; display: flex; flex-direction: column; gap: 22px; padding-bottom: 20px; }
+.hero__text { max-width: 740px; display: flex; flex-direction: column; gap: 22px; padding-bottom: 20px; }
 .kicker { font-size: 18px; font-weight: 600; color: #ffd98a; }
-.hero h1 { font-size: clamp(46px, 6.2vw, 84px); font-weight: 800; line-height: 0.98; letter-spacing: -0.035em; }
+/* "El temps a Catalunya," ha de cabre en una línia a l'ordinador */
+.hero h1 { font-size: clamp(46px, 4.5vw, 70px); font-weight: 800; line-height: 0.98; letter-spacing: -0.035em; }
 .hero h1 em { font-style: normal; color: var(--cyan-l); }
 .hero__lead { font-size: 20px; line-height: 1.5; color: rgba(255, 255, 255, 0.9); max-width: 600px; }
 .hero__btns { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 6px; }
@@ -202,6 +203,8 @@ button { font: inherit; }
 .sec--deep { background: var(--deep); color: #fff; }
 .sec__head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px 32px; margin-bottom: 32px; flex-wrap: wrap; }
 .sec__head > div:first-child { display: flex; flex-direction: column; gap: 12px; }
+.sec__lead { font-size: 17px; line-height: 1.5; color: var(--ink2); max-width: 620px; margin-top: -2px; }
+.sec--dark .sec__lead { color: #b8c6d8; }
 .h2 { font-family: var(--f-head); font-size: clamp(34px, 4.2vw, 52px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.02; }
 .h2 em { font-style: normal; color: var(--accent); }
 .sec--dark .h2 em, .sec--deep .h2 em { color: var(--cyan-l); }
