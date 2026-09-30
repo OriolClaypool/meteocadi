@@ -1,6 +1,7 @@
 ---
 // Portada: la temperatura d'ara a tot Catalunya (estacions del Meteocat i de Meteocadí) en un mapa petit,
 // amb els extrems del moment i l'enllaç al mapa complet. Es carrega quan la secció s'acosta a la pantalla.
+// Al mapa hi surten tantes estacions com hi caben sense trepitjar-se (primer la més càlida i la més freda).
 const ARROW = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg>';
 const CARDS = [
   { k: 'hot', label: 'Més calor ara' },
@@ -14,7 +15,7 @@ const CARDS = [
     <div class="cat-ara__txt">
       <span class="eyebrow" style="color:var(--muted);">MAPA · EN DIRECTE</span>
       <h2 class="h2">Catalunya, <em>ara</em></h2>
-      <p class="sub">La temperatura a totes les estacions automàtiques del Servei Meteorològic de Catalunya i de la xarxa Meteocadí. Al mapa complet hi ha també la pluja, el vent i la humitat, i el pots descarregar com a imatge.</p>
+      <p class="sub">La temperatura a totes les estacions automàtiques del Servei Meteorològic de Catalunya i de la xarxa Meteocadí. Al mapa complet hi ha també les màximes i les mínimes, la pluja, el vent i la humitat.</p>
       <div class="cat-ara__ext" data-cat-ext>
         {CARDS.map((c) => (
           <div class="cat-ara__c" data-k={c.k}>
@@ -36,7 +37,7 @@ const CARDS = [
 
 <style is:global>
   .cat-ara { padding: 96px 0; }
-  .cat-ara__in { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 48px; align-items: center; }
+  .cat-ara__in { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 48px; align-items: center; }
   .cat-ara__txt .sub { margin-top: 12px; max-width: 540px; }
   .cat-ara__ext { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 26px; }
   .cat-ara__c { background: var(--pale); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
@@ -44,14 +45,18 @@ const CARDS = [
   .cat-ara__v { font-family: var(--f-mono); font-size: 28px; font-weight: 600; color: var(--ink); line-height: 1.2; }
   .cat-ara__w { font-size: 13.5px; color: var(--ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .cat-ara__map { position: relative; display: block; border-radius: 20px; background: var(--pale); padding: 12px; }
-  .cat-ara__map canvas { display: block; width: 100%; height: auto; aspect-ratio: 620 / 600; }
+  .cat-ara__map canvas { display: block; width: 100%; height: auto; aspect-ratio: 620 / 600; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   .cat-ara__time { position: absolute; top: 20px; right: 22px; font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
   .cat-ara__lg { position: absolute; left: 50%; transform: translateX(-50%); bottom: 22px; display: grid; grid-template-columns: repeat(4, auto); column-gap: 26px; font-family: var(--f-mono); font-size: 11px; color: var(--ink2); }
   .cat-ara__lg i { grid-column: 1 / -1; height: 8px; border-radius: 4px; margin-bottom: 4px; background: linear-gradient(90deg, #818cf8, #60a5fa 12%, #2dd4bf 37%, #4ade80 50%, #a3e635 62%, #fbbf24 75%, #fb923c 87%, #ef4444); }
   @media (max-width: 900px) {
     .cat-ara { padding: 72px 0; }
     .cat-ara__in { grid-template-columns: 1fr; gap: 28px; }
-    .cat-ara__map { order: -1; }
+    .cat-ara__map { order: -1; display: flex; flex-direction: column; align-items: center; padding-bottom: 14px; }
+    /* Al mòbil el mapa es veu petit: la llegenda i l'hora van a sota, fora del dibuix */
+    .cat-ara__lg, .cat-ara__time { position: static; transform: none; }
+    .cat-ara__lg { margin-top: -6px; }
+    .cat-ara__time { order: 3; margin-top: 8px; }
   }
 </style>
 
@@ -95,30 +100,75 @@ const CARDS = [
     ctx.lineJoin = 'round';
     ctx.stroke(land);
   }
-  function pill(ctx: CanvasRenderingContext2D, lng: number, lat: number, text: string, bg: string) {
-    const [x, y] = P(lng, lat);
-    ctx.font = "700 15px 'Geist Variable', system-ui, sans-serif";
-    const w = ctx.measureText(text).width + 16, h = 24;
+  // Etiqueta d'una estació: la més càlida i la més freda, més grans; les de Meteocadí, amb la vora fosca
+  type Lab = { x: number; y: number; w: number; h: number; text: string; bg: string; big: boolean; mc: boolean };
+  // k: com més petit es veu el mapa (mòbil), més grans es dibuixen les etiquetes, perquè es llegeixin (i en caben menys)
+  let k = 1;
+  const FONT = (big: boolean) => `700 ${Math.round((big ? 15 : 12) * k)}px 'Geist Variable', system-ui, sans-serif`;
+  function measure(ctx: CanvasRenderingContext2D, s: any, big: boolean): Lab {
+    const [x, y] = P(s.lng, s.lat);
+    const text = `${num(s.t)}°`;
+    ctx.font = FONT(big);
+    return { x, y, w: ctx.measureText(text).width + (big ? 16 : 11) * k, h: (big ? 24 : 19) * k, text, bg: tempColor(s.t), big, mc: !!s.mc };
+  }
+  function pill(ctx: CanvasRenderingContext2D, l: Lab) {
+    const { x, y, w, h } = l;
     ctx.save();
     ctx.shadowColor = 'rgba(16, 35, 59, 0.3)';
-    ctx.shadowBlur = 4;
+    ctx.shadowBlur = l.big ? 4 : 2;
     ctx.beginPath();
-    ctx.roundRect ? ctx.roundRect(x - w / 2, y - h / 2, w, h, 12) : ctx.rect(x - w / 2, y - h / 2, w, h);
-    ctx.fillStyle = bg;
+    ctx.roundRect ? ctx.roundRect(x - w / 2, y - h / 2, w, h, h / 2) : ctx.rect(x - w / 2, y - h / 2, w, h);
+    ctx.fillStyle = l.bg;
     ctx.fill();
     ctx.restore();
-    ctx.lineWidth = 2;
-    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = (l.mc ? 2 : l.big ? 2 : 1.5) * k;
+    ctx.strokeStyle = l.mc ? '#10233b' : '#ffffff';
     ctx.stroke();
+    ctx.font = FONT(l.big);
     ctx.fillStyle = '#10233b';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(text, x, y + 1);
+    ctx.fillText(l.text, x, y + 1);
   }
+  // Col·loca les etiquetes per ordre de prioritat; les que en trepitgen una altra (o la llegenda i l'hora) no hi surten
+  function labels(ctx: CanvasRenderingContext2D, list: any[], hot: any, cold: any) {
+    const vs = list.map((s) => s.t).sort((a, b) => a - b);
+    const med = vs[Math.floor(vs.length / 2)];
+    const order = [hot, cold, ...list.filter((s) => s !== hot && s !== cold).sort((a, b) => (b.mc ? 1e6 : 0) + Math.abs(b.t - med) - ((a.mc ? 1e6 : 0) + Math.abs(a.t - med)))];
+    // Zones reservades: la llegenda (a baix) i, a l'ordinador, l'hora (a dalt a la dreta)
+    const placed: number[][] = [[W / 2 - 150, H - 46, W / 2 + 150, H], ...(k > 1.2 ? [] : [[W - 180, 0, W, 34]])];
+    const out: Lab[] = [];
+    const GAP = 4 * k;
+    for (const s of order) {
+      if (!s) continue;
+      const l = measure(ctx, s, s === hot || s === cold);
+      const box = [l.x - l.w / 2 - GAP, l.y - l.h / 2 - GAP, l.x + l.w / 2 + GAP, l.y + l.h / 2 + GAP];
+      if (box[0] < 0 || box[1] < 0 || box[2] > W || box[3] > H) continue;
+      if (placed.some((b) => !(box[2] < b[0] || box[0] > b[2] || box[3] < b[1] || box[1] > b[3]))) continue;
+      placed.push(box);
+      out.push(l);
+    }
+    // Les grans, a sobre
+    for (const l of out.filter((l) => !l.big)) pill(ctx, l);
+    for (const l of out.filter((l) => l.big)) pill(ctx, l);
+    return out.length;
+  }
+  function mark(ctx: CanvasRenderingContext2D) {
+    ctx.font = `800 ${Math.round(15 * Math.min(k, 1.5))}px 'Schibsted Grotesk Variable', system-ui, sans-serif`;
+    ctx.fillStyle = 'rgba(16, 35, 59, 0.5)';
+    ctx.textAlign = 'right';
+    // Al mòbil, a dalt a la dreta (la llegenda queda just a sota del dibuix); a l'ordinador, a baix a la dreta
+    ctx.textBaseline = k > 1.2 ? 'top' : 'alphabetic';
+    ctx.fillText('meteocadi.cat', W - 14, k > 1.2 ? 14 : H - 14);
+  }
+
+  // Sense menú de "desa la imatge"
+  cv?.addEventListener('contextmenu', (e) => e.preventDefault());
 
   async function run() {
     if (!cv) return;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
+    k = Math.max(1, Math.min(1.9, (W / (cv.clientWidth || W)) * 0.95));
     cv.width = W * dpr;
     cv.height = H * dpr;
     const ctx = cv.getContext('2d')!;
@@ -154,8 +204,9 @@ const CARDS = [
     outline(ctx);
     const by = (k: string, dir: number) => list.filter((s) => s[k] != null).sort((p, q) => dir * (q[k] - p[k]))[0];
     const hot = by('t', 1), cold = by('t', -1), rain = by('rain', 1), gust = by('gust', 1);
-    if (cold) pill(ctx, cold.lng, cold.lat, `${num(cold.t)}°`, tempColor(cold.t));
-    if (hot) pill(ctx, hot.lng, hot.lat, `${num(hot.t)}°`, tempColor(hot.t));
+    const withT = list.filter((s) => s.t != null);
+    const shown = withT.length ? labels(ctx, withT, hot, cold) : 0;
+    mark(ctx);
     const set = (k: string, s: any, v: string, color?: string) => {
       const el = document.querySelector(`[data-cat-ext] [data-k="${k}"]`);
       if (!el || !s) return;
@@ -173,7 +224,8 @@ const CARDS = [
     }
     if (gust) set('gust', gust, `${Math.round(gust.gust)} km/h`, gust.gust >= 70 ? '#c2410c' : undefined);
     const t = document.querySelector('[data-cat-time]');
-    if (t && x?.latest) t.textContent = `Dades de les ${hourMadrid(new Date(x.latest))}`;
+    if (t && x?.latest) t.textContent = `Dades de les ${hourMadrid(new Date(x.latest))} · ${withT.length} estacions`;
+    if (cv) cv.dataset.labels = String(shown);
   }
 
   if (section && 'IntersectionObserver' in window) {

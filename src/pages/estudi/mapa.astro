@@ -1,0 +1,106 @@
+---
+// Estudi · mapa de Catalunya (intern, no indexat): el mateix mapa que /mapa/catalunya, sense marca d'aigua
+// i amb la descàrrega de la imatge per a xarxes (post 4:5, història 9:16 i horitzontal 16:9, src/scripts/mapa-imatge.js).
+import Base from '../../layouts/Base.astro';
+import EstudiTop from '../../components/EstudiTop.astro';
+import CatalunyaMapa from '../../components/CatalunyaMapa.astro';
+---
+<Base
+  title="Estudi · Mapa de Catalunya | Meteocadí"
+  description="Eina interna de Meteocadí per fer les imatges del mapa de Catalunya."
+  path="/estudi/mapa"
+  noindex
+  bare
+>
+  <div class="st">
+    <EstudiTop current="mapa" />
+    <div class="wrap stm">
+      <CatalunyaMapa internal>
+        <div class="cm-dl" role="group" aria-label="Descarrega el mapa com a imatge" slot="after-map">
+          <span>Descarrega el mapa com a imatge</span>
+          <button type="button" data-f="post">Publicació 4:5</button>
+          <button type="button" data-f="story">Història 9:16</button>
+          <button type="button" data-f="wide">Horitzontal 16:9</button>
+        </div>
+      </CatalunyaMapa>
+    </div>
+  </div>
+
+  <dialog class="cm-dlg" id="cmDlg" aria-label="Imatge del mapa">
+    <img id="cmDlgImg" alt="Imatge del mapa per a xarxes socials" />
+    <div class="cm-dlg__bar">
+      <button type="button" id="cmDlgShare" hidden>Comparteix</button>
+      <a id="cmDlgSave" href="#" download="meteocadi-catalunya.png">Descarrega</a>
+      <button type="button" id="cmDlgClose" class="is-ghost">Tanca</button>
+    </div>
+  </dialog>
+</Base>
+
+<style is:global>
+  .stm { display: flex; flex-direction: column; gap: 16px; padding-top: 24px; padding-bottom: 56px; }
+  .cm-dl { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; }
+  .cm-dl span { font-size: 14px; font-weight: 600; color: var(--ink2); margin-right: 4px; }
+  .cm-dl button { height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: #fff; color: var(--ink); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
+  .cm-dl button::before { content: ''; width: 14px; height: 14px; background: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3v12m0 0-5-5m5 5 5-5M4 20h16'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3v12m0 0-5-5m5 5 5-5M4 20h16'/%3E%3C/svg%3E") center / contain no-repeat; }
+  .cm-dl button:hover { border-color: var(--ink); }
+  .cm-dl button[aria-busy='true'] { opacity: 0.6; cursor: progress; }
+  .cm-dlg { border: 0; border-radius: 16px; padding: 16px; max-width: min(92vw, 960px); background: #fff; box-shadow: 0 20px 60px rgba(16, 35, 59, 0.35); }
+  .cm-dlg::backdrop { background: rgba(16, 35, 59, 0.6); }
+  .cm-dlg img { display: block; max-width: 100%; max-height: 72vh; width: auto; height: auto; margin: 0 auto; border-radius: 8px; border: 1px solid var(--line); }
+  .cm-dlg__bar { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .cm-dlg__bar a, .cm-dlg__bar button { height: 40px; padding: 0 18px; border-radius: 999px; border: 1px solid var(--ink); background: var(--ink); color: #fff; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; text-decoration: none; }
+  .cm-dlg__bar .is-ghost { background: #fff; color: var(--ink); border-color: var(--line); }
+    .cm-dl span { width: 100%; }
+  @media (max-width: 640px) { .cm-dl span { width: 100%; } }
+</style>
+
+<script>
+  import { hourMadrid, todayMadrid } from '../../lib/format.js';
+
+  const dlg = document.getElementById('cmDlg') as HTMLDialogElement;
+  const dlgImg = document.getElementById('cmDlgImg') as HTMLImageElement;
+  const dlgSave = document.getElementById('cmDlgSave') as HTMLAnchorElement;
+  const dlgShare = document.getElementById('cmDlgShare') as HTMLButtonElement;
+  let dlgFile: File | null = null;
+  let dlgUrl = '';
+  document.getElementById('cmDlgClose')?.addEventListener('click', () => dlg.close());
+  // Tocar fora de la finestra la tanca
+  dlg?.addEventListener('click', (e) => {
+    const r = dlg.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) dlg.close();
+  });
+  dlgShare?.addEventListener('click', async () => {
+    if (!dlgFile) return;
+    try { await navigator.share({ files: [dlgFile] }); } catch {}
+  });
+
+  document.querySelectorAll<HTMLButtonElement>('.cm-dl button').forEach((b) =>
+    b.addEventListener('click', async () => {
+      const snap = (window as any).__cmap?.snapshot();
+      if (!snap || b.getAttribute('aria-busy') === 'true') return;
+      b.setAttribute('aria-busy', 'true');
+      try {
+        const { renderMapImage } = await import('../../scripts/mapa-imatge.js');
+        const canvas = await renderMapImage({ ...snap, format: b.dataset.f });
+        const blob: Blob | null = await new Promise((r) => canvas.toBlob(r, 'image/png'));
+        if (!blob) return;
+        const day = todayMadrid(snap.when);
+        const hhmm = hourMadrid(snap.when).replace(':', '');
+        const name = `meteocadi-catalunya-${snap.key}-${day}-${hhmm}${b.dataset.f === 'story' ? '-historia' : b.dataset.f === 'wide' ? '-horitzontal' : ''}.png`;
+        if (dlgUrl) URL.revokeObjectURL(dlgUrl);
+        dlgUrl = URL.createObjectURL(blob);
+        dlgFile = new File([blob], name, { type: 'image/png' });
+        dlgImg.src = dlgUrl;
+        dlgSave.href = dlgUrl;
+        dlgSave.download = name;
+        // Al mòbil, per desar-la a Fotos o publicar-la directament; a l'ordinador, per enviar-la al mòbil (AirDrop, etc.)
+        dlgShare.hidden = !(navigator.canShare && navigator.canShare({ files: [dlgFile] }));
+        dlg.showModal();
+      } catch (e) {
+        console.error('[mapa-imatge]', e);
+      } finally {
+        b.removeAttribute('aria-busy');
+      }
+    }),
+  );
+</script>

@@ -126,6 +126,8 @@ const contours = [...Array(10).keys()].map((j) => `translate(1180 260) rotate(${
     </a>
   )}
 
+  <CatalunyaAra />
+
   <section class="sec sec--dark" id="estacions">
     <svg class="contours" viewBox="0 0 1440 900" aria-hidden="true"><g fill="none" stroke="#3db8ff" stroke-opacity="0.07">{contours.map((t) => <path vector-effect="non-scaling-stroke" transform={t} d={CONT}></path>)}</g></svg>
     <div class="wrap" style="position:relative;">
@@ -153,8 +155,6 @@ const contours = [...Array(10).keys()].map((j) => `translate(1180 260) rotate(${
   </section>
 
   {!skiSeason && <SkiHome />}
-
-  <CatalunyaAra />
 
   <Explora />
   <Perfil />

@@ -4,7 +4,7 @@
 import { STATIONS, shortName } from '../../lib/stations.js';
 import { todayMadrid, hourMadrid, dayMonth, parseDay } from '../../lib/format.js';
 import {
-  loadFonts, loadIcons, drawResum, drawRanking, drawRankingWide, WIDE, drawPrevisio, layoutPrevisio, rankSentence, WEATHER, PHENOMENA,
+  loadFonts, loadIcons, drawResum, drawRanking, drawRankingWide, WIDE, drawPrevisio, layoutPrevisio, rankSentence, capFirst, WEATHER, PHENOMENA,
 } from './draw.js';
 
 const $ = (id) => document.getElementById(id);
@@ -33,7 +33,11 @@ export async function startEstudi() {
   const root = document.querySelector('.st');
   let icons = {};
   let ready = false;
-  let tpl = ['previsio', 'resum', 'ranquing'].includes(store.get(K_TAB)) ? store.get(K_TAB) : 'previsio';
+  // La plantilla: la de l'enllaç (/estudi#resum, des del mapa) o la darrera que s'ha fet servir
+  const TPLS = ['previsio', 'resum', 'ranquing'];
+  const fromHash = location.hash.slice(1);
+  let tpl = TPLS.includes(fromHash) ? fromHash : TPLS.includes(store.get(K_TAB)) ? store.get(K_TAB) : 'previsio';
+  if (fromHash) history.replaceState(null, '', location.pathname);
   let page = 0;
   let pvLayout = null;
   let toastTimer;
@@ -310,6 +314,17 @@ export async function startEstudi() {
     });
   }
   $('summary').addEventListener('input', (e) => { pv.summary = e.target.value; update(true); });
+  // En sortir del camp, la majúscula inicial també queda al text de l'editor (la imatge ja la posa sempre)
+  for (const id of ['headline', 'forecast', 'summary']) {
+    $(id).addEventListener('change', (e) => {
+      const v = capFirst(e.target.value);
+      if (v === e.target.value) return;
+      e.target.value = v;
+      if (id === 'summary') pv.summary = v;
+      else pv.days[curDay][id === 'forecast' ? 'text' : 'headline'] = v;
+      persist();
+    });
+  }
   $('pvDate').addEventListener('change', (e) => {
     if (e.target.value) { pv.date = e.target.value; update(); } else $('pvDate').value = pv.date;
   });
@@ -364,7 +379,8 @@ export async function startEstudi() {
       } else if (active) parts[active].push(line);
     }
     if (!found.has('avui') || !found.has('dema')) return null;
-    return { avui: parts.avui.join('\n').trim(), dema: parts.dema.join('\n').trim(), proxims: parts.proxims.join('\n').trim() };
+    const txt = (k) => capFirst(parts[k].join('\n').trim());
+    return { avui: txt('avui'), dema: txt('dema'), proxims: txt('proxims') };
   }
   $('pasteOpen').addEventListener('click', () => { $('pasteError').textContent = ''; $('pasteDialog').showModal(); });
   $('pasteApply').addEventListener('click', () => {
@@ -392,9 +408,9 @@ export async function startEstudi() {
   function copyContent() {
     const pieces = pv.days.map((d, i) => {
       const e = withEmoji ? (d.mode === 'split' ? `${EMOJI[d.morning] || ''} ${EMOJI[d.afternoon] || ''}`.trim() : EMOJI[d.weather] || '') : '';
-      return `${i ? 'Demà' : 'Avui'}${e ? ` ${e}` : ''}\n${[d.headline, d.text].filter(Boolean).join('\n')}`;
+      return `${i ? 'Demà' : 'Avui'}${e ? ` ${e}` : ''}\n${[d.headline, d.text].filter(Boolean).map(capFirst).join('\n')}`;
     });
-    if (pv.summary.trim()) pieces.push(`Pròxims dies${withEmoji ? ' 🗓️' : ''}\n${pv.summary}`);
+    if (pv.summary.trim()) pieces.push(`Pròxims dies${withEmoji ? ' 🗓️' : ''}\n${capFirst(pv.summary)}`);
     $('copyText').value = pieces.join('\n\n');
     $('copyPlain').setAttribute('aria-pressed', String(!withEmoji));
     $('copyEmoji').setAttribute('aria-pressed', String(withEmoji));
