@@ -3,6 +3,7 @@
 // Previsió (text propi), Resum del dia i Rànquing (dades de l'arxiu o d'avui en directe).
 import Base from '../layouts/Base.astro';
 import { WEATHER } from '../scripts/estudi/draw.js';
+import EstudiTop from '../components/EstudiTop.astro';
 ---
 <Base
   title="Estudi d'imatges | Meteocadí"
@@ -12,17 +13,7 @@ import { WEATHER } from '../scripts/estudi/draw.js';
   bare
 >
   <div class="st">
-    <header class="st-top">
-      <a class="st-brand" href="/"><img src="/imatges/logo-256.png" alt="" width="40" height="40" />Meteocadí</a>
-      <span class="st-sep" aria-hidden="true"></span>
-      <span class="st-app">Estudi</span>
-      <nav class="st-tabs" role="tablist" aria-label="Plantilla">
-        <button role="tab" data-tpl="previsio" aria-selected="true">Previsió</button>
-        <button role="tab" data-tpl="resum" aria-selected="false">Resum del dia</button>
-        <button role="tab" data-tpl="ranquing" aria-selected="false">Rànquing</button>
-      </nav>
-      <span class="st-save" id="saveStatus" role="status"></span>
-    </header>
+    <EstudiTop current="app" />
     <nav class="st-mnav" aria-label="Vista"><button class="on" data-view="edit">Editar</button><button data-view="preview">Previsualitzar</button></nav>
 
     <main class="st-work">
@@ -115,18 +106,6 @@ import { WEATHER } from '../scripts/estudi/draw.js';
 </Base>
 
 <style is:global>
-  .st { --line: #dde5ec; --mut: #5f6f82; --acc: #1f6fd1; min-height: 100vh; background: #f4f7fa; font-family: var(--f-ui); color: var(--ink); }
-  .st button, .st input, .st select, .st textarea { font: inherit; }
-  .st [hidden] { display: none !important; }
-  .st-top { height: 72px; display: flex; align-items: center; gap: 18px; padding: 0 28px; background: #fff; border-bottom: 1px solid var(--line); }
-  .st-brand { display: inline-flex; align-items: center; gap: 10px; font-family: var(--f-head); font-weight: 800; font-size: 22px; color: var(--ink); }
-  .st-brand img { width: 36px; height: 36px; }
-  .st-sep { width: 1px; height: 24px; background: var(--line); }
-  .st-app { color: var(--mut); font-size: 15px; }
-  .st-tabs { display: flex; gap: 4px; margin-left: 18px; background: #eef3f8; padding: 4px; border-radius: 10px; }
-  .st-tabs button { border: 0; background: none; padding: 8px 16px; border-radius: 7px; color: var(--mut); font-weight: 600; font-size: 15px; cursor: pointer; }
-  .st-tabs button[aria-selected='true'] { background: #fff; color: var(--ink); box-shadow: 0 1px 4px rgba(16, 35, 59, 0.1); }
-  .st-save { margin-left: auto; color: var(--mut); font-size: 13px; }
   .st-mnav { display: none; }
   .st-work { display: grid; grid-template-columns: 440px minmax(0, 1fr); max-width: 1500px; margin: 0 auto; min-height: calc(100vh - 72px); }
   .st-ed { background: #fff; border-right: 1px solid var(--line); padding: 30px 32px 28px; }
@@ -190,10 +169,6 @@ import { WEATHER } from '../scripts/estudi/draw.js';
   .st-toast { position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 20; display: flex; align-items: center; gap: 18px; padding: 12px 18px; background: var(--ink); color: #fff; border-radius: 10px; font-size: 15px; box-shadow: 0 6px 22px rgba(8, 24, 39, 0.25); max-width: calc(100% - 28px); }
   .st-toast button { border: 0; background: none; color: #9fd8ff; font-weight: 700; cursor: pointer; }
   @media (max-width: 900px) {
-    .st-top { height: auto; flex-wrap: wrap; padding: 12px 16px; gap: 10px 14px; }
-    .st-tabs { order: 5; width: 100%; margin-left: 0; }
-    .st-tabs button { flex: 1; padding: 8px 6px; font-size: 14px; }
-    .st-app, .st-sep { display: none; }
     .st-mnav { display: flex; gap: 6px; padding: 10px 16px; background: #fff; border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 5; }
     .st-mnav button { flex: 1; min-height: 40px; border: 0; border-radius: 8px; background: #eef3f8; color: var(--mut); font-weight: 600; }
     .st-mnav button.on { background: var(--ink); color: #fff; }

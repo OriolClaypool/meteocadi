@@ -1,0 +1,43 @@
+---
+// Capçalera de les eines internes de l'estudi: les tres plantilles d'imatge (/estudi) i el mapa de Catalunya (/estudi/mapa).
+interface Props { current: 'app' | 'mapa' }
+const { current } = Astro.props;
+const TPL = [
+  ['previsio', 'Previsió'],
+  ['resum', 'Resum del dia'],
+  ['ranquing', 'Rànquing'],
+];
+---
+<header class="st-top">
+  <a class="st-brand" href="/"><img src="/imatges/logo-256.png" alt="" width="40" height="40" />Meteocadí</a>
+  <span class="st-sep" aria-hidden="true"></span>
+  <span class="st-app">Estudi</span>
+  <nav class="st-tabs" aria-label="Plantilla">
+    {current === 'app'
+      ? TPL.map(([k, label], i) => <button role="tab" data-tpl={k} aria-selected={i === 0 ? 'true' : 'false'}>{label}</button>)
+      : TPL.map(([k, label]) => <a href={`/estudi#${k}`}>{label}</a>)}
+    {current === 'mapa' ? <a href="/estudi/mapa" aria-current="page">Mapa</a> : <a href="/estudi/mapa">Mapa</a>}
+  </nav>
+  {current === 'app' && <span class="st-save" id="saveStatus" role="status"></span>}
+</header>
+
+<style is:global>
+  .st { --line: #dde5ec; --mut: #5f6f82; --acc: #1f6fd1; min-height: 100vh; background: #f4f7fa; font-family: var(--f-ui); color: var(--ink); }
+  .st button, .st input, .st select, .st textarea { font: inherit; }
+  .st [hidden] { display: none !important; }
+  .st-top { height: 72px; display: flex; align-items: center; gap: 18px; padding: 0 28px; background: #fff; border-bottom: 1px solid var(--line); }
+  .st-brand { display: inline-flex; align-items: center; gap: 10px; font-family: var(--f-head); font-weight: 800; font-size: 22px; color: var(--ink); }
+  .st-brand img { width: 36px; height: 36px; }
+  .st-sep { width: 1px; height: 24px; background: var(--line); }
+  .st-app { color: var(--mut); font-size: 15px; }
+  .st-tabs { display: flex; gap: 4px; margin-left: 18px; background: #eef3f8; padding: 4px; border-radius: 10px; }
+  .st-tabs button, .st-tabs a { border: 0; background: none; padding: 8px 16px; border-radius: 7px; color: var(--mut); font-weight: 600; font-size: 15px; cursor: pointer; text-decoration: none; text-align: center; }
+  .st-tabs button[aria-selected='true'], .st-tabs a[aria-current='page'] { background: #fff; color: var(--ink); box-shadow: 0 1px 4px rgba(16, 35, 59, 0.1); }
+  .st-save { margin-left: auto; color: var(--mut); font-size: 13px; }
+  @media (max-width: 900px) {
+    .st-top { height: auto; flex-wrap: wrap; padding: 12px 16px; gap: 10px 14px; }
+    .st-tabs { order: 5; width: 100%; margin-left: 0; }
+    .st-tabs button, .st-tabs a { flex: 1; padding: 8px 6px; font-size: 14px; }
+    .st-app, .st-sep { display: none; }
+  }
+</style>

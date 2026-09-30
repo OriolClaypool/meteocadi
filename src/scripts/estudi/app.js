@@ -33,7 +33,11 @@ export async function startEstudi() {
   const root = document.querySelector('.st');
   let icons = {};
   let ready = false;
-  let tpl = ['previsio', 'resum', 'ranquing'].includes(store.get(K_TAB)) ? store.get(K_TAB) : 'previsio';
+  // La plantilla: la de l'enllaç (/estudi#resum, des del mapa) o la darrera que s'ha fet servir
+  const TPLS = ['previsio', 'resum', 'ranquing'];
+  const fromHash = location.hash.slice(1);
+  let tpl = TPLS.includes(fromHash) ? fromHash : TPLS.includes(store.get(K_TAB)) ? store.get(K_TAB) : 'previsio';
+  if (fromHash) history.replaceState(null, '', location.pathname);
   let page = 0;
   let pvLayout = null;
   let toastTimer;
