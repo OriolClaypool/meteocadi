@@ -70,7 +70,7 @@ Top menu: El temps (/temps), Mapa (/mapa/catalunya), Estacions, Muntanya, plus t
 
 ## Design
 No italics in headings: the second part of a two-part heading goes in an accent colour (`<em>` is styled non-italic).
-Social images: no logo or project name, only `meteocadi.cat` in the footer.
+Social images: no logo, only `meteocadi.cat` in the footer. Exception: the studio images of our own stations (ranking, daily summary) say "Xarxa Meteocadí" above the list, because they are posted next to the Catalonia (XEMA) map. The forecast editor capitalises the first letter of each paragraph (`capFirst` in `draw.js`), in the image, the pasted text and the copied text.
 
 Direction "D": photo hero + light/dark alternating sections; data components use the "instrument" style (dark panels, Geist Mono numbers). Fonts self-hosted via Fontsource (Schibsted Grotesk, Geist, Geist Mono). Colors/tokens in `src/styles/global.css`. No emojis; icons are inline SVG or Meteocons (`public/imatges/icones`).
 

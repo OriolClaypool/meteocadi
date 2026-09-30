@@ -101,6 +101,22 @@ export function nbsp(t) {
   return String(t || '').replace(/(\d) (mm|°C|°|km\/h|m|%|cm|l\/m²)(?=[\s.,;:)]|$)/g, '$1 $2');
 }
 
+// Majúscula a l'inici del text i de cada paràgraf que comença després d'un punt o d'una línia en blanc
+// ("Demà: al matí…" enganxat deixa "al matí…"). No toca les línies que continuen una frase.
+export function capFirst(text) {
+  let prev = '';
+  return String(text || '')
+    .split('\n')
+    .map((line) => {
+      const out = !prev.trim() || /[.!?…]["'»)]*\s*$/.test(prev)
+        ? line.replace(/^([^\p{L}\p{N}]*)(\p{Ll})/u, (m, a, b) => a + b.toLocaleUpperCase('ca'))
+        : line;
+      prev = line;
+      return out;
+    })
+    .join('\n');
+}
+
 function fitFont(ctx, fam, size, weight, text, maxW, min = size * 0.6) {
   let s = size;
   font(ctx, fam, s, weight);
@@ -260,7 +276,7 @@ export function drawResum(ctx, d) {
   ctx.textBaseline = 'middle';
   font(ctx, 'mono', 19);
   ctx.fillStyle = A.mut2;
-  spaced(ctx, 'ESTACIÓ', X0, y + 11, 1.9);
+  spaced(ctx, 'ESTACIONS DE LA XARXA METEOCADÍ', X0, y + 11, 1.9);
   ['MÀX.', 'MÍN.', 'MM'].forEach((t, i) => spaced(ctx, t, cols[i], y + 11, 1.9, 'right'));
   y += 33;
   hline(ctx, X0, X1, y, 'rgba(61,184,255,0.16)');
@@ -304,6 +320,21 @@ export function rankRows(rows, v) {
     .filter((r) => r[cfg.key] != null && !(r.susp && (v === 'max' || v === 'min')))
     .map((r) => ({ ...r, v: r[cfg.key] }))
     .sort((a, b) => cfg.dir * (b.v - a.v) || b.alt - a.alt);
+}
+
+// Peu de la llista: deixa clar que són les estacions de la xarxa pròpia (al costat del mapa de Catalunya a X)
+function networkCaption(ctx, n, x, y, size, sp, align = 'left') {
+  const a = 'XARXA METEOCADÍ';
+  const b = ` · ${n} ${n === 1 ? 'ESTACIÓ' : 'ESTACIONS'} DEL BERGUEDÀ`;
+  ctx.textBaseline = 'middle';
+  font(ctx, 'mono', size);
+  const wa = spacedWidth(ctx, a, sp);
+  const wb = spacedWidth(ctx, b, sp);
+  const x0 = align === 'right' ? x - wa - wb - sp : x;
+  ctx.fillStyle = L.ink;
+  spaced(ctx, a, x0, y, sp);
+  ctx.fillStyle = L.mut;
+  spaced(ctx, b, x0 + wa + sp, y, sp);
 }
 
 // Frase automàtica (es pot editar a l'estudi)
@@ -352,7 +383,9 @@ export function drawRanking(ctx, d) {
       y += 42;
     }
   }
-  y += 40;
+  y += 30;
+  networkCaption(ctx, list.length, X0, y + 11, 20, 2.2);
+  y += 38;
   hline(ctx, X0, X1, y, L.ink, 2);
   const vals = list.map((r) => r.v);
   const temp = d.variable === 'max' || d.variable === 'min';
@@ -513,7 +546,9 @@ export function drawRankingWide(ctx, d) {
   const vals = list.map((r) => r.v);
   const temp = d.variable === 'max' || d.variable === 'min';
   const dots = d.variable === 'min' && list.length > 0;
-  let y = 56;
+  // Títol de la llista a l'altura de la data de l'esquerra
+  networkCaption(ctx, list.length, RX0, 92, 18, 2.2);
+  let y = 118;
   const NX = RX0 + 62, BX = RX0 + 420, BAR = 300;
   let sc = null;
   if (dots) {
@@ -626,10 +661,10 @@ function measureCard(ctx, day, index, k) {
   const w = hasWeather(day);
   font(ctx, 'head', hs, 800);
   tracking(ctx, -0.03 * hs);
-  const title = day.headline.trim() ? wrap(ctx, nbsp(day.headline.trim()), 872) : [];
+  const title = day.headline.trim() ? wrap(ctx, nbsp(capFirst(day.headline.trim())), 872) : [];
   tracking(ctx, 0);
   font(ctx, 'ui', bs);
-  const body = day.text.trim() ? wrap(ctx, nbsp(day.text.trim()), 872) : [];
+  const body = day.text.trim() ? wrap(ctx, nbsp(capFirst(day.text.trim())), 872) : [];
   const start = w ? 144 : 100;
   const th = title.length * Math.round(hs * 1.04);
   const bh = body.reduce((n, l) => n + (l ? bl : bl * 0.5), 0);
@@ -641,7 +676,7 @@ function measureCard(ctx, day, index, k) {
 function measureSummary(ctx, text, k) {
   const s = Math.round(33 * k);
   font(ctx, 'ui', s);
-  const lines = wrap(ctx, nbsp(text.trim()), X1 - X0);
+  const lines = wrap(ctx, nbsp(capFirst(text.trim())), X1 - X0);
   const lh = Math.round(s * 1.4);
   return { type: 'summary', lines, size: s, lh, height: 28 + 24 + 26 + 10 + lines.reduce((n, l) => n + (l ? lh : lh * 0.5), 0) };
 }
