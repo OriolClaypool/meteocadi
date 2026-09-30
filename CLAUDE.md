@@ -77,5 +77,13 @@ Social images: no logo, only `meteocadi.cat` in the footer. Exception: the studi
 
 Direction "D": photo hero + light/dark alternating sections; data components use the "instrument" style (dark panels, Geist Mono numbers). Fonts self-hosted via Fontsource (Schibsted Grotesk, Geist, Geist Mono). Colors/tokens in `src/styles/global.css`. No emojis; icons are inline SVG or Meteocons (`public/imatges/icones`).
 
+## Security
+- The GitHub repo is public: never commit keys or tokens (`.env*` is ignored). Secrets live in Vercel env vars: `WU_API_KEY`, `GITHUB_TOKEN` (fine-grained, this repo only, Contents read/write), `CRON_SECRET`, optional `SOCRATA_APP_TOKEN`, `CONTACT_EMAIL`. The old WU key is still in the code as a fallback (and in the git history): once a new key is set in `WU_API_KEY`, delete the old one at Weather Underground and remove the fallback from `api/ara.js` and `api/arxiva.js`.
+- `/api/arxiva` only runs with `Authorization: Bearer $CRON_SECRET` (or, without the variable, only for the Vercel cron, `x-vercel-cron-schedule` header). Never log tokens.
+- Functions without parameters (`ara`, `xema`, `comarques`, `dem`) redirect any query string to the clean URL (`api/_net.js`), so nobody can skip the CDN cache and burn the source quotas; `ara` also keeps its last good answer for 5 min in the instance.
+- Text from third parties that ends up in `innerHTML` must be escaped or cleaned (`RoadStatus` escapes; `api/xema.js` strips `< > "` from names).
+- `vercel.json` sets nosniff, Referrer-Policy, X-Frame-Options / `frame-ancestors 'self'` (no one can frame the site), Permissions-Policy. No full script CSP yet (inline scripts, tiles, fonts, Meteocat radar iframe).
+- `/estudi` and `/estudi/mapa` are hidden (noindex, robots) but not password-protected.
+
 ## Commands
 `npm run dev` · `npm run build` · always finish with `git add . && git commit -m "..." && git push`.

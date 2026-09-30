@@ -2,9 +2,11 @@
 // Serveix per corregir la temperatura interpolada del mapa segons el relleu. El relleu no canvia:
 // es calcula un cop i queda a la CDN un any.
 
+import { onlyCleanUrl } from './_net.js';
 const GRID = { lat0: 40.48, lat1: 42.9, lng0: 0.12, lng1: 3.36, step: 0.04 };
 
 export default async function handler(req, res) {
+  if (onlyCleanUrl(req, res, '/api/dem')) return;
   try {
     const rows = Math.round((GRID.lat1 - GRID.lat0) / GRID.step) + 1;
     const cols = Math.round((GRID.lng1 - GRID.lng0) / GRID.step) + 1;
