@@ -1,0 +1,230 @@
+---
+// Estudi · radar (intern, no indexat): el radar del Meteocat amb les estacions i el vent (model AROME i mesurat),
+// les línies de convergència i la imatge per a xarxes. La lògica és a src/scripts/radar.js.
+import Base from '../../layouts/Base.astro';
+import EstudiTop from '../../components/EstudiTop.astro';
+---
+<Base
+  title="Estudi · Radar | Meteocadí"
+  description="Eina interna de Meteocadí: radar, estacions i vent sobre el mateix mapa."
+  path="/estudi/radar"
+  noindex
+  bare
+>
+  <div class="st">
+    <EstudiTop current="radar" />
+    <div class="wrap rad">
+      <div class="rad-bar">
+        <div class="rad-grp">
+          <span class="rad-lab">Radar</span>
+          <div class="rad-seg" role="group" aria-label="Producte del radar">
+            <button type="button" data-prod="radar" aria-pressed="true">Intensitat</button>
+            <button type="button" data-prod="plujaneu" aria-pressed="false">Pluja o neu</button>
+          </div>
+        </div>
+        <div class="rad-grp" id="rPalRow">
+          <span class="rad-lab">Colors</span>
+          <div class="rad-seg" role="group" aria-label="Escala de colors">
+            <button type="button" data-pal="clara" aria-pressed="true">Més clars</button>
+            <button type="button" data-pal="meteocat" aria-pressed="false">Meteocat</button>
+          </div>
+        </div>
+        <div class="rad-grp">
+          <span class="rad-lab">Píxels</span>
+          <div class="rad-seg" role="group" aria-label="Aspecte dels píxels">
+            <button type="button" data-look="pixel" aria-pressed="true">Nítids</button>
+            <button type="button" data-look="suau" aria-pressed="false">Suaus</button>
+          </div>
+        </div>
+        <label class="rad-grp rad-op">
+          <span class="rad-lab">Opacitat</span>
+          <input type="range" id="rOpacity" min="0.3" max="1" step="0.05" value="0.85" />
+        </label>
+      </div>
+
+      <div class="rad-bar">
+        <div class="rad-grp">
+          <span class="rad-lab">Estacions</span>
+          <div class="rad-seg" role="group" aria-label="Valor de les estacions">
+            <button type="button" data-stvar="rain1h" aria-pressed="true">Pluja 1 h</button>
+            <button type="button" data-stvar="rain" aria-pressed="false">Pluja d'avui</button>
+            <button type="button" data-stvar="gust" aria-pressed="false">Ratxa</button>
+            <button type="button" data-stvar="t" aria-pressed="false">Temperatura</button>
+            <button type="button" data-stvar="cap" aria-pressed="false">Cap</button>
+          </div>
+        </div>
+        <div class="rad-grp">
+          <span class="rad-lab">Vent</span>
+          <div class="rad-seg" role="group" aria-label="Fletxes de vent">
+            <button type="button" data-wind="model" aria-pressed="true">Model</button>
+            <button type="button" data-wind="mesurat" aria-pressed="false">Mesurat</button>
+            <button type="button" data-wind="tots" aria-pressed="false">Tots dos</button>
+            <button type="button" data-wind="cap" aria-pressed="false">Cap</button>
+          </div>
+        </div>
+        <label class="rad-grp rad-chk"><input type="checkbox" id="rConv" checked /> Línies de convergència</label>
+      </div>
+
+      <div id="rmap" class="rmap" aria-label="Mapa del radar"></div>
+
+      <div class="rad-time">
+        <button type="button" id="rPlay" class="rad-play" aria-pressed="false" disabled>Reprodueix</button>
+        <input type="range" id="rSlider" min="0" max="0" step="1" value="0" aria-label="Hora de la imatge del radar" />
+        <div class="rad-when"><b id="rTime">—</b><span id="rAge"></span></div>
+      </div>
+      <p class="rad-status" id="rStatus" role="status"></p>
+      <p class="rad-status rad-warn" id="rNote"></p>
+
+      <div class="rad-info">
+        <div class="rad-legend" id="rLegend"></div>
+        <div class="rad-keys">
+          <p><span class="k k--model"></span>Fletxes fosques: vent previst pel model per a aquesta hora.</p>
+          <p><span class="k k--obs"></span>Fletxes taronja: vent mesurat a les estacions.</p>
+          <p><span class="k k--conv"></span>Línia discontínua: on el vent del model convergeix (la gruixuda, més intensa).</p>
+          <p id="rWindNote" class="rad-small"></p>
+          <p id="rStTime" class="rad-small"></p>
+        </div>
+      </div>
+
+      <div class="cm-dl" role="group" aria-label="Descarrega la imatge del radar">
+        <span>Descarrega com a imatge</span>
+        <button type="button" data-f="post">Publicació 4:5</button>
+        <button type="button" data-f="story">Història 9:16</button>
+        <button type="button" data-f="wide">Horitzontal 16:9</button>
+      </div>
+      <p class="rad-credit">
+        Radar: <a href="https://www.meteo.cat/" target="_blank" rel="noopener">Servei Meteorològic de Catalunya</a> (imatges del seu web, una cada 6 minuts). Vent: model AROME de <a href="https://portail-api.meteofrance.fr/" target="_blank" rel="noopener">Météo-France</a> (Licence Ouverte 2.0). Estacions: XEMA del Meteocat (dades obertes de la Generalitat) i xarxa Meteocadí. Ús intern: la intensitat del radar és orientativa i el vent del model és una previsió, no una mesura.
+      </p>
+    </div>
+  </div>
+
+  <dialog class="cm-dlg" id="cmDlg" aria-label="Imatge del radar">
+    <img id="cmDlgImg" alt="Imatge del radar per a xarxes socials" />
+    <div class="cm-dlg__bar">
+      <button type="button" id="cmDlgShare" hidden>Comparteix</button>
+      <a id="cmDlgSave" href="#" download="meteocadi-radar.png">Descarrega</a>
+      <button type="button" id="cmDlgClose" class="is-ghost">Tanca</button>
+    </div>
+  </dialog>
+</Base>
+
+<style is:global>
+  .rad { display: flex; flex-direction: column; gap: 12px; padding-top: 18px; padding-bottom: 56px; }
+  .rad-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; }
+  .rad-grp { display: flex; align-items: center; gap: 8px; min-width: 0; flex-wrap: wrap; }
+  .rad-lab { font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--mut); }
+  .rad-seg { display: flex; flex-wrap: wrap; gap: 3px; background: #e8eef4; padding: 3px; border-radius: 9px; }
+  .rad-seg button { border: 0; background: none; padding: 6px 11px; border-radius: 7px; color: var(--ink2); font-weight: 600; font-size: 13.5px; cursor: pointer; white-space: nowrap; }
+  .rad-seg button[aria-pressed='true'] { background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(16, 35, 59, 0.12); }
+  .rad-op input { width: 120px; accent-color: #10233b; }
+  .rad-chk { font-size: 13.5px; font-weight: 600; color: var(--ink2); cursor: pointer; }
+  .rad-chk input { accent-color: #10233b; }
+  .rmap { width: 100%; height: min(78vh, 900px); min-height: 520px; border-radius: 14px; border: 1px solid var(--line); background: #e9eef3; overflow: hidden; }
+  .rmap .leaflet-tile-pane { filter: saturate(0) contrast(0.92) brightness(1.06); opacity: 0.55; }
+  .rmap .leaflet-pane svg { max-width: none !important; max-height: none !important; }
+  .rad-cv { image-rendering: pixelated; image-rendering: crisp-edges; }
+  .rad-cv.is-smooth { image-rendering: auto; }
+  .rad-wind { position: absolute; left: 0; top: 0; transition: opacity 0.15s; }
+  .rmap .xpin { width: 0 !important; height: 0 !important; }
+  .rmap .xp { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); padding: 2px 7px; border-radius: 999px; font-family: var(--f-ui); font-size: 12.5px; font-weight: 700; line-height: 1.25; white-space: nowrap; box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.95), 0 1px 3px rgba(16, 35, 59, 0.35); font-variant-numeric: tabular-nums; }
+  .rmap .xp--mc { box-shadow: 0 0 0 2px #10233b, 0 0 0 3.5px rgba(255, 255, 255, 0.95); }
+  .rmap .xp.is-zero { opacity: 0.72; font-size: 11px; padding: 1px 6px; }
+  .rad-time { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .rad-play { height: 38px; padding: 0 16px; border-radius: 999px; border: 0; background: #10233b; color: #fff; font-weight: 700; font-size: 14px; cursor: pointer; min-width: 120px; }
+  .rad-play:disabled { opacity: 0.4; cursor: default; }
+  .rad-time input[type='range'] { flex: 1; min-width: 200px; accent-color: #10233b; }
+  .rad-when { display: flex; flex-direction: column; gap: 1px; min-width: 210px; }
+  .rad-when b { font-size: 15px; }
+  .rad-when span { font-family: var(--f-mono); font-size: 12px; color: var(--mut); }
+  .rad-status { font-size: 13.5px; color: var(--mut); min-height: 0; margin: 0; }
+  .rad-status:empty { display: none; }
+  .rad-warn { color: #a5541b; }
+  .rad-info { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px 28px; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .rad-legend b { display: block; font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--mut); font-weight: 500; margin-bottom: 8px; }
+  .rl-bar { display: flex; }
+  .rl-bar i { flex: 1; height: 14px; min-width: 10px; }
+  .rl-bar--full i:first-child { border-radius: 4px 0 0 4px; }
+  .rl-bar--full i:last-child { border-radius: 0 4px 4px 0; box-shadow: inset 0 0 0 1px #d8e0e8; }
+  .rl-ticks { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink2); margin-top: 5px; }
+  .rl-types { display: flex; gap: 14px; flex-wrap: wrap; }
+  .rl-types > span { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--ink2); }
+  .rl-types .rl-bar i { width: 16px; flex: none; }
+  .rad-keys p { font-size: 13px; color: var(--ink2); display: flex; align-items: center; gap: 8px; margin: 0 0 5px; }
+  .rad-keys .k { display: inline-block; width: 26px; height: 0; flex: none; }
+  .k--model { border-top: 2px solid #10233b; }
+  .k--obs { border-top: 2px solid #c2410c; }
+  .k--conv { border-top: 2px dashed #10233b; }
+  .rad-small { font-size: 12.5px !important; color: var(--mut) !important; }
+  .rad-credit { font-size: 12.5px; color: var(--mut); line-height: 1.55; max-width: 980px; }
+  .cm-dl { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; }
+  .cm-dl span { font-size: 14px; font-weight: 600; color: var(--ink2); margin-right: 4px; }
+  .cm-dl button { height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: #fff; color: var(--ink); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .cm-dl button:hover { border-color: var(--ink); }
+  .cm-dl button[aria-busy='true'] { opacity: 0.6; cursor: progress; }
+  .cm-dlg { border: 0; border-radius: 16px; padding: 16px; max-width: min(92vw, 960px); background: #fff; box-shadow: 0 20px 60px rgba(16, 35, 59, 0.35); }
+  .cm-dlg::backdrop { background: rgba(16, 35, 59, 0.6); }
+  .cm-dlg img { display: block; max-width: 100%; max-height: 72vh; width: auto; height: auto; margin: 0 auto; border-radius: 8px; border: 1px solid var(--line); }
+  .cm-dlg__bar { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .cm-dlg__bar a, .cm-dlg__bar button { height: 40px; padding: 0 18px; border-radius: 999px; border: 1px solid var(--ink); background: var(--ink); color: #fff; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; text-decoration: none; }
+  .cm-dlg__bar .is-ghost { background: #fff; color: var(--ink); border-color: var(--line); }
+  @media (max-width: 760px) {
+    .rad-info { grid-template-columns: 1fr; }
+    .rmap { height: 70vh; min-height: 420px; }
+    .rad-seg button { padding: 6px 9px; font-size: 13px; }
+  }
+</style>
+
+<script>
+  import 'leaflet/dist/leaflet.css';
+  import { startRadar } from '../../scripts/radar.js';
+  import { hourMadrid, todayMadrid } from '../../lib/format.js';
+
+  const radar = startRadar();
+
+  const dlg = document.getElementById('cmDlg') as HTMLDialogElement;
+  const dlgImg = document.getElementById('cmDlgImg') as HTMLImageElement;
+  const dlgSave = document.getElementById('cmDlgSave') as HTMLAnchorElement;
+  const dlgShare = document.getElementById('cmDlgShare') as HTMLButtonElement;
+  let dlgFile: File | null = null;
+  let dlgUrl = '';
+  document.getElementById('cmDlgClose')?.addEventListener('click', () => dlg.close());
+  dlg?.addEventListener('click', (e) => {
+    const r = dlg.getBoundingClientRect();
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) dlg.close();
+  });
+  dlgShare?.addEventListener('click', async () => {
+    if (!dlgFile) return;
+    try { await navigator.share({ files: [dlgFile] }); } catch {}
+  });
+
+  document.querySelectorAll<HTMLButtonElement>('.cm-dl button').forEach((b) =>
+    b.addEventListener('click', async () => {
+      const snap = radar.snapshot();
+      if (!snap || b.getAttribute('aria-busy') === 'true') return;
+      if (!snap.raster) {
+        document.getElementById('rNote')!.textContent = "No es pot fer la imatge: el servidor del Meteocat no deixa llegir els píxels del radar des d'aquesta pàgina.";
+        return;
+      }
+      b.setAttribute('aria-busy', 'true');
+      try {
+        const { renderRadarImage } = await import('../../scripts/mapa-imatge.js');
+        const canvas = await renderRadarImage({ ...snap, format: b.dataset.f });
+        const blob: Blob | null = await new Promise((r) => canvas.toBlob(r, 'image/png'));
+        if (!blob) return;
+        const name = `meteocadi-radar-${todayMadrid(snap.when)}-${hourMadrid(snap.when).replace(':', '')}${b.dataset.f === 'story' ? '-historia' : b.dataset.f === 'wide' ? '-horitzontal' : ''}.png`;
+        if (dlgUrl) URL.revokeObjectURL(dlgUrl);
+        dlgUrl = URL.createObjectURL(blob);
+        dlgFile = new File([blob], name, { type: 'image/png' });
+        dlgImg.src = dlgUrl;
+        dlgSave.href = dlgUrl;
+        dlgSave.download = name;
+        dlgShare.hidden = !(navigator.canShare && navigator.canShare({ files: [dlgFile] }));
+        dlg.showModal();
+      } catch (e) {
+        console.error('[radar-imatge]', e);
+      } finally {
+        b.removeAttribute('aria-busy');
+      }
+    }),
+  );
+</script>

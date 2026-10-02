@@ -1,6 +1,7 @@
 ---
-// Capçalera de les eines internes de l'estudi: les tres plantilles d'imatge (/estudi) i el mapa de Catalunya (/estudi/mapa).
-interface Props { current: 'app' | 'mapa' }
+// Capçalera de les eines internes de l'estudi: les tres plantilles d'imatge (/estudi), el mapa de Catalunya (/estudi/mapa)
+// i el radar (/estudi/radar).
+interface Props { current: 'app' | 'mapa' | 'radar' }
 const { current } = Astro.props;
 const TPL = [
   ['previsio', 'Previsió'],
@@ -16,7 +17,7 @@ const TPL = [
     {current === 'app'
       ? TPL.map(([k, label], i) => <button role="tab" data-tpl={k} aria-selected={i === 0 ? 'true' : 'false'}>{label}</button>)
       : TPL.map(([k, label]) => <a href={`/estudi#${k}`}>{label}</a>)}
-    {current === 'mapa' ? <a href="/estudi/mapa" aria-current="page">Mapa</a> : <a href="/estudi/mapa">Mapa</a>}
+    {[['mapa', 'Mapa'], ['radar', 'Radar']].map(([k, label]) => (current === k ? <a href={`/estudi/${k}`} aria-current="page">{label}</a> : <a href={`/estudi/${k}`}>{label}</a>))}
   </nav>
   {current === 'app' && <span class="st-save" id="saveStatus" role="status"></span>}
 </header>
