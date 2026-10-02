@@ -14,21 +14,30 @@ export const rowLat = (py) => ((2 * Math.atan(Math.exp(Y0 + ((py + 0.5) / FH) * 
 export const colLng = (px) => FB.lng0 + ((px + 0.5) / FW) * (FB.lng1 - FB.lng0);
 export const toPx = (lng, lat) => [((lng - FB.lng0) / (FB.lng1 - FB.lng0)) * FW, ((mercY(lat) - Y0) / (Y1 - Y0)) * FH];
 
-const TSTOP = [[-10, 167, 139, 250], [-5, 129, 140, 248], [0, 96, 165, 250], [5, 56, 189, 248], [10, 45, 212, 191], [15, 74, 222, 128], [20, 163, 230, 53], [25, 251, 191, 36], [30, 251, 146, 60], [35, 239, 68, 68], [40, 220, 38, 38]];
-const RSTOP = [[0.2, 186, 230, 253], [1, 125, 211, 252], [5, 56, 189, 248], [10, 45, 212, 191], [15, 74, 222, 128], [30, 251, 191, 36], [50, 251, 146, 60], [80, 239, 68, 68], [150, 244, 114, 182]];
-const WSTOP = [[0, 214, 222, 232], [10, 56, 189, 248], [20, 45, 212, 191], [30, 163, 230, 53], [40, 251, 191, 36], [55, 251, 146, 60], [70, 239, 68, 68], [90, 220, 38, 38]];
-const HSTOP = [[20, 253, 230, 138], [30, 191, 219, 254], [50, 147, 197, 253], [70, 96, 165, 250], [85, 59, 130, 246], [100, 37, 99, 235]];
+// Escales de color dels mapes: tons saturats i un canvi clar de to cada 5 °C (de 8 a 22 °C ha de veure's molt diferent).
+// Les etiquetes del mapa i la llegenda fan servir els mateixos colors (fieldColor), perquè quadrin amb el fons.
+const TSTOP = [[-10, 91, 33, 182], [-5, 79, 70, 229], [0, 37, 99, 235], [5, 14, 165, 233], [10, 20, 184, 166], [15, 34, 197, 94], [20, 234, 179, 8], [25, 249, 115, 22], [30, 220, 38, 38], [35, 153, 27, 27], [40, 112, 26, 117]];
+const RSTOP = [[0.2, 147, 197, 253], [1, 96, 165, 250], [5, 37, 99, 235], [10, 13, 148, 136], [15, 22, 163, 74], [30, 234, 179, 8], [50, 249, 115, 22], [80, 220, 38, 38], [150, 192, 38, 211]];
+const WSTOP = [[0, 203, 213, 225], [10, 14, 165, 233], [20, 20, 184, 166], [30, 132, 204, 22], [40, 234, 179, 8], [55, 249, 115, 22], [70, 220, 38, 38], [90, 153, 27, 27]];
+const HSTOP = [[20, 234, 179, 8], [30, 191, 219, 254], [50, 96, 165, 250], [70, 59, 130, 246], [85, 37, 99, 235], [100, 30, 64, 175]];
 
 // Variables amb capa de color. rain: transparent on no ha plogut o no hi ha cap estació a menys de 35 km
 export const FIELD = {
-  t: { stops: TSTOP, alpha: 0.62, dem: true },
-  tmax: { stops: TSTOP, alpha: 0.62, dem: true },
-  tmin: { stops: TSTOP, alpha: 0.62, dem: true },
+  t: { stops: TSTOP, alpha: 0.66, dem: true },
+  tmax: { stops: TSTOP, alpha: 0.66, dem: true },
+  tmin: { stops: TSTOP, alpha: 0.66, dem: true },
   rain: { stops: RSTOP, alpha: 0.7, min: 0.2, maxKm: 35 },
-  gust: { stops: WSTOP, alpha: 0.6 },
-  wind: { stops: WSTOP, alpha: 0.6 },
-  hr: { stops: HSTOP, alpha: 0.6 },
+  gust: { stops: WSTOP, alpha: 0.62 },
+  wind: { stops: WSTOP, alpha: 0.62 },
+  hr: { stops: HSTOP, alpha: 0.62 },
 };
+
+// Color (#rrggbb) d'un valor amb l'escala de la variable: etiquetes i llegenda dels mapes
+const hex2 = (x) => Math.round(x).toString(16).padStart(2, '0');
+export function fieldColor(key, v) {
+  const c = ramp(FIELD[key].stops, v);
+  return `#${hex2(c[1])}${hex2(c[2])}${hex2(c[3])}`;
+}
 
 export function ramp(stops, v) {
   if (v <= stops[0][0]) return stops[0];

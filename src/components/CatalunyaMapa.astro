@@ -92,25 +92,26 @@ const { internal = false } = Astro.props;
   import { loadAra } from '../scripts/live.js';
   import { STATIONS } from '../lib/stations.js';
   import CONTORN from '../lib/catalunya-contorn.json';
-  import { FB, FIELD, computeField, comarquesMask, toCanvas } from '../scripts/camp.js';
-  import { tempColor, tempColorLight, windColor, precipColor, num, dirLabel, hourMadrid, todayMadrid } from '../lib/format.js';
+  import { FB, FIELD, computeField, comarquesMask, toCanvas, fieldColor } from '../scripts/camp.js';
+  // Etiquetes i llegenda amb la mateixa escala que el mapa de color
+  const fc = (key: string) => (v: number) => fieldColor(key, v);
+  import { tempColorLight, num, dirLabel, hourMadrid, todayMadrid } from '../lib/format.js';
 
   type St = { id: string; name: string; lat: number; lng: number; alt: number | null; com?: string; mun?: string; mc?: boolean; slug?: string;
     t: number | null; tmax: number | null; tmin: number | null; rain: number | null; wind: number | null; dir: number | null; gust: number | null; hr: number | null; snow: number | null };
 
   const month = Number(todayMadrid().slice(5, 7));
   const snowSeason = month >= 11 || month <= 5;
-  const humColor = (h: number) => (h < 30 ? '#fde68a' : h < 50 ? '#bfdbfe' : h < 70 ? '#93c5fd' : h < 85 ? '#60a5fa' : '#3b82f6');
   const snowColor = (s: number) => (s < 1 ? '#e2e8f0' : s < 5 ? '#e0f2fe' : s < 20 ? '#bae6fd' : s < 50 ? '#7dd3fc' : s < 100 ? '#38bdf8' : '#0ea5e9');
   // title: títol de la imatge per a xarxes (segona part en color); unit: unitat a la llegenda de la imatge
   const VARS = [
-    { key: 't', label: 'Temperatura', legend: 'Temperatura ara (°C)', title: ['Temperatura', 'ara a Catalunya'], accent: '#c2410c', unit: 'Temperatura (°C)', fmt: (v: number) => num(v), color: tempColor, steps: [-5, 0, 5, 10, 15, 20, 25, 30, 35], two: true },
-    { key: 'tmax', label: 'Màxima', legend: "Màxima d'avui (°C)", title: ['Temperatura màxima', "d'avui a Catalunya"], accent: '#c2410c', unit: 'Màxima (°C)', fmt: (v: number) => num(v), color: tempColor, steps: [0, 5, 10, 15, 20, 25, 30, 35], two: true, today: true },
-    { key: 'tmin', label: 'Mínima', legend: "Mínima d'avui (°C)", title: ['Temperatura mínima', "d'avui a Catalunya"], accent: '#0369a1', unit: 'Mínima (°C)', fmt: (v: number) => num(v), color: tempColor, steps: [-10, -5, 0, 5, 10, 15, 20, 25], two: true, low: true, today: true },
-    { key: 'rain', label: 'Pluja', legend: "Pluja d'avui (mm)", title: ["Pluja d'avui", 'a Catalunya'], accent: '#1d4ed8', unit: 'Pluja (mm)', fmt: (v: number) => num(v), color: (v: number) => (v < 0.1 ? '#e2e8f0' : precipColor(v)), steps: [0.2, 1, 5, 10, 15, 30, 50, 80], today: true },
-    { key: 'gust', label: 'Ratxa màxima', legend: "Ratxa màxima d'avui (km/h)", title: ['Ratxa màxima de vent', "d'avui a Catalunya"], accent: '#b45309', unit: 'Ratxa màxima (km/h)', fmt: (v: number) => String(Math.round(v)), color: windColor, steps: [10, 20, 30, 40, 55, 70, 90], today: true },
-    { key: 'wind', label: 'Vent', legend: 'Vent ara (km/h)', title: ['Vent', 'ara a Catalunya'], accent: '#0f766e', unit: 'Vent (km/h)', fmt: (v: number) => String(Math.round(v)), color: windColor, steps: [10, 20, 30, 40, 55, 70] },
-    { key: 'hr', label: 'Humitat', legend: 'Humitat relativa (%)', title: ['Humitat relativa', 'ara a Catalunya'], accent: '#1d4ed8', unit: 'Humitat relativa (%)', fmt: (v: number) => String(Math.round(v)), color: humColor, steps: [30, 50, 70, 85], two: true },
+    { key: 't', label: 'Temperatura', legend: 'Temperatura ara (°C)', title: ['Temperatura', 'ara a Catalunya'], accent: '#c2410c', unit: 'Temperatura (°C)', fmt: (v: number) => num(v), color: fc('t'), steps: [-5, 0, 5, 10, 15, 20, 25, 30, 35], two: true },
+    { key: 'tmax', label: 'Màxima', legend: "Màxima d'avui (°C)", title: ['Temperatura màxima', "d'avui a Catalunya"], accent: '#c2410c', unit: 'Màxima (°C)', fmt: (v: number) => num(v), color: fc('tmax'), steps: [0, 5, 10, 15, 20, 25, 30, 35], two: true, today: true },
+    { key: 'tmin', label: 'Mínima', legend: "Mínima d'avui (°C)", title: ['Temperatura mínima', "d'avui a Catalunya"], accent: '#0369a1', unit: 'Mínima (°C)', fmt: (v: number) => num(v), color: fc('tmin'), steps: [-10, -5, 0, 5, 10, 15, 20, 25], two: true, low: true, today: true },
+    { key: 'rain', label: 'Pluja', legend: "Pluja d'avui (mm)", title: ["Pluja d'avui", 'a Catalunya'], accent: '#1d4ed8', unit: 'Pluja (mm)', fmt: (v: number) => num(v), color: (v: number) => (v < 0.1 ? '#e2e8f0' : fieldColor('rain', Math.max(v, 0.2))), steps: [0.2, 1, 5, 10, 15, 30, 50, 80], today: true },
+    { key: 'gust', label: 'Ratxa màxima', legend: "Ratxa màxima d'avui (km/h)", title: ['Ratxa màxima de vent', "d'avui a Catalunya"], accent: '#b45309', unit: 'Ratxa màxima (km/h)', fmt: (v: number) => String(Math.round(v)), color: fc('gust'), steps: [10, 20, 30, 40, 55, 70, 90], today: true },
+    { key: 'wind', label: 'Vent', legend: 'Vent ara (km/h)', title: ['Vent', 'ara a Catalunya'], accent: '#0f766e', unit: 'Vent (km/h)', fmt: (v: number) => String(Math.round(v)), color: fc('wind'), steps: [10, 20, 30, 40, 55, 70] },
+    { key: 'hr', label: 'Humitat', legend: 'Humitat relativa (%)', title: ['Humitat relativa', 'ara a Catalunya'], accent: '#1d4ed8', unit: 'Humitat relativa (%)', fmt: (v: number) => String(Math.round(v)), color: fc('hr'), steps: [30, 50, 70, 85], two: true },
     ...(snowSeason ? [{ key: 'snow', label: 'Neu', legend: 'Gruix de neu (cm)', title: ['Gruix de neu', 'ara a Catalunya'], accent: '#0369a1', unit: 'Gruix de neu (cm)', fmt: (v: number) => String(Math.round(v)), color: snowColor, steps: [1, 5, 20, 50, 100] }] : []),
   ];
   let cur = VARS[0];
@@ -168,12 +169,14 @@ const { internal = false } = Astro.props;
 
   // Comarques
   let comarques: any = null;
+  // Límits comarcals: el vel blanc aclareix el mapa de fons només quan no hi ha mapa de color (si no, el renta)
+  let comLayer: any = null;
   fetch('/api/comarques')
     .then((r) => (r.ok ? r.json() : null))
     .then((g) => {
       if (!g?.features) return;
       comarques = g;
-      L.geoJSON(g, { interactive: false, style: { color: '#1f2d3d', weight: 1.1, opacity: 0.55, fillColor: '#ffffff', fillOpacity: 0.35 } }).addTo(map);
+      comLayer = L.geoJSON(g, { interactive: false, style: { color: '#1f2d3d', weight: 1.1, opacity: 0.55, fillColor: '#ffffff', fillOpacity: fieldOn ? 0 : 0.35 } }).addTo(map);
       L.polygon(RINGS, { interactive: false, fill: false, color: '#10233b', weight: 1.8, opacity: 0.85 }).addTo(map);
       mask = null;
       field();
@@ -200,6 +203,7 @@ const { internal = false } = Astro.props;
     const cmapEl = document.getElementById('cmap');
     const cfg = (FIELD as any)[cur.key];
     const can = fieldOn && !!cfg;
+    comLayer?.setStyle({ fillOpacity: can ? 0 : 0.35 });
     if (!can) { fieldLayer?.remove(); fieldLayer = null; cmapEl?.classList.remove('has-field'); fieldNote(); return; }
     if (cfg.dem && demState === 'idle') {
       demState = 'loading';
