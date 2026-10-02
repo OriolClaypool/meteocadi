@@ -2,6 +2,7 @@
 // de dades obertes de la Generalitat (analisi.transparenciacatalunya.cat). Lectures de cada mitja hora,
 // amb uns 45-75 minuts de retard. Memòria cau a la CDN de 15 minuts: el portal rep com a molt 3 crides cada 15 minuts.
 //
+// rain: pluja d'avui (des de mitjanit); rain1h: pluja de la darrera hora amb dades (dues lectures semihoràries).
 // Codis de variable (metadades 4fb2-n3yi): 32 temperatura, 33 humitat, 30/48/46 vent a 10/6/2 m (m/s),
 // 31/49/47 direcció, 50/53/56 ratxa màxima a 10/6/2 m (m/s), 35 precipitació (mm), 38 gruix de neu (cm),
 // 40/42 temperatura màxima/mínima del període.
@@ -55,7 +56,7 @@ export default async function handler(req, res) {
       }),
       get('nzvn-apee.json', {
         $select: 'codi_estacio,codi_variable,data_lectura,valor_lectura',
-        $where: `data_lectura>='${since}' AND codi_variable in('32','33','30','31','46','47','48','49','38')`,
+        $where: `data_lectura>='${since}' AND codi_variable in('32','33','30','31','46','47','48','49','38','35')`,
         $order: 'data_lectura DESC',
         $limit: '20000',
       }),
@@ -75,6 +76,13 @@ export default async function handler(req, res) {
       if (last[k]) continue;
       last[k] = { v: n(row.valor_lectura), t: row.data_lectura };
       if (!newest || row.data_lectura > newest) newest = row.data_lectura;
+    }
+    // Pluja de la darrera hora amb dades: les dues lectures semihoràries més noves de cada estació
+    const r35 = {};
+    for (const row of latest) {
+      if (row.codi_variable !== '35') continue;
+      const l = (r35[row.codi_estacio] ||= []);
+      if (l.length < 2 && n(row.valor_lectura) != null) l.push(n(row.valor_lectura));
     }
     const agg = {};
     for (const row of today) agg[`${row.codi_estacio}|${row.codi_variable}`] = row;
@@ -113,6 +121,7 @@ export default async function handler(req, res) {
           tmax: A(id, 'mx', '40'),
           tmin: A(id, 'mn', '42'),
           rain: r1(A(id, 'sm', '35')),
+          rain1h: r35[id]?.length ? r1(r35[id].reduce((a, b) => a + b, 0)) : null,
           gust: kmh(A(id, 'mx', '50', '53', '56')),
         };
       })

@@ -395,5 +395,10 @@
         }
       ]
     }
-  ]
+  ],
+  "functions": {
+    "api/vent.js": {
+      "maxDuration": 30
+    }
+  }
 }
