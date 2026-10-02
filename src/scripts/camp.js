@@ -1,7 +1,11 @@
 // Capa de color interpolada entre estacions (mapa de Catalunya i portada).
 // Graella de 340 × 290 punts en Web Mercator sobre Catalunya. Temperatura: s'interpola la temperatura "reduïda"
 // (sense l'efecte de l'altitud, amb el gradient calculat amb les mateixes estacions) i es torna a sumar l'altitud
-// del terreny de cada punt (graella de /api/dem). La resta de variables: IDW directe (potència 3).
+// del terreny de cada punt (graella de /api/dem).
+// Interpolació local (vegeu interpolate): cada punt surt de les estacions més properes, amb un pes que baixa amb la
+// distància prou de pressa perquè cada estació no pinti fins a mig camí de les veïnes, però sense fer una "diana" de
+// color al seu voltant. La pluja s'interpola en escala logarítmica, com l'escala de colors: així un valor molt alt
+// no s'escampa per sobre de les estacions del voltant que n'han recollit molt menys.
 import CONTORN from '../lib/catalunya-contorn.json';
 
 export const FB = { lat0: 40.48, lat1: 42.9, lng0: 0.12, lng1: 3.36 };
@@ -21,12 +25,13 @@ const RSTOP = [[0.2, 147, 197, 253], [1, 96, 165, 250], [5, 37, 99, 235], [10, 1
 const WSTOP = [[0, 203, 213, 225], [10, 14, 165, 233], [20, 20, 184, 166], [30, 132, 204, 22], [40, 234, 179, 8], [55, 249, 115, 22], [70, 220, 38, 38], [90, 153, 27, 27]];
 const HSTOP = [[20, 234, 179, 8], [30, 191, 219, 254], [50, 96, 165, 250], [70, 59, 130, 246], [85, 37, 99, 235], [100, 30, 64, 175]];
 
-// Variables amb capa de color. rain: transparent on no ha plogut o no hi ha cap estació a menys de 35 km
+// Variables amb capa de color. rain: transparent on no ha plogut o no hi ha cap estació a menys de 35 km;
+// log: s'interpola log(1 + valor) (l'escala de la pluja és gairebé logarítmica: 1, 5, 10, 30, 80, 150 mm)
 export const FIELD = {
   t: { stops: TSTOP, alpha: 0.66, dem: true },
   tmax: { stops: TSTOP, alpha: 0.66, dem: true },
   tmin: { stops: TSTOP, alpha: 0.66, dem: true },
-  rain: { stops: RSTOP, alpha: 0.7, min: 0.2, maxKm: 35 },
+  rain: { stops: RSTOP, alpha: 0.7, min: 0.2, maxKm: 35, log: true },
   gust: { stops: WSTOP, alpha: 0.62 },
   wind: { stops: WSTOP, alpha: 0.62 },
   hr: { stops: HSTOP, alpha: 0.62 },
@@ -79,6 +84,15 @@ function elevAt(dem, lat, lng) {
   return (z(r0, c0) * (1 - tc) + z(r0, c0 + 1) * tc) * (1 - tr) + (z(r0 + 1, c0) * (1 - tc) + z(r0 + 1, c0 + 1) * tc) * tr;
 }
 
+// Interpolació local (Shepard modificat): per a cada punt, les K estacions més properes, amb pes
+// 1 / (d² + S²)^1,25 (potència 2,5 de la distància) multiplicat per (1 - d²/R²)², on R és la distància a la K+1-a
+// estació. El pes s'esvaeix del tot a R, i per això no hi ha salts quan canvia quines estacions són les més
+// properes, ni les llunyanes estiren el valor cap a la mitjana de Catalunya. Amb potència 2,5 (abans, 3 i totes les
+// estacions) cada estació ja no omple de color tota la zona fins a mig camí de les veïnes, sinó que el color va
+// canviant de mica en mica d'una a l'altra. S (2 km) arrodoneix el valor just a sobre de l'estació (sense punxa).
+const K = 16;
+const S2 = 2 * 2;
+
 // pts: [{ lat, lng, alt, v }]. Retorna { raw, web, useDem } o null:
 // raw: ImageData opac (també una mica fora del contorn, per retallar-lo net amb el contorn vectorial);
 // web: la mateixa capa amb la transparència de la variable i retallada amb la màscara.
@@ -94,30 +108,62 @@ export function computeField(pts, key, { mask, dem = null, alpha = null }) {
     slope = sxx > 0 ? pts.reduce((a, p) => a + (p.alt - mx) * (p.v - my), 0) / sxx : -0.0065;
     slope = Math.max(-0.0098, Math.min(-0.002, slope));
   }
-  const P = pts.map((p) => ({ x: p.lng, y: p.lat, r: p.v - slope * p.alt }));
+  const n = pts.length;
+  const PX = new Float64Array(n), PY = new Float64Array(n), PR = new Float64Array(n);
+  pts.forEach((p, j) => {
+    PX[j] = p.lng;
+    PY[j] = p.lat;
+    PR[j] = cfg.log ? Math.log1p(Math.max(0, p.v)) : p.v - slope * p.alt;
+  });
+  const kk = Math.min(K, n - 1);
+  // Les kk + 1 estacions més properes del punt, ordenades per distància (bd: km², bi: índex de l'estació)
+  const bd = new Float64Array(kk + 1), bi = new Int32Array(kk + 1);
+  // Per anar de pressa: es comença per les més properes del punt anterior (gairebé sempre són les mateixes) i
+  // es descarten sense calcular-ne la distància les estacions que ja queden massa lluny en latitud (DY2)
+  const prev = new Int32Array(kk + 1), seen = new Uint8Array(n), DY2 = new Float64Array(n);
+  let warm = false;
   const raw = new ImageData(FW, FH);
   const web = new ImageData(FW, FH);
   const maxD2 = cfg.maxKm ? cfg.maxKm * cfg.maxKm : Infinity;
   for (let py = 0; py < FH; py++) {
     const lat = rowLat(py);
     const kx = 111.32 * Math.cos((lat * Math.PI) / 180);
+    for (let j = 0; j < n; j++) { const dy = (lat - PY[j]) * 111.32; DY2[j] = dy * dy; }
     for (let px = 0; px < FW; px++) {
       const i = py * FW + px;
       const inside = mask[i];
       if (!inside && !(mask[i - 3] || mask[i + 3] || mask[i - 3 * FW] || mask[i + 3 * FW])) continue;
       const lng = colLng(px);
-      let sw = 0, sv = 0, near = 1e9;
-      for (const p of P) {
-        const dx = (lng - p.x) * kx, dy = (lat - p.y) * 111.32;
-        const d2 = dx * dx + dy * dy + 0.25;
-        if (d2 < near) near = d2;
-        const w = 1 / (d2 * Math.sqrt(d2)); // potència 3: prou local sense fer "diana" a cada estació
-        sw += w;
-        sv += w * p.r;
+      let m = 0;
+      for (let s = warm ? -(kk + 1) : 0; s < n; s++) {
+        let j;
+        if (s < 0) { j = prev[s + kk + 1]; seen[j] = 1; }
+        else { j = s; if (seen[j] || (m > kk && DY2[j] >= bd[kk])) continue; }
+        const dx = (lng - PX[j]) * kx;
+        const d2 = dx * dx + DY2[j];
+        if (m <= kk) m++;
+        else if (d2 >= bd[kk]) continue;
+        let q = m - 1;
+        while (q > 0 && bd[q - 1] > d2) { bd[q] = bd[q - 1]; bi[q] = bi[q - 1]; q--; }
+        bd[q] = d2;
+        bi[q] = j;
       }
-      let v = sv / sw;
+      if (warm) for (let q = 0; q <= kk; q++) seen[prev[q]] = 0;
+      prev.set(bi);
+      warm = true;
+      const R2 = bd[kk];
+      let sw = 0, sv = 0;
+      for (let q = 0; q < kk; q++) {
+        const t = 1 - bd[q] / R2;
+        const x = bd[q] + S2;
+        const w = (t * t) / (x * Math.sqrt(Math.sqrt(x))); // 1 / (d² + S²)^1,25 = potència 2,5 de la distància
+        sw += w;
+        sv += w * PR[bi[q]];
+      }
+      let v = sw > 0 ? sv / sw : PR[bi[0]];
+      if (cfg.log) v = Math.expm1(v);
       if (useDem) v += slope * elevAt(dem, lat, lng);
-      if ((cfg.min != null && v < cfg.min) || near > maxD2) continue;
+      if ((cfg.min != null && v < cfg.min) || bd[0] > maxD2) continue;
       const c = ramp(cfg.stops, v);
       const k = i * 4;
       raw.data[k] = web.data[k] = c[1];
