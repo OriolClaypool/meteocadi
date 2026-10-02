@@ -164,6 +164,36 @@ const { internal = false } = Astro.props;
 
   const map = L.map('cmap', { zoomControl: true, scrollWheelZoom: false, zoomSnap: 0.25, minZoom: 7, maxBounds: [[39.7, -0.8], [43.6, 4.3]], maxBoundsViscosity: 0.8 });
   map.fitBounds([[40.52, 0.16], [42.86, 3.33]]);
+
+  // Zoom amb la roda del ratolí (o dos dits al trackpad). El mapa és gairebé tan alt com la pantalla: perquè no
+  // atrapi la roda de qui només baixa per la pàgina, la roda fa zoom quan el ratolí s'ha mogut per sobre del mapa
+  // (o s'hi ha clicat), i torna a fer baixar la pàgina quan el ratolí en surt. Amb Ctrl o Cmd (o pessigant el
+  // trackpad) fa zoom sempre.
+  {
+    const box = map.getContainer();
+    const wheel = map.scrollWheelZoom;
+    let timer = 0, lx = -1, ly = -1;
+    const wake = () => { window.clearTimeout(timer); timer = 0; wheel.enable(); };
+    const sleep = () => { window.clearTimeout(timer); timer = 0; wheel.disable(); };
+    box.addEventListener('mousemove', (e) => {
+      // Quan la pàgina es desplaça sota el ratolí quiet, el navegador també envia "mousemove": no compta
+      if (e.clientX === lx && e.clientY === ly) return;
+      lx = e.clientX;
+      ly = e.clientY;
+      if (!wheel.enabled() && !timer) timer = window.setTimeout(wake, 250);
+    });
+    box.addEventListener('mousedown', wake);
+    box.addEventListener('mouseleave', sleep);
+    // Si la pàgina s'està desplaçant, qui fa servir la roda vol baixar, no fer zoom
+    window.addEventListener('scroll', () => { if (!wheel.enabled()) { window.clearTimeout(timer); timer = 0; } }, { passive: true });
+    box.addEventListener('wheel', (e) => {
+      if (wheel.enabled() || !(e.ctrlKey || e.metaKey)) return;
+      // Pessigar el trackpad o Ctrl + roda: zoom del mapa i no de tota la pàgina
+      e.preventDefault();
+      wake();
+      box.dispatchEvent(new WheelEvent('wheel', e));
+    }, { passive: false });
+  }
   L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
     attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, SRTM · estil © <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA) · límits: ICGC',
     subdomains: 'abc',
