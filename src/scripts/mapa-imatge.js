@@ -488,7 +488,7 @@ export async function renderRadarImage(snap) {
     windowed: true,
     legend: snow
       ? { title: 'Tipus de precipitació', bar: { colors: PAL.plujaneu, ticks: ['Pluja', 'Aiguaneu', 'Neu'] } }
-      : { title: 'Intensitat de la precipitació', bar: { colors: PAL[snap.pal] || PAL.clara, ticks: ['Feble', 'Moderada', 'Forta', 'Calamarsa'] } },
+      : { title: 'Intensitat de la precipitació', bar: { colors: PAL[snap.pal] || PAL.meteocat, ticks: ['Feble', 'Moderada', 'Forta', 'Calamarsa'] } },
     credit: `Radar: Servei Meteorològic de Catalunya.${snap.wind || snap.conv ? ' Vent: model AROME de Météo-France.' : ''} Estacions: XEMA i xarxa Meteocadí. Límits: ICGC.`,
     note: notes.join(' '),
   });

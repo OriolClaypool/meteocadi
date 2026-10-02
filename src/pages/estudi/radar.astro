@@ -25,8 +25,8 @@ import EstudiTop from '../../components/EstudiTop.astro';
         <div class="rad-grp" id="rPalRow">
           <span class="rad-lab">Colors</span>
           <div class="rad-seg" role="group" aria-label="Escala de colors">
-            <button type="button" data-pal="clara" aria-pressed="true">Més clars</button>
-            <button type="button" data-pal="meteocat" aria-pressed="false">Meteocat</button>
+            <button type="button" data-pal="meteocat" aria-pressed="true">Meteocat</button>
+            <button type="button" data-pal="meteocadi" aria-pressed="false">Meteocadí</button>
           </div>
         </div>
         <div class="rad-grp">
@@ -34,6 +34,14 @@ import EstudiTop from '../../components/EstudiTop.astro';
           <div class="rad-seg" role="group" aria-label="Aspecte dels píxels">
             <button type="button" data-look="pixel" aria-pressed="true">Nítids</button>
             <button type="button" data-look="suau" aria-pressed="false">Suaus</button>
+          </div>
+        </div>
+        <div class="rad-grp">
+          <span class="rad-lab">Fons</span>
+          <div class="rad-seg" role="group" aria-label="Mapa de fons">
+            <button type="button" data-base="relleu" aria-pressed="true">Relleu</button>
+            <button type="button" data-base="topo" aria-pressed="false">Topogràfic</button>
+            <button type="button" data-base="cap" aria-pressed="false">Cap</button>
           </div>
         </div>
         <label class="rad-grp rad-op">
@@ -46,8 +54,8 @@ import EstudiTop from '../../components/EstudiTop.astro';
         <div class="rad-grp">
           <span class="rad-lab">Estacions</span>
           <div class="rad-seg" role="group" aria-label="Valor de les estacions">
-            <button type="button" data-stvar="rain1h" aria-pressed="true">Pluja 1 h</button>
-            <button type="button" data-stvar="rain" aria-pressed="false">Pluja d'avui</button>
+            <button type="button" data-stvar="rain" aria-pressed="true">Pluja d'avui</button>
+            <button type="button" data-stvar="rain1h" aria-pressed="false">Pluja 1 h</button>
             <button type="button" data-stvar="gust" aria-pressed="false">Ratxa</button>
             <button type="button" data-stvar="t" aria-pressed="false">Temperatura</button>
             <button type="button" data-stvar="cap" aria-pressed="false">Cap</button>
@@ -121,6 +129,7 @@ import EstudiTop from '../../components/EstudiTop.astro';
   .rad-chk input { accent-color: #10233b; }
   .rmap { width: 100%; height: min(78vh, 900px); min-height: 520px; border-radius: 14px; border: 1px solid var(--line); background: #e9eef3; overflow: hidden; }
   .rmap .leaflet-tile-pane { filter: saturate(0) contrast(0.92) brightness(1.06); opacity: 0.55; }
+  .rmap[data-base='relleu'] .leaflet-tile-pane { filter: grayscale(1) contrast(0.8) brightness(1.12); opacity: 0.7; }
   .rmap .leaflet-pane svg { max-width: none !important; max-height: none !important; }
   .rad-cv { image-rendering: pixelated; image-rendering: crisp-edges; }
   .rad-cv.is-smooth { image-rendering: auto; }

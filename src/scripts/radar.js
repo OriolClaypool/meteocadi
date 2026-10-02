@@ -2,8 +2,8 @@
 //
 // Radar: les tessel·les del Meteocat (les que fa servir el seu web: una imatge cada 6 minuts, nivell de zoom 7, uns 1 km
 // per píxel) del bloc que cobreix Catalunya i voltants. Es compon cada imatge en un canvas, es llegeix el color de cada
-// píxel i es converteix en un nivell de l'escala del Meteocat; després es pinta amb l'escala triada (la nostra, més clara,
-// o l'original) i amb els píxels nítids en apropar-se. Si el servidor no deixés llegir els píxels (CORS), es mostren les
+// píxel i es converteix en un nivell de l'escala del Meteocat; després es pinta amb l'escala triada (l'original del
+// Meteocat o la de Meteocadí) i amb els píxels nítids en apropar-se. Si el servidor no deixés llegir els píxels (CORS), es mostren les
 // imatges tal com venen.
 // Estacions: /api/xema i /api/ara. Vent: model AROME de Météo-France (/api/vent) i vent mesurat a les estacions.
 import L from 'leaflet';
@@ -335,11 +335,28 @@ export function startRadar() {
   const $ = (id) => document.getElementById(id);
   const map = L.map('rmap', { zoomSnap: 0.25, minZoom: 7, maxZoom: 12, maxBounds: [[RADAR_BOUNDS.lat0, RADAR_BOUNDS.lng0], [RADAR_BOUNDS.lat1, RADAR_BOUNDS.lng1]], maxBoundsViscosity: 0.8 });
   map.fitBounds([[40.52, 0.16], [42.86, 3.33]]);
-  L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, SRTM · estil © <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA) · radar: <a href="https://www.meteo.cat/" target="_blank" rel="noopener">Meteocat</a>',
-    subdomains: 'abc',
-    maxZoom: 17,
-  }).addTo(map);
+  // Fons: relleu sense carreteres (per defecte), el topogràfic (amb carreteres i pobles) o cap
+  const BASES = {
+    relleu: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}', {
+      attribution: 'Relleu © <a href="https://www.esri.com/" target="_blank" rel="noopener">Esri</a> (World Hillshade)',
+      maxZoom: 17,
+      maxNativeZoom: 15,
+    }),
+    topo: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>, SRTM · estil © <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)',
+      subdomains: 'abc',
+      maxZoom: 17,
+    }),
+    cap: null,
+  };
+  let base = null;
+  const setBase = (k) => {
+    if (base) map.removeLayer(base);
+    base = BASES[k];
+    if (base) base.addTo(map);
+    map.getContainer().dataset.base = k;
+  };
+  setBase('relleu');
   map.createPane('radar').style.zIndex = '350';
   map.createPane('wind').style.zIndex = '450';
   map.getPane('wind').style.pointerEvents = 'none';
@@ -357,14 +374,14 @@ export function startRadar() {
   // ------------------------------------------------ estat
   const st = {
     prod: 'radar', // 'radar' (intensitat) o 'plujaneu' (tipus)
-    pal: 'clara', // 'clara' o 'meteocat'
+    pal: 'meteocat', // 'meteocat' o 'meteocadi'
     crisp: true,
     opacity: 0.85,
     frames: [], // de la més antiga a la més nova
     i: -1,
     cors: true,
     playing: false,
-    stVar: 'rain1h',
+    stVar: 'rain', // la pluja d'avui en entrar
     windModel: true,
     windObs: false,
     conv: true,
@@ -373,7 +390,12 @@ export function startRadar() {
   cv.width = W;
   cv.height = H;
   const cctx = cv.getContext('2d');
-  const radarLayer = new CanvasOverlay(cv, [[RADAR_BOUNDS.lat0, RADAR_BOUNDS.lng0], [RADAR_BOUNDS.lat1, RADAR_BOUNDS.lng1]], { pane: 'radar', className: 'rad-cv', interactive: false }).addTo(map);
+  const radarLayer = new CanvasOverlay(cv, [[RADAR_BOUNDS.lat0, RADAR_BOUNDS.lng0], [RADAR_BOUNDS.lat1, RADAR_BOUNDS.lng1]], {
+    pane: 'radar',
+    className: 'rad-cv',
+    interactive: false,
+    attribution: 'Radar: <a href="https://www.meteo.cat/" target="_blank" rel="noopener">Meteocat</a>',
+  }).addTo(map);
   const applyLook = () => {
     cv.style.opacity = String(st.opacity);
     cv.classList.toggle('is-smooth', !st.crisp);
@@ -509,6 +531,7 @@ export function startRadar() {
   seg('[data-prod]', 'prod', (v) => { st.prod = v; play(false); legend(); $('rPalRow').hidden = v === 'plujaneu'; loadAll(); });
   seg('[data-pal]', 'pal', (v) => { st.pal = v; legend(); paint(st.frames[st.i]); });
   seg('[data-look]', 'look', (v) => { st.crisp = v === 'pixel'; applyLook(); });
+  seg('[data-base]', 'base', (v) => setBase(v));
   $('rOpacity').addEventListener('input', (e) => { st.opacity = Number(e.target.value); applyLook(); });
 
   function legend() {
