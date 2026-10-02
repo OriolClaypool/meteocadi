@@ -59,8 +59,9 @@ function wrapText(ctx, text, width) {
   return lines;
 }
 
+// ctx pot ser el context del canvas o un Path2D (per retallar)
 function roundRect(ctx, x, y, w, h, r) {
-  ctx.beginPath();
+  if (ctx.beginPath) ctx.beginPath();
   ctx.moveTo(x + r, y);
   ctx.arcTo(x + w, y, x + w, y + h, r);
   ctx.arcTo(x + w, y + h, x, y + h, r);
@@ -82,18 +83,35 @@ async function loadFonts(f) {
   } catch {}
 }
 
-// Projecció Web Mercator de Catalunya dins la caixa, centrada i sense deformar
-function projector(box) {
+// Rectangle que ocupa Catalunya
+const CAT = (() => {
   let lng0 = 180, lng1 = -180, lat0 = 90, lat1 = -90;
   for (const poly of CONTORN.coordinates)
     for (const [x, y] of poly[0]) {
       lng0 = Math.min(lng0, x); lng1 = Math.max(lng1, x);
       lat0 = Math.min(lat0, y); lat1 = Math.max(lat1, y);
     }
+  return { lng0, lng1, lat0, lat1 };
+})();
+
+// La zona que es veu al web, si s'hi ha fet zoom (si es veu tot Catalunya o la zona en queda fora, null)
+function zoomedView(v) {
+  if (!v) return null;
+  const m = 0.04;
+  if (v.lng0 <= CAT.lng0 + m && v.lng1 >= CAT.lng1 - m && v.lat0 <= CAT.lat0 + m && v.lat1 >= CAT.lat1 - m) return null;
+  if (v.lng1 < CAT.lng0 || v.lng0 > CAT.lng1 || v.lat1 < CAT.lat0 || v.lat0 > CAT.lat1) return null;
+  return v;
+}
+
+// Projecció Web Mercator d'una zona (per defecte, tot Catalunya) dins la caixa, centrada i sense deformar.
+// cover: la zona omple tota la caixa (amb zoom: la mateixa escala que la pantalla, i si les proporcions no
+// coincideixen, es retallen les vores); si no, hi cap sencera.
+function projector(box, bb = CAT, cover = false) {
+  const { lng0, lng1, lat0, lat1 } = bb;
   const my = (lat) => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
   const [bx0, by0, bx1, by1] = box;
   const wx = ((lng1 - lng0) * Math.PI) / 180, wy = my(lat1) - my(lat0);
-  const s = Math.min((bx1 - bx0) / wx, (by1 - by0) / wy);
+  const s = (cover ? Math.max : Math.min)((bx1 - bx0) / wx, (by1 - by0) / wy);
   const ox = bx0 + (bx1 - bx0 - wx * s) / 2, oy = by0 + (by1 - by0 - wy * s) / 2;
   const top = my(lat1);
   const p = (lng, lat) => [ox + (((lng - lng0) * Math.PI) / 180) * s, oy + (top - my(lat)) * s];
@@ -115,7 +133,8 @@ function ringsPath(p, polys) {
 
 // o: { format, title: [l1, l2], accent, today, when: Date, stations: [{ lat, lng, mc, text, bg, fg }] (per prioritat),
 //      hideOverlap (les que no hi caben no surten, en lloc de sortir com a punt),
-//      comarques (GeoJSON), field: { canvas, bounds, alpha, note } | null, legend: { title, steps: [{ color, label }] } }
+//      comarques (GeoJSON), field: { canvas, bounds, alpha, note } | null, legend: { title, steps: [{ color, label }] },
+//      view: { lat0, lat1, lng0, lng1 } (la zona que es veu al web; si s'hi ha fet zoom, la imatge mostra aquesta zona) }
 export async function renderMapImage(o) {
   const f = FORMATS[o.format] || FORMATS.post;
   await loadFonts(f);
@@ -146,9 +165,20 @@ export async function renderMapImage(o) {
   ctx.fillText(l2, X0, y1 + 0.98 * f.size);
   tracking(ctx, 0);
 
-  // ---- Catalunya
-  const { p, right, bottom } = projector(f.map);
+  // ---- Catalunya (o la zona on s'ha fet zoom al web: llavors el mapa és una finestra retallada i la llegenda va a sota)
+  const view = zoomedView(o.view);
+  const LG_H = 116;
+  const win = view && !f.legendAt ? [f.map[0], f.map[1], f.map[2], f.map[3] - LG_H - 28] : f.map;
+  const { p, right, bottom } = projector(win, view || CAT, !!view);
   const land = ringsPath(p, CONTORN.coordinates);
+  const frame = new Path2D();
+  if (view) {
+    roundRect(frame, win[0], win[1], win[2] - win[0], win[3] - win[1], 22);
+    ctx.save();
+    ctx.fillStyle = '#e4eaf1';
+    ctx.fill(frame);
+    ctx.clip(frame);
+  }
   ctx.save();
   ctx.shadowColor = 'rgba(16, 35, 59, 0.16)';
   ctx.shadowBlur = 30;
@@ -185,6 +215,14 @@ export async function renderMapImage(o) {
   ctx.lineJoin = 'round';
   ctx.stroke(land);
   ctx.globalAlpha = 1;
+  if (view) {
+    ctx.restore();
+    ctx.strokeStyle = C.line;
+    ctx.lineWidth = 2;
+    ctx.stroke(frame);
+  }
+  // Fora de la finestra no es dibuixa cap estació
+  const inBox = (x, y) => x > win[0] + 6 && x < win[2] - 6 && y > win[1] + 6 && y < win[3] - 6;
 
   // ---- estacions: etiqueta si hi cap, i si no un punt (mateix criteri que al web)
   font(ctx, 'ui', f.pill, 700);
@@ -196,7 +234,11 @@ export async function renderMapImage(o) {
   const dots = [];
   for (const st of o.stations) {
     const [x, y] = p(st.lng, st.lat);
+    if (!inBox(x, y)) continue;
     const w = Math.ceil(ctx.measureText(st.text).width) + 2 * pad;
+    // Amb zoom, l'etiqueta ha de cabre sencera dins la finestra (si no, com a molt hi surt el punt)
+    const cut = view && (x - w / 2 < win[0] + 4 || x + w / 2 > win[2] - 4 || y - ph / 2 < win[1] + 4 || y + ph / 2 > win[3] - 4);
+    if (cut) { if (!o.hideOverlap) dots.push({ ...st, x, y }); continue; }
     const g = o.hideOverlap ? 6 : 2;
     const box = [x - w / 2 - g, y - ph / 2 - g, x + w / 2 + g, y + ph / 2 + g];
     const hit = placed.some((b) => !(box[2] < b[0] || box[0] > b[2] || box[3] < b[1] || box[1] > b[3]));
@@ -246,7 +288,7 @@ export async function renderMapImage(o) {
   const gap = 5, lp = 20;
   const bw = steps.length * f.sw + (steps.length - 1) * gap + 2 * lp;
   const bh = 116;
-  const [bx, by] = f.legendAt ?? [Math.round(right - bw), Math.round(bottom - bh)];
+  const [bx, by] = f.legendAt ?? (view ? [X0, win[3] + 28] : [Math.round(right - bw), Math.round(bottom - bh)]);
   ctx.save();
   ctx.shadowColor = 'rgba(16, 35, 59, 0.12)';
   ctx.shadowBlur = 16;
