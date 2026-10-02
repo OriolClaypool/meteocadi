@@ -1,6 +1,7 @@
 // Límits de les comarques de Catalunya (ICGC, dades obertes de la Generalitat), simplificats per dibuixar-los
 // sobre el mapa. Canvien molt poc: memòria cau a la CDN de 30 dies.
 
+import { onlyCleanUrl } from './_net.js';
 const URL =
   'https://analisi.transparenciacatalunya.cat/resource/aasi-gwnd.geojson?' +
   new URLSearchParams({
@@ -16,6 +17,7 @@ function area(ring) {
 }
 
 export default async function handler(req, res) {
+  if (onlyCleanUrl(req, res, '/api/comarques')) return;
   try {
     const r = await fetch(URL, { signal: AbortSignal.timeout(15000), headers: { 'User-Agent': 'meteocadi.cat' } });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);

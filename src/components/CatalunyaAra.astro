@@ -48,7 +48,7 @@ const CARDS = [
   .cat-ara__map canvas { display: block; width: 100%; height: auto; aspect-ratio: 620 / 600; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
   .cat-ara__time { position: absolute; top: 20px; right: 22px; font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
   .cat-ara__lg { position: absolute; left: 50%; transform: translateX(-50%); bottom: 22px; display: grid; grid-template-columns: repeat(4, auto); column-gap: 26px; font-family: var(--f-mono); font-size: 11px; color: var(--ink2); }
-  .cat-ara__lg i { grid-column: 1 / -1; height: 8px; border-radius: 4px; margin-bottom: 4px; background: linear-gradient(90deg, #818cf8, #60a5fa 12%, #2dd4bf 37%, #4ade80 50%, #a3e635 62%, #fbbf24 75%, #fb923c 87%, #ef4444); }
+  .cat-ara__lg i { grid-column: 1 / -1; height: 8px; border-radius: 4px; margin-bottom: 4px; background: linear-gradient(90deg, #4f46e5, #2563eb 12.5%, #0ea5e9 25%, #14b8a6 37.5%, #22c55e 50%, #eab308 62.5%, #f97316 75%, #dc2626 87.5%, #991b1b); }
   @media (max-width: 900px) {
     .cat-ara { padding: 72px 0; }
     .cat-ara__in { grid-template-columns: 1fr; gap: 28px; }
@@ -64,8 +64,8 @@ const CARDS = [
   import CONTORN from '../lib/catalunya-contorn.json';
   import { loadAra } from '../scripts/live.js';
   import { STATIONS } from '../lib/stations.js';
-  import { FB, computeField, outlineMask, toCanvas } from '../scripts/camp.js';
-  import { tempColor, tempColorLight, num, hourMadrid } from '../lib/format.js';
+  import { FB, computeField, outlineMask, toCanvas, fieldColor } from '../scripts/camp.js';
+  import { tempColorLight, num, hourMadrid } from '../lib/format.js';
 
   const HIDDEN = new Set(['IBAG65', 'IBAG72']);
   const cv = document.querySelector<HTMLCanvasElement>('[data-cat-map]');
@@ -109,7 +109,7 @@ const CARDS = [
     const [x, y] = P(s.lng, s.lat);
     const text = `${num(s.t)}°`;
     ctx.font = FONT(big);
-    return { x, y, w: ctx.measureText(text).width + (big ? 16 : 11) * k, h: (big ? 24 : 19) * k, text, bg: tempColor(s.t), big, mc: !!s.mc };
+    return { x, y, w: ctx.measureText(text).width + (big ? 16 : 11) * k, h: (big ? 24 : 19) * k, text, bg: fieldColor('t', s.t), big, mc: !!s.mc };
   }
   function pill(ctx: CanvasRenderingContext2D, l: Lab) {
     const { x, y, w, h } = l;
@@ -125,7 +125,10 @@ const CARDS = [
     ctx.strokeStyle = l.mc ? '#10233b' : '#ffffff';
     ctx.stroke();
     ctx.font = FONT(l.big);
-    ctx.fillStyle = '#10233b';
+    // Text blanc sobre els colors foscos (blau, vermell) i fosc sobre la resta
+    const hex = l.bg.replace('#', '');
+    const [r, g, b] = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+    ctx.fillStyle = 0.2126 * r + 0.7152 * g + 0.0722 * b < 0.5 ? '#ffffff' : '#10233b';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(l.text, x, y + 1);

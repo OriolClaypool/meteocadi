@@ -111,6 +111,8 @@ async function ghPut(path, content, message, sha, token) {
 
 export default async function handler(req, res) {
   // Auth: accept Vercel Cron header or manual Bearer token.
+  // Amb CRON_SECRET (recomanat), Vercel l'envia a cada execució del cron i és l'única manera d'entrar.
+  // Sense, com a mínim només s'accepta el cron de Vercel (porta la capçalera x-vercel-cron-schedule), no qualsevol visita.
   const cronSecret = (process.env.CRON_SECRET || '').trim();
   if (cronSecret) {
     const auth = req.headers['authorization'] ?? '';
@@ -118,6 +120,9 @@ export default async function handler(req, res) {
       console.warn('[arxiva] unauthorized request');
       return res.status(401).json({ error: 'unauthorized' });
     }
+  } else if (!req.headers['x-vercel-cron-schedule'] && !String(req.headers['user-agent'] || '').startsWith('vercel-cron')) {
+    console.warn('[arxiva] no CRON_SECRET and not the Vercel cron');
+    return res.status(401).json({ error: 'unauthorized' });
   }
 
   const apiKey  = (process.env.WU_API_KEY || '').trim() || 'b146442062ee4f8a86442062ee4f8acd';
@@ -126,7 +131,6 @@ export default async function handler(req, res) {
     console.error('[arxiva] GITHUB_TOKEN not set');
     return res.status(500).json({ error: 'GITHUB_TOKEN not configured' });
   }
-  console.log('[arxiva] token prefix', ghToken.slice(0, 4), 'length', ghToken.length);
 
   // By default, self-heal: scan the last 7 complete days and archive any that are
   // still missing (so a failed night gets backfilled by the next run automatically).

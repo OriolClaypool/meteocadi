@@ -6,6 +6,7 @@
 //
 // Per estació retorna: lectura actual, màxima/mínima/ratxa d'avui i la sèrie d'avui cada 15 min.
 import { STATIONS } from '../src/lib/stations.js';
+import { onlyCleanUrl } from './_net.js';
 
 const KEY = () => process.env.WU_API_KEY || 'b146442062ee4f8a86442062ee4f8acd';
 const BASE = 'https://api.weather.com/v2/pws/observations';
@@ -103,7 +104,16 @@ async function station(id) {
   }
 }
 
+// Darrera resposta bona, reutilitzada mentre la instància de la funció segueix activa (si la CDN no la té)
+let memo = null;
+
 export default async function handler(req, res) {
+  if (onlyCleanUrl(req, res, '/api/ara')) return;
+  if (memo && Date.now() - memo.at < 5 * 60 * 1000) {
+    res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=1800');
+    res.status(200).json(memo.body);
+    return;
+  }
   const out = await Promise.all(STATIONS.map(async (s) => [s.id, await station(s.id)]));
   const now = Math.floor(Date.now() / 1000);
   const stations = {};
@@ -114,5 +124,7 @@ export default async function handler(req, res) {
   const ok = out.filter(([, d]) => d && !d.stale).length;
   // Si no ha respost cap estació, no ho guardem a la memòria cau gaire estona
   res.setHeader('Cache-Control', ok ? 'public, s-maxage=900, stale-while-revalidate=1800' : 'public, s-maxage=60');
-  res.status(200).json({ updated: new Date().toISOString(), ok, total: STATIONS.length, stations });
+  const body = { updated: new Date().toISOString(), ok, total: STATIONS.length, stations };
+  if (ok) memo = { at: Date.now(), body };
+  res.status(200).json(body);
 }

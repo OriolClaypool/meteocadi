@@ -6,6 +6,7 @@
 // 31/49/47 direcció, 50/53/56 ratxa màxima a 10/6/2 m (m/s), 35 precipitació (mm), 38 gruix de neu (cm),
 // 40/42 temperatura màxima/mínima del període.
 
+import { onlyCleanUrl } from './_net.js';
 const BASE = 'https://analisi.transparenciacatalunya.cat/resource';
 const HEADERS = { 'User-Agent': 'meteocadi.cat', ...(process.env.SOCRATA_APP_TOKEN ? { 'X-App-Token': process.env.SOCRATA_APP_TOKEN } : {}) };
 
@@ -33,12 +34,15 @@ const n = (v) => (v == null || v === '' || isNaN(Number(v)) ? null : Number(v));
 const kmh = (ms) => (ms == null ? null : Math.round(ms * 3.6 * 10) / 10);
 const r1 = (v) => (v == null ? null : Math.round(v * 10) / 10);
 // "la Tosa d'Alp (2.478 m)" → "La Tosa d'Alp"
+// Textos que venen de fora i es pinten a la pàgina: sense < > " (per si mai hi arribés codi HTML)
+const plain = (s) => (s == null ? s : String(s).replace(/[<>"]/g, ''));
 const cleanName = (s) => {
-  const t = String(s || '').replace(/\s*\(\d[\d.]* m\)/g, '').trim();
+  const t = plain(String(s || '').replace(/\s*\(\d[\d.]* m\)/g, '')).trim();
   return t ? t[0].toUpperCase() + t.slice(1) : t;
 };
 
 export default async function handler(req, res) {
+  if (onlyCleanUrl(req, res, '/api/xema')) return;
   try {
     const now = new Date();
     const since = floating(new Date(now.getTime() - 3 * 3600e3));
@@ -98,8 +102,8 @@ export default async function handler(req, res) {
           lat: n(s.latitud),
           lng: n(s.longitud),
           alt: n(s.altitud),
-          com: s.nom_comarca,
-          mun: s.nom_municipi,
+          com: plain(s.nom_comarca),
+          mun: plain(s.nom_municipi),
           t: t?.v ?? null,
           time: t ? `${t.t.slice(0, 19)}Z` : null,
           hr: L(id, '33')?.v ?? null,

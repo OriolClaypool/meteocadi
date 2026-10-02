@@ -10,7 +10,9 @@ const { internal = false } = Astro.props;
   <div class="cm-vars" role="group" aria-label="Què es mostra al mapa" id="cmVars"></div>
   <span class="cm-when" id="cmWhen">Carregant les dades…</span>
 </div>
+<div class="cm-out" id="cmTop"></div>
 <div id="cmap" class:list={['cmap', { 'cmap--pub': !internal }]} data-internal={internal ? '1' : undefined} aria-label="Mapa de Catalunya amb les dades de les estacions"></div>
+<div class="cm-out" id="cmBottom"></div>
 <slot name="after-map" />
 <p class="cm-note">
   Dades: <a href="https://www.meteo.cat/" rel="noopener" target="_blank">Servei Meteorològic de Catalunya</a> (Xarxa d'Estacions Meteorològiques Automàtiques, a través de les <a href="https://analisi.transparenciacatalunya.cat/Medi-Ambient/Dades-meteorol-giques-de-la-XEMA/nzvn-apee" rel="noopener" target="_blank">dades obertes de la Generalitat</a>) i xarxa Meteocadí (voltades en negre). Límits comarcals: ICGC. El mapa de color és una estimació entre estacions (a la temperatura, tenint en compte l'altitud del terreny, Copernicus DEM): serveix per veure com es reparteix, no el valor exacte d'un punt, i al vent és només orientatiu, perquè canvia molt d'un lloc a l'altre. Amb el selector d'estacions pots veure-les totes, deixar-ne només una per capital de comarca o amagar-les; per defecte hi surten les que hi caben, i en apropar-te al mapa en van apareixent més. Són dades automàtiques sense validar: una lectura estranya pot ser un error del sensor. Quan les etiquetes no hi caben, algunes estacions es mostren com un punt: toca-les o apropa't per veure'n el valor.
@@ -44,6 +46,12 @@ const { internal = false } = Astro.props;
   .cm-fl button[aria-pressed='true'], .cm-st button[aria-pressed='true'] { background: var(--ink); border-color: var(--ink); color: #fff; }
   .cm-fl button:disabled { opacity: 0.45; cursor: default; }
   .cm-fl span { font-size: 11.5px; color: var(--muted); max-width: 190px; line-height: 1.3; }
+  .cm-out:empty, .cm-ctl:empty { display: none; }
+  .cm-out .cm-lg, .cm-out .cm-st { box-shadow: none; padding: 10px 12px; }
+  .cm-out .cm-lg .sw i { width: 26px; height: 10px; }
+  .cm-out .cm-lg .sw span { font-size: 10.5px; }
+  .cm-out .cm-st { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+  .cm-out .cm-st b { margin: 0; }
   .cm-op { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-size: 12px; font-weight: 600; color: var(--ink2); }
   .cm-op input { flex: 1; min-width: 110px; max-width: 170px; accent-color: #10233b; cursor: pointer; }
   .cm-op input:disabled { opacity: 0.4; cursor: default; }
@@ -92,25 +100,26 @@ const { internal = false } = Astro.props;
   import { loadAra } from '../scripts/live.js';
   import { STATIONS } from '../lib/stations.js';
   import CONTORN from '../lib/catalunya-contorn.json';
-  import { FB, FIELD, computeField, comarquesMask, toCanvas } from '../scripts/camp.js';
-  import { tempColor, tempColorLight, windColor, precipColor, num, dirLabel, hourMadrid, todayMadrid } from '../lib/format.js';
+  import { FB, FIELD, computeField, comarquesMask, toCanvas, fieldColor } from '../scripts/camp.js';
+  // Etiquetes i llegenda amb la mateixa escala que el mapa de color
+  const fc = (key: string) => (v: number) => fieldColor(key, v);
+  import { tempColorLight, num, dirLabel, hourMadrid, todayMadrid } from '../lib/format.js';
 
   type St = { id: string; name: string; lat: number; lng: number; alt: number | null; com?: string; mun?: string; mc?: boolean; slug?: string;
     t: number | null; tmax: number | null; tmin: number | null; rain: number | null; wind: number | null; dir: number | null; gust: number | null; hr: number | null; snow: number | null };
 
   const month = Number(todayMadrid().slice(5, 7));
   const snowSeason = month >= 11 || month <= 5;
-  const humColor = (h: number) => (h < 30 ? '#fde68a' : h < 50 ? '#bfdbfe' : h < 70 ? '#93c5fd' : h < 85 ? '#60a5fa' : '#3b82f6');
   const snowColor = (s: number) => (s < 1 ? '#e2e8f0' : s < 5 ? '#e0f2fe' : s < 20 ? '#bae6fd' : s < 50 ? '#7dd3fc' : s < 100 ? '#38bdf8' : '#0ea5e9');
   // title: títol de la imatge per a xarxes (segona part en color); unit: unitat a la llegenda de la imatge
   const VARS = [
-    { key: 't', label: 'Temperatura', legend: 'Temperatura ara (°C)', title: ['Temperatura', 'ara a Catalunya'], accent: '#c2410c', unit: 'Temperatura (°C)', fmt: (v: number) => num(v), color: tempColor, steps: [-5, 0, 5, 10, 15, 20, 25, 30, 35], two: true },
-    { key: 'tmax', label: 'Màxima', legend: "Màxima d'avui (°C)", title: ['Temperatura màxima', "d'avui a Catalunya"], accent: '#c2410c', unit: 'Màxima (°C)', fmt: (v: number) => num(v), color: tempColor, steps: [0, 5, 10, 15, 20, 25, 30, 35], two: true, today: true },
-    { key: 'tmin', label: 'Mínima', legend: "Mínima d'avui (°C)", title: ['Temperatura mínima', "d'avui a Catalunya"], accent: '#0369a1', unit: 'Mínima (°C)', fmt: (v: number) => num(v), color: tempColor, steps: [-10, -5, 0, 5, 10, 15, 20, 25], two: true, low: true, today: true },
-    { key: 'rain', label: 'Pluja', legend: "Pluja d'avui (mm)", title: ["Pluja d'avui", 'a Catalunya'], accent: '#1d4ed8', unit: 'Pluja (mm)', fmt: (v: number) => num(v), color: (v: number) => (v < 0.1 ? '#e2e8f0' : precipColor(v)), steps: [0.2, 1, 5, 10, 15, 30, 50, 80], today: true },
-    { key: 'gust', label: 'Ratxa màxima', legend: "Ratxa màxima d'avui (km/h)", title: ['Ratxa màxima de vent', "d'avui a Catalunya"], accent: '#b45309', unit: 'Ratxa màxima (km/h)', fmt: (v: number) => String(Math.round(v)), color: windColor, steps: [10, 20, 30, 40, 55, 70, 90], today: true },
-    { key: 'wind', label: 'Vent', legend: 'Vent ara (km/h)', title: ['Vent', 'ara a Catalunya'], accent: '#0f766e', unit: 'Vent (km/h)', fmt: (v: number) => String(Math.round(v)), color: windColor, steps: [10, 20, 30, 40, 55, 70] },
-    { key: 'hr', label: 'Humitat', legend: 'Humitat relativa (%)', title: ['Humitat relativa', 'ara a Catalunya'], accent: '#1d4ed8', unit: 'Humitat relativa (%)', fmt: (v: number) => String(Math.round(v)), color: humColor, steps: [30, 50, 70, 85], two: true },
+    { key: 't', label: 'Temperatura', legend: 'Temperatura ara (°C)', title: ['Temperatura', 'ara a Catalunya'], accent: '#c2410c', unit: 'Temperatura (°C)', fmt: (v: number) => num(v), color: fc('t'), steps: [-5, 0, 5, 10, 15, 20, 25, 30, 35], two: true },
+    { key: 'tmax', label: 'Màxima', legend: "Màxima d'avui (°C)", title: ['Temperatura màxima', "d'avui a Catalunya"], accent: '#c2410c', unit: 'Màxima (°C)', fmt: (v: number) => num(v), color: fc('tmax'), steps: [0, 5, 10, 15, 20, 25, 30, 35], two: true, today: true },
+    { key: 'tmin', label: 'Mínima', legend: "Mínima d'avui (°C)", title: ['Temperatura mínima', "d'avui a Catalunya"], accent: '#0369a1', unit: 'Mínima (°C)', fmt: (v: number) => num(v), color: fc('tmin'), steps: [-10, -5, 0, 5, 10, 15, 20, 25], two: true, low: true, today: true },
+    { key: 'rain', label: 'Pluja', legend: "Pluja d'avui (mm)", title: ["Pluja d'avui", 'a Catalunya'], accent: '#1d4ed8', unit: 'Pluja (mm)', fmt: (v: number) => num(v), color: (v: number) => (v < 0.1 ? '#e2e8f0' : fieldColor('rain', Math.max(v, 0.2))), steps: [0.2, 1, 5, 10, 15, 30, 50, 80], today: true },
+    { key: 'gust', label: 'Ratxa màxima', legend: "Ratxa màxima d'avui (km/h)", title: ['Ratxa màxima de vent', "d'avui a Catalunya"], accent: '#b45309', unit: 'Ratxa màxima (km/h)', fmt: (v: number) => String(Math.round(v)), color: fc('gust'), steps: [10, 20, 30, 40, 55, 70, 90], today: true },
+    { key: 'wind', label: 'Vent', legend: 'Vent ara (km/h)', title: ['Vent', 'ara a Catalunya'], accent: '#0f766e', unit: 'Vent (km/h)', fmt: (v: number) => String(Math.round(v)), color: fc('wind'), steps: [10, 20, 30, 40, 55, 70] },
+    { key: 'hr', label: 'Humitat', legend: 'Humitat relativa (%)', title: ['Humitat relativa', 'ara a Catalunya'], accent: '#1d4ed8', unit: 'Humitat relativa (%)', fmt: (v: number) => String(Math.round(v)), color: fc('hr'), steps: [30, 50, 70, 85], two: true },
     ...(snowSeason ? [{ key: 'snow', label: 'Neu', legend: 'Gruix de neu (cm)', title: ['Gruix de neu', 'ara a Catalunya'], accent: '#0369a1', unit: 'Gruix de neu (cm)', fmt: (v: number) => String(Math.round(v)), color: snowColor, steps: [1, 5, 20, 50, 100] }] : []),
   ];
   let cur = VARS[0];
@@ -168,12 +177,14 @@ const { internal = false } = Astro.props;
 
   // Comarques
   let comarques: any = null;
+  // Límits comarcals: el vel blanc aclareix el mapa de fons només quan no hi ha mapa de color (si no, el renta)
+  let comLayer: any = null;
   fetch('/api/comarques')
     .then((r) => (r.ok ? r.json() : null))
     .then((g) => {
       if (!g?.features) return;
       comarques = g;
-      L.geoJSON(g, { interactive: false, style: { color: '#1f2d3d', weight: 1.1, opacity: 0.55, fillColor: '#ffffff', fillOpacity: 0.35 } }).addTo(map);
+      comLayer = L.geoJSON(g, { interactive: false, style: { color: '#1f2d3d', weight: 1.1, opacity: 0.55, fillColor: '#ffffff', fillOpacity: fieldOn ? 0 : 0.35 } }).addTo(map);
       L.polygon(RINGS, { interactive: false, fill: false, color: '#10233b', weight: 1.8, opacity: 0.85 }).addTo(map);
       mask = null;
       field();
@@ -200,6 +211,7 @@ const { internal = false } = Astro.props;
     const cmapEl = document.getElementById('cmap');
     const cfg = (FIELD as any)[cur.key];
     const can = fieldOn && !!cfg;
+    comLayer?.setStyle({ fillOpacity: can ? 0 : 0.35 });
     if (!can) { fieldLayer?.remove(); fieldLayer = null; cmapEl?.classList.remove('has-field'); fieldNote(); return; }
     if (cfg.dem && demState === 'idle') {
       demState = 'loading';
@@ -234,16 +246,22 @@ const { internal = false } = Astro.props;
     el.textContent = t ? t[0].toUpperCase() + t.slice(1) : '';
   }
 
-  // Llegenda
-  const Legend = L.Control.extend({
-    options: { position: 'bottomleft' },
-    onAdd() {
-      const div = L.DomUtil.create('div', 'cm-lg');
-      div.id = 'cmLegend';
-      return div;
-    },
-  });
-  new Legend().addTo(map);
+  // Llegenda i selector d'estacions: a l'ordinador, a les cantonades del mapa; al mòbil, fora del mapa
+  // (el selector a sobre i la llegenda a sota) perquè no en tapin cap tros.
+  const narrow = window.matchMedia('(max-width: 640px)');
+  function corner(position: string, cls: string, out: HTMLElement) {
+    const el = L.DomUtil.create('div', cls);
+    let wrap: HTMLElement | null = null;
+    const Ctl = L.Control.extend({ options: { position }, onAdd() { wrap = L.DomUtil.create('div', 'cm-ctl'); return wrap; } });
+    new Ctl().addTo(map);
+    L.DomEvent.disableClickPropagation(el);
+    const place = () => (narrow.matches ? out : wrap)?.appendChild(el);
+    place();
+    narrow.addEventListener?.('change', place);
+    return el;
+  }
+  const lgEl = corner('bottomleft', 'cm-lg', document.getElementById('cmBottom')!);
+  lgEl.id = 'cmLegend';
   function legend() {
     const el = document.getElementById('cmLegend');
     if (!el) return;
@@ -260,25 +278,17 @@ const { internal = false } = Astro.props;
   }
 
   // Selector d'estacions: totes, una per capital de comarca o cap (només el mapa de color)
-  const Modes = L.Control.extend({
-    options: { position: 'topright' },
-    onAdd() {
-      const div = L.DomUtil.create('div', 'cm-st');
-      div.innerHTML = `<b>Estacions</b><div class="seg" role="group" aria-label="Estacions que es mostren">${MODES.map((m) => `<button type="button" data-m="${m.key}" title="${m.title}" aria-pressed="${m.key === mode}">${m.label}</button>`).join('')}</div>`;
-      L.DomEvent.disableClickPropagation(div);
-      div.querySelectorAll('button').forEach((b) =>
-        b.addEventListener('click', () => {
-          mode = (b as HTMLElement).dataset.m as typeof mode;
-          div.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
-          // Sense estacions, el que queda és el mapa de color
-          if (mode === 'cap' && !fieldOn) fieldOn = true;
-          draw();
-        }),
-      );
-      return div;
-    },
-  });
-  new Modes().addTo(map);
+  const stEl = corner('topright', 'cm-st', document.getElementById('cmTop')!);
+  stEl.innerHTML = `<b>Estacions</b><div class="seg" role="group" aria-label="Estacions que es mostren">${MODES.map((m) => `<button type="button" data-m="${m.key}" title="${m.title}" aria-pressed="${m.key === mode}">${m.label}</button>`).join('')}</div>`;
+  stEl.querySelectorAll('button').forEach((b) =>
+    b.addEventListener('click', () => {
+      mode = (b as HTMLElement).dataset.m as typeof mode;
+      stEl.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      // Sense estacions, el que queda és el mapa de color
+      if (mode === 'cap' && !fieldOn) fieldOn = true;
+      draw();
+    }),
+  );
 
   let stations: St[] = [];
   const markers = new Map<string, any>();
@@ -479,9 +489,12 @@ const { internal = false } = Astro.props;
           return { lat: s.lat, lng: s.lng, mc: !!s.mc, text: cur.fmt(v), bg, fg: ink(bg) };
         });
         const hasField = fieldOn && !!(FIELD as any)[cur.key] && fieldRaw?.key === cur.key;
+        const vb = map.getBounds();
         return {
           key: cur.key,
           when: latest || new Date(),
+          // La zona que es veu: si s'hi ha fet zoom, la imatge mostra aquesta zona
+          view: { lat0: vb.getSouth(), lat1: vb.getNorth(), lng0: vb.getWest(), lng1: vb.getEast() },
           title: cur.title,
           accent: cur.accent,
           today: !!(cur as any).today,
