@@ -468,7 +468,7 @@ export async function renderRadarImage(snap) {
   const snow = snap.prod === 'plujaneu';
   const notes = [];
   if (snap.stations?.length && RADAR_VARS[snap.stVar]) notes.push(`Etiquetes: ${RADAR_VARS[snap.stVar]}.`);
-  if (snap.wind && snap.windRun) notes.push(`Fletxes: vent del model a les ${hourMadrid(new Date(snap.windRun.valid))}.`);
+  if (snap.wind && snap.windRun) notes.push(`Fletxes: ${snap.windRun.kind === 'gust' ? 'ratxes' : 'vent'} del model a les ${hourMadrid(new Date(snap.windRun.valid))}.`);
   if (snap.windObs) notes.push('En taronja: vent mesurat.');
   if (snap.conv) notes.push('Discontínua: convergència.');
   return renderMapImage({
@@ -489,7 +489,7 @@ export async function renderRadarImage(snap) {
     legend: snow
       ? { title: 'Tipus de precipitació', bar: { colors: PAL.plujaneu, ticks: ['Pluja', 'Aiguaneu', 'Neu'] } }
       : { title: 'Intensitat de la precipitació', bar: { colors: PAL[snap.pal] || PAL.meteocat, ticks: ['Feble', 'Moderada', 'Forta', 'Calamarsa'] } },
-    credit: `Radar: Servei Meteorològic de Catalunya.${snap.wind || snap.conv ? ' Vent: model AROME de Météo-France.' : ''} Estacions: XEMA i xarxa Meteocadí. Límits: ICGC.`,
+    credit: `Radar: Servei Meteorològic de Catalunya.${snap.wind || snap.conv ? ` Vent: model ${snap.windRun?.model || 'AROME'} de Météo-France.` : ''} Estacions: XEMA i xarxa Meteocadí. Límits: ICGC.`,
     note: notes.join(' '),
   });
 }
