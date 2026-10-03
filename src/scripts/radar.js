@@ -376,7 +376,7 @@ export function startRadar() {
     prod: 'radar', // 'radar' (intensitat) o 'plujaneu' (tipus)
     pal: 'meteocat', // 'meteocat' o 'meteocadi'
     crisp: true,
-    opacity: 0.85,
+    opacity: 1, // per defecte, el radar sense transparència
     frames: [], // de la més antiga a la més nova
     i: -1,
     cors: true,
