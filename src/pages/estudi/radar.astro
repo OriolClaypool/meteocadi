@@ -1,12 +1,15 @@
 ---
-// Estudi · radar (intern, no indexat): el radar del Meteocat amb les estacions i el vent (models AROME-PI / AROME i mesurat),
-// les línies de convergència i la imatge per a xarxes. La lògica és a src/scripts/radar.js.
+// Estudi · radar (intern, no indexat): el radar del Meteocat amb les estacions i la imatge per a xarxes.
+// La lògica és a src/scripts/radar.js.
 import Base from '../../layouts/Base.astro';
 import EstudiTop from '../../components/EstudiTop.astro';
+// Vent (models AROME-PI / AROME de Météo-France i mesurat a les estacions) i línies de convergència: amagat de moment
+// (octubre 2026). Amb true tornen a sortir els controls, la llegenda i les fletxes; /api/vent continua funcionant.
+const WIND = false;
 ---
 <Base
   title="Estudi · Radar | Meteocadí"
-  description="Eina interna de Meteocadí: radar, estacions i vent sobre el mateix mapa."
+  description="Eina interna de Meteocadí: el radar i les estacions sobre el mateix mapa."
   path="/estudi/radar"
   card={{ variant: 'radar' }}
   noindex
@@ -62,6 +65,7 @@ import EstudiTop from '../../components/EstudiTop.astro';
             <button type="button" data-stvar="cap" aria-pressed="false">Cap</button>
           </div>
         </div>
+        {WIND && (<>
         <div class="rad-grp">
           <span class="rad-lab">Vent</span>
           <div class="rad-seg" role="group" aria-label="Fletxes de vent">
@@ -72,6 +76,7 @@ import EstudiTop from '../../components/EstudiTop.astro';
           </div>
         </div>
         <label class="rad-grp rad-chk"><input type="checkbox" id="rConv" checked /> Línies de convergència</label>
+        </>)}
       </div>
 
       <div id="rmap" class="rmap" aria-label="Mapa del radar"></div>
@@ -87,10 +92,12 @@ import EstudiTop from '../../components/EstudiTop.astro';
       <div class="rad-info">
         <div class="rad-legend" id="rLegend"></div>
         <div class="rad-keys">
+          {WIND && (<>
           <p><span class="k k--model"></span>Fletxes fosques: vent previst pel model per a aquesta hora.</p>
           <p><span class="k k--obs"></span>Fletxes taronja: vent mesurat a les estacions.</p>
           <p><span class="k k--conv"></span>Línia discontínua: on el vent del model convergeix (la gruixuda, més intensa).</p>
           <p id="rWindNote" class="rad-small"></p>
+          </>)}
           <p id="rStTime" class="rad-small"></p>
         </div>
       </div>
@@ -102,7 +109,7 @@ import EstudiTop from '../../components/EstudiTop.astro';
         <button type="button" data-f="wide">Horitzontal 16:9</button>
       </div>
       <p class="rad-credit">
-        Radar: <a href="https://www.meteo.cat/" target="_blank" rel="noopener">Servei Meteorològic de Catalunya</a> (imatges del seu web, una cada 6 minuts). Vent: models AROME-PI i AROME de <a href="https://portail-api.meteofrance.fr/" target="_blank" rel="noopener">Météo-France</a> (Licence Ouverte 2.0). Estacions: XEMA del Meteocat (dades obertes de la Generalitat) i xarxa Meteocadí. Ús intern: la intensitat del radar és orientativa i el vent del model és una previsió, no una mesura.
+        Radar: <a href="https://www.meteo.cat/" target="_blank" rel="noopener">Servei Meteorològic de Catalunya</a> (imatges del seu web, una cada 6 minuts).{WIND && <> Vent: models AROME-PI i AROME de <a href="https://portail-api.meteofrance.fr/" target="_blank" rel="noopener">Météo-France</a> (Licence Ouverte 2.0).</>} Estacions: XEMA del Meteocat (dades obertes de la Generalitat) i xarxa Meteocadí. Ús intern: la intensitat del radar és orientativa.{WIND && ' El vent del model és una previsió, no una mesura.'}
       </p>
     </div>
   </div>

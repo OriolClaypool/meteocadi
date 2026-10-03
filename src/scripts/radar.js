@@ -372,6 +372,8 @@ export function startRadar() {
   }).catch(() => {});
 
   // ------------------------------------------------ estat
+  // Vent i convergències: amagats de moment; la pàgina (estudi/radar.astro, WIND) només en posa els controls si estan activats
+  const WIND = !!document.querySelector('[data-wind]');
   const st = {
     prod: 'radar', // 'radar' (intensitat) o 'plujaneu' (tipus)
     pal: 'meteocat', // 'meteocat' o 'meteocadi'
@@ -382,9 +384,9 @@ export function startRadar() {
     cors: true,
     playing: false,
     stVar: 'rain', // la pluja d'avui en entrar
-    windModel: true,
+    windModel: WIND,
     windObs: false,
-    conv: true,
+    conv: WIND,
   };
   const cv = document.createElement('canvas');
   cv.width = W;
@@ -677,11 +679,13 @@ export function startRadar() {
   map.on('moveend zoomend resize', drawWind);
   map.on('zoomstart', () => { wcv.style.opacity = '0'; });
   map.on('zoomend', () => { wcv.style.opacity = '1'; });
-  seg('[data-wind]', 'wind', (v) => { st.windModel = v === 'model' || v === 'tots'; st.windObs = v === 'mesurat' || v === 'tots'; drawWind(); });
-  $('rConv').addEventListener('change', (e) => { st.conv = e.target.checked; drawWind(); });
-  loadWind();
-  // L'AROME-PI dona una previsió cada 15 minuts: es torna a demanar cada 5 (la resposta es guarda 5 minuts)
-  setInterval(loadWind, 5 * 60e3);
+  if (WIND) {
+    seg('[data-wind]', 'wind', (v) => { st.windModel = v === 'model' || v === 'tots'; st.windObs = v === 'mesurat' || v === 'tots'; drawWind(); });
+    $('rConv').addEventListener('change', (e) => { st.conv = e.target.checked; drawWind(); });
+    loadWind();
+    // L'AROME-PI dona una previsió cada 15 minuts: es torna a demanar cada 5 (la resposta es guarda 5 minuts)
+    setInterval(loadWind, 5 * 60e3);
+  }
 
   loadAll();
 
