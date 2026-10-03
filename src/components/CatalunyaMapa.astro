@@ -59,6 +59,8 @@ const { internal = false } = Astro.props;
   .cm-op input:disabled { opacity: 0.4; cursor: default; }
   .cm-st .seg { display: flex; gap: 4px; }
   .cm-field { image-rendering: auto; }
+  /* Pluja (per classes, a 4× la graella): vores nítides en apropar-s'hi, sense difuminar */
+  .cm-field.is-step { image-rendering: crisp-edges; image-rendering: pixelated; }
   .cmap.has-field .xp { box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.95), 0 1px 3px rgba(16, 35, 59, 0.35); }
   .cmap.has-field .xp--mc { box-shadow: 0 0 0 2px #10233b, 0 0 0 3.5px rgba(255, 255, 255, 0.95); }
   .cm-pop { min-width: 210px; }
@@ -102,7 +104,7 @@ const { internal = false } = Astro.props;
   import { loadAra } from '../scripts/live.js';
   import { STATIONS } from '../lib/stations.js';
   import CONTORN from '../lib/catalunya-contorn.json';
-  import { FB, FIELD, computeField, comarquesMask, toCanvas, fieldColor } from '../scripts/camp.js';
+  import { FB, FIELD, HI, computeField, comarquesMask, toCanvas, fieldColor } from '../scripts/camp.js';
   // Etiquetes i llegenda amb la mateixa escala que el mapa de color
   const fc = (key: string) => (v: number) => fieldColor(key, v);
   import { tempColorLight, num, dirLabel, hourMadrid, todayMadrid } from '../lib/format.js';
@@ -219,12 +221,15 @@ const { internal = false } = Astro.props;
       comLayer = L.geoJSON(g, { interactive: false, style: { color: '#1f2d3d', weight: 1.1, opacity: 0.55, fillColor: '#ffffff', fillOpacity: fieldOn ? 0 : 0.35 } }).addTo(map);
       L.polygon(RINGS, { interactive: false, fill: false, color: '#10233b', weight: 1.8, opacity: 0.85 }).addTo(map);
       mask = null;
+      maskHi = null;
       field();
     })
     .catch(() => {});
 
   // ---------------------------------------------------------------- capa de color (interpolació, src/scripts/camp.js)
   let mask: Uint8ClampedArray | null = null;
+  // La mateixa màscara a més resolució, per a la pluja (es pinta per classes a HI × la graella)
+  let maskHi: Uint8ClampedArray | null = null;
   let dem: any = null;
   let demState: 'idle' | 'loading' | 'ok' | 'error' = 'idle';
   let fieldOn = true;
@@ -251,13 +256,15 @@ const { internal = false } = Astro.props;
     }
     if (!comarques) return;
     if (!mask) mask = comarquesMask(comarques);
+    if (cfg.step && !maskHi) maskHi = comarquesMask(comarques, HI);
     const pts = stations.filter((s) => val(s) != null && s.lat != null).map((s) => ({ lat: s.lat, lng: s.lng, alt: s.alt ?? 0, v: val(s) as number }));
-    const f = computeField(pts, cur.key, { mask, dem: demState === 'ok' ? dem : null, alpha: 1 });
+    const f = computeField(pts, cur.key, { mask, maskHi, dem: demState === 'ok' ? dem : null, alpha: 1 });
     if (!f) return;
     const url = toCanvas(f.web).toDataURL();
     const bounds: any = [[FB.lat0, FB.lng0], [FB.lat1, FB.lng1]];
     if (fieldLayer) fieldLayer.setUrl(url);
     else fieldLayer = L.imageOverlay(url, bounds, { pane: 'field', interactive: false, className: 'cm-field' }).addTo(map);
+    fieldLayer.getElement()?.classList.toggle('is-step', !!cfg.step);
     fieldLayer.setOpacity(fieldOpacity());
     cmapEl?.classList.add('has-field');
     const note = f.useDem ? 'dem' : cur.key === 'wind' || cur.key === 'gust' ? 'wind' : 'plain';

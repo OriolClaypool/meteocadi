@@ -64,25 +64,32 @@ export function ramp(stops, v, step = false) {
   return stops[stops.length - 1];
 }
 
-// Màscara de Catalunya (0-255 per punt de la graella) a partir de polígons GeoJSON [[[lng, lat], ...], ...]
-export function maskFrom(polygons) {
+// Màscara de Catalunya (0-255 per punt de la graella) a partir de polígons GeoJSON [[[lng, lat], ...], ...].
+// scale: graella més fina (per a les variables per classes, que es dibuixen amb més resolució; vegeu HI)
+export function maskFrom(polygons, scale = 1) {
+  const w = FW * scale, h = FH * scale;
   const cv = document.createElement('canvas');
-  cv.width = FW;
-  cv.height = FH;
+  cv.width = w;
+  cv.height = h;
   const c = cv.getContext('2d');
   c.fillStyle = '#000';
   for (const poly of polygons) {
     c.beginPath();
-    for (const ring of poly) ring.forEach(([x, y], i) => { const [px, py] = toPx(x, y); i ? c.lineTo(px, py) : c.moveTo(px, py); });
+    for (const ring of poly) ring.forEach(([x, y], i) => { const [px, py] = toPx(x, y); i ? c.lineTo(px * scale, py * scale) : c.moveTo(px * scale, py * scale); });
     c.fill('evenodd');
   }
-  const d = c.getImageData(0, 0, FW, FH).data;
-  const m = new Uint8ClampedArray(FW * FH);
+  const d = c.getImageData(0, 0, w, h).data;
+  const m = new Uint8ClampedArray(w * h);
   for (let i = 0; i < m.length; i++) m[i] = d[i * 4 + 3];
   return m;
 }
 export const outlineMask = () => maskFrom(CONTORN.coordinates);
-export const comarquesMask = (geo) => maskFrom(geo.features.flatMap((f) => (f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates)));
+const comarquesPolys = (geo) => geo.features.flatMap((f) => (f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates));
+export const comarquesMask = (geo, scale = 1) => maskFrom(comarquesPolys(geo), scale);
+// Les variables per classes (step: la pluja) es pinten a 4 vegades la resolució de la graella: el valor s'interpola
+// entre punts de la graella i cada píxel pren el color de la seva classe, perquè les vores entre franges siguin
+// netes i no esglaonades quan s'hi fa zoom.
+export const HI = 4;
 
 function elevAt(dem, lat, lng) {
   const fr = (lat - dem.lat0) / dem.step, fc = (lng - dem.lng0) / dem.step;
@@ -105,7 +112,9 @@ const S2 = 2 * 2;
 // raw: ImageData opac (també una mica fora del contorn, per retallar-lo net amb el contorn vectorial);
 // web: la mateixa capa amb la transparència de la variable i retallada amb la màscara.
 // alpha: opacitat de la capa "web" (per defecte la de la variable; el mapa la demana a 1 i la regula amb el control d'intensitat)
-export function computeField(pts, key, { mask, dem = null, alpha = null }) {
+// maskHi: la màscara a HI vegades la resolució (comarquesMask(geo, HI)) per a les variables per classes; si no n'hi
+// ha, s'amplia la de la graella.
+export function computeField(pts, key, { mask, maskHi = null, dem = null, alpha = null }) {
   const cfg = FIELD[key];
   if (!cfg || !mask || pts.length < 5) return null;
   let slope = 0;
@@ -130,8 +139,11 @@ export function computeField(pts, key, { mask, dem = null, alpha = null }) {
   // es descarten sense calcular-ne la distància les estacions que ja queden massa lluny en latitud (DY2)
   const prev = new Int32Array(kk + 1), seen = new Uint8Array(n), DY2 = new Float64Array(n);
   let warm = false;
-  const raw = new ImageData(FW, FH);
-  const web = new ImageData(FW, FH);
+  const step = !!cfg.step;
+  // Per classes: primer el valor de cada punt de la graella (G, en l'escala d'interpolació; NaN on no se'n calcula)
+  const G = step ? new Float32Array(FW * FH).fill(NaN) : null;
+  const raw = step ? null : new ImageData(FW, FH);
+  const web = step ? null : new ImageData(FW, FH);
   const maxD2 = cfg.maxKm ? cfg.maxKm * cfg.maxKm : Infinity;
   for (let py = 0; py < FH; py++) {
     const lat = rowLat(py);
@@ -169,6 +181,10 @@ export function computeField(pts, key, { mask, dem = null, alpha = null }) {
         sv += w * PR[bi[q]];
       }
       let v = sw > 0 ? sv / sw : PR[bi[0]];
+      if (step) {
+        if (bd[0] <= maxD2) G[i] = v;
+        continue;
+      }
       if (cfg.log) v = Math.expm1(v);
       if (useDem) v += slope * elevAt(dem, lat, lng);
       if ((cfg.min != null && v < cfg.min) || bd[0] > maxD2) continue;
@@ -181,7 +197,51 @@ export function computeField(pts, key, { mask, dem = null, alpha = null }) {
       web.data[k + 3] = Math.round(inside * (alpha ?? cfg.alpha));
     }
   }
+  if (step) return { ...paintClasses(G, cfg, mask, maskHi, alpha ?? cfg.alpha), useDem, alpha: cfg.alpha };
   return { raw, web, useDem, alpha: cfg.alpha };
+}
+
+// Pinta per classes a HI × la graella: interpolació bilineal del valor (en l'escala d'interpolació) i classificació
+// de cada píxel. Les vores de les classes es comparen ja transformades (log) per no fer cap exponencial per píxel.
+function paintClasses(G, cfg, mask, maskHi, alpha) {
+  const W2 = FW * HI, H2 = FH * HI;
+  const raw = new ImageData(W2, H2);
+  const web = new ImageData(W2, H2);
+  const stops = cfg.stops;
+  const T = stops.map((s) => (cfg.log ? Math.log1p(s[0]) : s[0]));
+  const tMin = cfg.min != null ? (cfg.log ? Math.log1p(cfg.min) : cfg.min) : -Infinity;
+  for (let oy = 0; oy < H2; oy++) {
+    const gy = (oy + 0.5) / HI - 0.5;
+    const y0 = Math.max(0, Math.min(FH - 2, Math.floor(gy)));
+    const fy = Math.max(0, Math.min(1, gy - y0));
+    for (let ox = 0; ox < W2; ox++) {
+      const gx = (ox + 0.5) / HI - 0.5;
+      const x0 = Math.max(0, Math.min(FW - 2, Math.floor(gx)));
+      const fx = Math.max(0, Math.min(1, gx - x0));
+      const i00 = y0 * FW + x0;
+      const a = G[i00], b = G[i00 + 1], c = G[i00 + FW], d = G[i00 + FW + 1];
+      let v;
+      if (a === a && b === b && c === c && d === d) v = (a * (1 - fx) + b * fx) * (1 - fy) + (c * (1 - fx) + d * fx) * fy;
+      else {
+        // A la vora de la zona calculada: el punt de la graella més proper, si en té
+        const near = G[Math.round(gy) * FW + Math.round(gx)];
+        if (near !== near) continue;
+        v = near;
+      }
+      if (v < tMin) continue;
+      let s = T.length - 1;
+      while (s > 0 && v < T[s]) s--;
+      const col = stops[s];
+      const k = (oy * W2 + ox) * 4;
+      raw.data[k] = web.data[k] = col[1];
+      raw.data[k + 1] = web.data[k + 1] = col[2];
+      raw.data[k + 2] = web.data[k + 2] = col[3];
+      raw.data[k + 3] = 255;
+      const inside = maskHi ? maskHi[oy * W2 + ox] : mask[Math.min(FH - 1, Math.floor(oy / HI)) * FW + Math.min(FW - 1, Math.floor(ox / HI))];
+      web.data[k + 3] = Math.round(inside * alpha);
+    }
+  }
+  return { raw, web };
 }
 
 export function toCanvas(img) {
