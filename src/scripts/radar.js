@@ -292,8 +292,8 @@ export const arrowLen = (ms, max) => Math.max(7, Math.min(max, 6 + ms * 2.3));
 // ---------------------------------------------------------------- estacions
 const HIDDEN = new Set(['IBAG65', 'IBAG72']);
 export const VARS = {
-  rain1h: { label: 'Pluja 1 h', unit: 'mm', color: (v) => (v < 0.1 ? '#ffffff' : fieldColor('rain', Math.max(v, 0.2))), fmt: (v) => num(v) },
-  rain: { label: "Pluja d'avui", unit: 'mm', color: (v) => (v < 0.1 ? '#ffffff' : fieldColor('rain', Math.max(v, 0.2))), fmt: (v) => num(v) },
+  rain1h: { label: 'Pluja 1 h', unit: 'mm', color: (v) => (v < 0.1 ? '#ffffff' : fieldColor('rain', v)), fmt: (v) => num(v) },
+  rain: { label: "Pluja d'avui", unit: 'mm', color: (v) => (v < 0.1 ? '#ffffff' : fieldColor('rain', v)), fmt: (v) => num(v) },
   gust: { label: 'Ratxa', unit: 'km/h', color: (v) => fieldColor('gust', v), fmt: (v) => String(Math.round(v)) },
   t: { label: 'Temperatura', unit: '°C', color: (v) => fieldColor('t', v), fmt: (v) => num(v) },
 };
