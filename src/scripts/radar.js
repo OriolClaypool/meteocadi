@@ -606,7 +606,7 @@ export function startRadar() {
       grid = null;
       note.textContent = j?.error === 'no-key'
         ? 'Vent del model: falta la clau de Météo-France (METEOFRANCE_API_KEY a Vercel).'
-        : "Vent del model: ara no s'ha pogut carregar l'AROME de Météo-France.";
+        : "Vent del model: ara no s'ha pogut carregar el model de Météo-France.";
       if (j?.tried) console.warn('[vent]', j);
     } else {
       grid = j;
@@ -614,7 +614,11 @@ export function startRadar() {
       conv = convergence(j);
       lines = ridges(j, conv);
       const run = new Date(j.run), valid = new Date(j.valid);
-      note.textContent = `Vent del model AROME (Météo-France), passada de les ${hourMadrid(run)}, previst per a les ${hourMadrid(valid)}.`;
+      // AROME-PI: passada cada hora i previsió cada 15 minuts; AROME: passada cada 3 hores i previsió per hores
+      const what = j.model === 'AROME-PI'
+        ? `${j.kind === 'gust' ? 'Ratxes de vent' : 'Vent'} del model AROME-PI (Météo-France, es renova cada hora)`
+        : 'Vent del model AROME (Météo-France)';
+      note.textContent = `${what}, passada de les ${hourMadrid(run)}, previst per a les ${hourMadrid(valid)}.`;
     }
     drawWind();
   }
@@ -676,7 +680,8 @@ export function startRadar() {
   seg('[data-wind]', 'wind', (v) => { st.windModel = v === 'model' || v === 'tots'; st.windObs = v === 'mesurat' || v === 'tots'; drawWind(); });
   $('rConv').addEventListener('change', (e) => { st.conv = e.target.checked; drawWind(); });
   loadWind();
-  setInterval(loadWind, 30 * 60e3);
+  // L'AROME-PI dona una previsió cada 15 minuts: es torna a demanar cada 5 (la resposta es guarda 5 minuts)
+  setInterval(loadWind, 5 * 60e3);
 
   loadAll();
 
@@ -711,7 +716,7 @@ export function startRadar() {
         wind: st.windModel && grid ? { sample, len: arrowLen } : null,
         windObs: st.windObs ? stations.filter((s) => s.wind != null && s.dir != null && s.wind >= 1).map((s) => ({ lat: s.lat, lng: s.lng, ms: s.wind / 3.6, dir: s.dir })) : null,
         conv: grid && st.conv ? lines : null,
-        windRun: grid ? { run: grid.run, valid: grid.valid } : null,
+        windRun: grid ? { run: grid.run, valid: grid.valid, model: grid.model || 'AROME', kind: grid.kind } : null,
         view: { lat0: vb.getSouth(), lat1: vb.getNorth(), lng0: vb.getWest(), lng1: vb.getEast() },
         stVar: st.stVar,
       };
