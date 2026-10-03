@@ -157,7 +157,7 @@ const skiFacts = p.ski
     ].filter(([, v]) => v)
   : [];
 ---
-<Base title={title} description={description} path={path} jsonLd={ld} current={p.ski ? 'esqui' : hub ? 'muntanya' : 'temps'} lang={lang} alternates={{ ca: caPath(p.slug), es: esPath(p.slug) }}>
+<Base title={title} description={description} path={path} card={{ lat: p.lat, lng: p.lng, label: p.alt != null ? fmtAlt(p.alt) : undefined }} jsonLd={ld} current={p.ski ? 'esqui' : hub ? 'muntanya' : 'temps'} lang={lang} alternates={{ ca: caPath(p.slug), es: esPath(p.slug) }}>
   <section class="phead">
     <div class="wrap">
       <nav class="crumbs" aria-label="Ruta">{crumbs.map((c) => <><a href={c.href}>{c.name}</a><span>›</span></>)}<span>{p.name}</span></nav>

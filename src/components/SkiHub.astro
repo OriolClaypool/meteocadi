@@ -59,7 +59,7 @@ const description = es
   ? `Previsión de 7 días para las ${resorts.length} estaciones de esquí del Pirineo catalán y Andorra: nieve nueva, viento en las cimas, temperatura arriba y abajo, mejor día para esquiar y estado de las carreteras.`
   : `Previsió de 7 dies per a les ${resorts.length} estacions d'esquí del Pirineu català i Andorra: neu nova, vent als cims, temperatura a dalt i a baix, millor dia per esquiar i estat de les carreteres.`;
 ---
-<Base title={title} description={description} path={path} jsonLd={ld} current="esqui" lang={lang} alternates={{ ca: '/esqui', es: '/es/esqui' }}>
+<Base title={title} description={description} path={path} card={{ pins: mapItems.map((x) => [x.lat, x.lng]) }} jsonLd={ld} current="esqui" lang={lang} alternates={{ ca: '/esqui', es: '/es/esqui' }}>
   <section class="phead phead--ski">
     <div class="wrap">
       <nav class="crumbs" aria-label="Ruta"><a href="/">{es ? 'Inicio' : 'Inici'}</a><span>›</span><span>{es ? 'Nieve y esquí' : 'Neu i esquí'}</span></nav>

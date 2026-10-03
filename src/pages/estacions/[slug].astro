@@ -44,7 +44,7 @@ const VARS = [
   ['wind', 'Vent ara'], ['gust', 'Ratxa ara'], ['gustmax', 'Ratxa màx. avui'], ['rain', 'Pluja avui'],
 ];
 ---
-<Base title={title} description={description} path={`/estacions/${s.slug}`} jsonLd={ld} current="estacions">
+<Base title={title} description={description} path={`/estacions/${s.slug}`} card={{ title: s.name, sub: 'Temps en directe i historial', lat: s.lat, lng: s.lng, label: fmtAlt(s.alt) }} jsonLd={ld} current="estacions">
   <section class="phead">
     <div class="wrap">
       <nav class="crumbs" aria-label="Ruta"><a href="/">Inici</a><span>›</span><a href="/estacions">Estacions</a><span>›</span><span>{s.name}</span></nav>

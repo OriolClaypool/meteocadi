@@ -20,12 +20,48 @@ interface Props {
   bare?: boolean; // sense capçalera ni peu del web (eines internes)
   lang?: 'ca' | 'es'; // el castellà només a /es/
   alternates?: { ca: string; es: string }; // camins de la mateixa pàgina en cada llengua (hreflang)
+  // Imatge de previsualització en compartir l'enllaç (WhatsApp, X…): una per pàgina, generada en el build
+  // (integrations/og-cards.mjs). Per defecte el títol i el subtítol surten del <title> ("Títol: subtítol | Meteocadí")
+  // i l'avantítol, de la secció. lat/lng: punt marcat al mapa; label: etiqueta del punt; variant: field (mapa de
+  // color), radar o net (estacions de la xarxa). Amb `image` es fa servir aquesta imatge i no se'n genera cap.
+  card?: { kicker?: string; title?: string; sub?: string; lat?: number; lng?: number; label?: string; variant?: 'field' | 'radar' | 'net'; pins?: [number, number][] };
 }
 
-const { title, description, path, image = '/imatges/og-meteocadi.jpg', jsonLd = [], noindex = false, header = 'solid', current = '', preload, bare = false, lang = 'ca', alternates } = Astro.props;
+const { title, description, path, image, card = {}, jsonLd = [], noindex = false, header = 'solid', current = '', preload, bare = false, lang = 'ca', alternates } = Astro.props;
 const site = 'https://www.meteocadi.cat';
 const url = site + (path === '/' ? '/' : path);
-const img = image.startsWith('http') ? image : site + image;
+
+// Targeta de previsualització: la portada manté la foto del Cadí; la resta de pàgines, la seva
+const es = lang === 'es';
+const KICKERS: [RegExp, string, string][] = [
+  [/^\/estudi\b/, 'Estudi · eina interna', 'Estudi · eina interna'],
+  [/^\/estacions\/./, 'Estació de la xarxa Meteocadí', 'Estación de la red Meteocadí'],
+  [/^\/(estacions|mapa)$/, 'Xarxa Meteocadí', 'Red Meteocadí'],
+  [/^\/mapa\/catalunya/, 'Mapa en directe', 'Mapa en directo'],
+  [/^\/radar/, 'Radar', 'Radar'],
+  [/^(\/es)?\/(esqui)/, 'Esquí', 'Esquí'],
+  [/^(\/es)?\/(muntanya|montana)/, 'Muntanya', 'Montaña'],
+  [/^\/cap-de-setmana/, 'Cap de setmana', 'Fin de semana'],
+  [/^\/(historial|episodis)/, 'Historial', 'Historial'],
+  [/^\/webcams/, 'Webcams', 'Webcams'],
+  [/^(\/es)?\/(temps|tiempo)/, 'Previsió del temps', 'Previsión del tiempo'],
+];
+const cap = (t: string) => (t ? t[0].toUpperCase() + t.slice(1) : t);
+const bare_ = title.replace(/\s*\|\s*Meteocad[ií]\s*$/, '');
+const cut = bare_.indexOf(': ');
+const kick = KICKERS.find(([re]) => re.test(path));
+// Sense subtítol al <title>: la primera frase de la descripció, si és curta
+const first = description.split(/(?<=\.)\s/)[0].replace(/\.$/, '');
+const shortDesc = first.length <= 110 ? first : undefined;
+const ogCard = path === '/' || image ? null : {
+  o: `/og${path}.jpg`,
+  k: card.kicker ?? (kick ? kick[es ? 2 : 1] : 'Meteocadí'),
+  t: card.title ?? (cut > 0 ? bare_.slice(0, cut) : bare_.replace(/^Estudi · /, '')),
+  s: card.sub ?? (cut > 0 ? cap(bare_.slice(cut + 2)) : shortDesc),
+  lat: card.lat, lng: card.lng, m: card.label, v: card.variant, pins: card.pins,
+};
+const imgPath = ogCard ? ogCard.o : image ?? '/imatges/og-meteocadi.jpg';
+const img = imgPath.startsWith('http') ? imgPath : site + imgPath;
 const altPath = alternates ? (lang === 'es' ? alternates.ca : alternates.es) : undefined;
 
 const graph = [
@@ -69,6 +105,8 @@ const graph = [
     <meta property="og:description" content={description} />
     <meta property="og:url" content={url} />
     <meta property="og:image" content={img} />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:alt" content={ogCard ? ogCard.t : 'Meteocadí'} />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:card" content="summary_large_image" />
@@ -78,6 +116,7 @@ const graph = [
     <meta name="twitter:image" content={img} />
     {preload && <link rel="preload" as="image" href={preload} fetchpriority="high" />}
     <script type="application/ld+json" set:html={JSON.stringify({ '@context': 'https://schema.org', '@graph': graph })} />
+    {ogCard && <meta name="mc-og" content={JSON.stringify(ogCard)} />}
     <slot name="head" />
   </head>
   <body>

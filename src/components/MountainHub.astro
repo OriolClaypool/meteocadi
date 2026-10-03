@@ -38,6 +38,7 @@ const ld = [
     ? "Viento, temperatura y sensación térmica en directo en las estaciones altas del Cadí-Moixeró, y previsión por altitud en las cimas y estaciones de esquí: Pedraforca, Comabona, Tosa d'Alp, La Molina, Masella y más."
     : "Vent, temperatura i sensació tèrmica en directe a les estacions altes del Cadí-Moixeró, i previsió per altitud als cims i estacions d'esquí: Pedraforca, Comabona, Tosa d'Alp, la Molina, Masella i més."}
   path={es ? '/es/montana' : '/muntanya'}
+  card={{ pins: points.map((q) => [q.lat, q.lng]) }}
   jsonLd={ld}
   current="muntanya"
   lang={lang}

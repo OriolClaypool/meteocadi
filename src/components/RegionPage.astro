@@ -83,7 +83,7 @@ const ld = [
 const others = REGIONS.filter((x) => x.slug !== slug).map((x) => localizeRegion(x, lang));
 const tabData = ordered.map((p) => ({ s: p.slug, lat: p.lat, lng: p.lng, alt: p.alt }));
 ---
-<Base title={title} description={description} path={path} jsonLd={ld} current="temps" lang={lang} alternates={{ ca: caPath(slug), es: esPath(slug) }}>
+<Base title={title} description={description} path={path} card={{ pins: ordered.map((p) => [p.lat, p.lng]) }} jsonLd={ld} current="temps" lang={lang} alternates={{ ca: caPath(slug), es: esPath(slug) }}>
   <section class="phead">
     <div class="wrap">
       <nav class="crumbs" aria-label="Ruta"><a href="/">{es ? 'Inicio' : 'Inici'}</a><span>›</span><a href={es ? '/es/tiempo' : '/temps'}>{es ? 'El tiempo' : 'El temps'}</a><span>›</span><span>{r.name}</span></nav>

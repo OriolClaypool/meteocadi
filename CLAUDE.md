@@ -87,6 +87,11 @@ Social images: no logo, only `meteocadi.cat` in the footer. Exception: the studi
 
 Direction "D": photo hero + light/dark alternating sections; data components use the "instrument" style (dark panels, Geist Mono numbers). Fonts self-hosted via Fontsource (Schibsted Grotesk, Geist, Geist Mono). Colors/tokens in `src/styles/global.css`. No emojis; icons are inline SVG or Meteocons (`public/imatges/icones`).
 
+## Link previews (WhatsApp, X, Telegram)
+- Every page except the home gets its own 1200×630 JPEG at `/og/<path>.jpg`, generated after the build by `integrations/og-cards.mjs` (renderer `integrations/og-render.mjs`: satori with static @fontsource Schibsted Grotesk 800 / Geist 500 / Geist Mono 500 turned into paths, plus an SVG of Catalonia and Andorra, rasterised with sharp). ~190 images, ~25 s, ~11 MB.
+- `Base.astro` writes the card data in `<meta name="mc-og">` (the integration reads it and removes it): kicker from the section of the path, title and subtitle from `<title>` ("Title: subtitle | Meteocadí"; without a colon, the first sentence of the description if it is short). Pages can pass `card` (kicker, title, sub, lat/lng + label for a pin, pins for several points, variant `field` for the colour map or `radar`). Passing `image` skips the card. The home keeps the Cadí photo (`/imatges/og-meteocadi.jpg`).
+- Andorra outline: `src/lib/andorra-contorn.json` (Natural Earth 1:10m, public domain).
+
 ## Security
 - The GitHub repo is public: never commit keys or tokens (`.env*` is ignored). Secrets live in Vercel env vars: `WU_API_KEY`, `GITHUB_TOKEN` (fine-grained, this repo only, Contents read/write), `CRON_SECRET`, optional `SOCRATA_APP_TOKEN`, `CONTACT_EMAIL`. The old WU key is still in the code as a fallback (and in the git history): once a new key is set in `WU_API_KEY`, delete the old one at Weather Underground and remove the fallback from `api/ara.js` and `api/arxiva.js`.
 - `/api/arxiva` only runs with `Authorization: Bearer $CRON_SECRET` (or, without the variable, only for the Vercel cron, `x-vercel-cron-schedule` header). Never log tokens.
