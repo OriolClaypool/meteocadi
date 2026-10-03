@@ -1,5 +1,6 @@
 import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
+import ogCards from './integrations/og-cards.mjs';
 import { episodes } from './src/lib/episodes.js';
 
 const HIDDEN = /\/(estudi(\/.*)?|404|webcams)(\.html)?$/;
@@ -11,6 +12,7 @@ export default defineConfig({
   trailingSlash: 'never',
   build: { format: 'file' },
   integrations: [
+    ogCards(),
     sitemap({
       filter: (page) => !HIDDEN.test(page) && !(NO_EPISODES && /\/episodis$/.test(page)),
       changefreq: 'hourly',
