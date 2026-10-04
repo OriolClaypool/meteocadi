@@ -4,7 +4,7 @@
 import { STATIONS, shortName } from '../../lib/stations.js';
 import { todayMadrid, hourMadrid, dayMonth, parseDay } from '../../lib/format.js';
 import {
-  loadFonts, loadIcons, drawResum, drawRanking, drawRankingWide, WIDE, drawPrevisio, layoutPrevisio, rankSentence, capFirst, WEATHER, PHENOMENA,
+  loadFonts, loadIcons, drawResum, drawRanking, drawRankingWide, WIDE, POST, drawPrevisio, layoutPrevisio, rankSentence, capFirst, WEATHER, PHENOMENA,
 } from './draw.js';
 
 const $ = (id) => document.getElementById(id);
@@ -14,6 +14,7 @@ const store = {
 };
 const K_TAB = 'meteocadi-estudi-tab';
 const K_NET = 'meteocadi-estudi-xarxa';
+const K_FMT = 'meteocadi-estudi-format';
 const K_PV = 'meteocadi-estudi-previsio-v1';
 
 function addDays(iso, n) {
@@ -119,7 +120,8 @@ export async function startEstudi() {
   let liveAt = 0;
   let choice = 'ahir';
   let rankVar = 'max';
-  let rankFmt = 'story'; // 'story' (1080 × 1920) o 'wide' (1600 × 900, per a X)
+  // Format del rànquing: 'story' (1080 × 1920), 'post' (1080 × 1350, 4:5) o 'wide' (1600 × 900, per a X). Es recorda.
+  let rankFmt = ['story', 'post', 'wide'].includes(store.get(K_FMT)) ? store.get(K_FMT) : 'story';
   // Rànquing de la xarxa pròpia ('mc') o de les estacions del Meteocat de tot Catalunya ('cat')
   let rankNet = store.get(K_NET) === 'cat' ? 'cat' : 'mc';
   let sentence = { key: '', text: '', edited: false };
@@ -230,10 +232,11 @@ export async function startEstudi() {
   let lastData = null;
   // Mida del canvas segons la plantilla i el format
   function size() {
-    const wide = tpl === 'ranquing' && rankFmt === 'wide';
-    const [w, h] = wide ? [WIDE.W, WIDE.H] : [1080, 1920];
+    const f = tpl === 'ranquing' ? rankFmt : 'story';
+    const [w, h] = f === 'wide' ? [WIDE.W, WIDE.H] : f === 'post' ? [POST.W, POST.H] : [1080, 1920];
     if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
-    canvas.parentElement.classList.toggle('is-wide', wide);
+    canvas.parentElement.classList.toggle('is-wide', f === 'wide');
+    canvas.parentElement.classList.toggle('is-post', f === 'post');
     const el = document.querySelector('.st-size');
     if (el) el.textContent = `${w} × ${h} px · PNG`;
   }
@@ -283,7 +286,7 @@ export async function startEstudi() {
       if (sentence.key !== key) sentence = { key, text: rankSentence(d.rows, rankVar, net), edited: false };
       if ($('sentence').value !== sentence.text) $('sentence').value = sentence.text;
       const when = d.kind === 'ahir' ? "d'ahir" : d.kind === 'avui' ? "d'avui" : d.kind === '24h' ? 'de les darreres 24 h' : delDia(d.date);
-      (rankFmt === 'wide' ? drawRankingWide : drawRanking)(ctx, { date: d.date, when, variable: rankVar, rows: d.rows, sentence: sentence.text, net, kind: d.kind, time: d.time });
+      (rankFmt === 'wide' ? drawRankingWide : drawRanking)(ctx, { date: d.date, when, variable: rankVar, rows: d.rows, sentence: sentence.text, net, kind: d.kind, time: d.time, fmt: rankFmt });
     }
     lastData = d;
   }
@@ -536,6 +539,7 @@ export async function startEstudi() {
   document.querySelectorAll('[data-fmt]').forEach((b) =>
     b.addEventListener('click', () => {
       rankFmt = b.dataset.fmt;
+      store.set(K_FMT, rankFmt);
       document.querySelectorAll('[data-fmt]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
       draw();
     }),
@@ -550,7 +554,7 @@ export async function startEstudi() {
     const date = lastData?.date || todayMadrid();
     if (tpl === 'resum') return `meteocadi-resum-${n(date)}.png`;
     const cat = lastData?.net === 'cat';
-    return `meteocadi-ranquing-${cat ? 'catalunya-' : ''}${rankVar}-${n(date)}${cat && lastData.kind === '24h' ? `-24h-${lastData.time.replace(':', '')}` : ''}${rankFmt === 'wide' ? '-horitzontal' : ''}.png`;
+    return `meteocadi-ranquing-${cat ? 'catalunya-' : ''}${rankVar}-${n(date)}${cat && lastData.kind === '24h' ? `-24h-${lastData.time.replace(':', '')}` : ''}${rankFmt === 'wide' ? '-horitzontal' : rankFmt === 'post' ? '-4x5' : ''}.png`;
   }
   async function blob() {
     await document.fonts.ready;
@@ -595,6 +599,7 @@ export async function startEstudi() {
   // ------------------------------------------------------------------ inici
   syncTpl();
   syncEditor();
+  document.querySelectorAll('[data-fmt]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.fmt === rankFmt)));
   $('pvDate').value = pv.date;
   refreshDate();
   try {
