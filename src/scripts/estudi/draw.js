@@ -158,54 +158,55 @@ function background(ctx, dark) {
   if (dark) contours(ctx);
 }
 
-function footer(ctx, dark, pageLabel = '', credit = '') {
+// foot i hh: on va el peu i l'alçada de la imatge (per defecte, la vertical de 1080 × 1920)
+function footer(ctx, dark, pageLabel = '', credit = '', foot = FOOT_Y, hh = H) {
   ctx.textBaseline = 'middle';
   tracking(ctx, -0.36);
   font(ctx, 'head', 36, 800);
   ctx.fillStyle = dark ? A.txt : L.ink;
   ctx.textAlign = 'left';
-  ctx.fillText('meteocadi.cat', X0, FOOT_Y + 30);
+  ctx.fillText('meteocadi.cat', X0, foot + 30);
   tracking(ctx, 0);
   if (pageLabel) {
     font(ctx, 'mono', 22);
     ctx.fillStyle = dark ? A.mut2 : L.mut;
-    spaced(ctx, pageLabel, X1, FOOT_Y + 30, 2.6, 'right');
+    spaced(ctx, pageLabel, X1, foot + 30, 2.6, 'right');
   }
   if (credit) {
     font(ctx, 'mono', 17);
     ctx.fillStyle = dark ? A.mut2 : L.mut;
-    spaced(ctx, credit, X1, FOOT_Y + 32, 1.8, 'right');
+    spaced(ctx, credit, X1, foot + 32, 1.8, 'right');
   }
   const w = W / 4;
   STRIP.forEach((c, i) => {
     ctx.fillStyle = c;
-    ctx.fillRect(i * w, H - 8, w + 1, 8);
+    ctx.fillRect(i * w, hh - 8, w + 1, 8);
   });
 }
 
-// Data en majúscules i títol de dues línies. Retorna on acaba.
-function header(ctx, eyebrow, l1, l2, c0, c1, c2, top = TOP) {
+// Data en majúscules i títol de dues línies. Retorna on acaba. k: escala (1 a les imatges verticals; menys a la 4:5)
+function header(ctx, eyebrow, l1, l2, c0, c1, c2, top = TOP, k = 1) {
   ctx.textBaseline = 'middle';
   const eb = eyebrow.toLocaleUpperCase('ca');
-  let es = 24;
+  let es = Math.round(24 * k);
   font(ctx, 'mono', es);
-  while (es > 17 && spacedWidth(ctx, eb, es * 0.14) > X1 - X0) font(ctx, 'mono', --es);
+  while (es > 15 && spacedWidth(ctx, eb, es * 0.14) > X1 - X0) font(ctx, 'mono', --es);
   ctx.fillStyle = c0;
-  spaced(ctx, eb, X0, top + 15, es * 0.14);
-  tracking(ctx, -3.36);
-  const s1 = fitFont(ctx, 'head', 96, 800, l1, X1 - X0);
+  spaced(ctx, eb, X0, top + 15 * k, es * 0.14);
+  tracking(ctx, -3.36 * k);
+  const s1 = fitFont(ctx, 'head', Math.round(96 * k), 800, l1, X1 - X0);
   ctx.fillStyle = c1;
-  ctx.fillText(l1, X0, top + 93);
+  ctx.fillText(l1, X0, top + 93 * k);
   if (!l2) {
     tracking(ctx, 0);
-    return top + 140; // títol d'una sola línia
+    return top + 140 * k; // títol d'una sola línia
   }
-  const s2 = fitFont(ctx, 'head', 96, 800, l2, X1 - X0);
+  const s2 = fitFont(ctx, 'head', Math.round(96 * k), 800, l2, X1 - X0);
   ctx.fillStyle = c2;
   font(ctx, 'head', Math.min(s1, s2), 800);
-  ctx.fillText(l2, X0, top + 187);
+  ctx.fillText(l2, X0, top + 187 * k);
   tracking(ctx, 0);
-  return top + 234;
+  return top + 234 * k;
 }
 
 function hline(ctx, x0, x1, y, color, w = 1) {
@@ -458,32 +459,43 @@ export function rankSentence(rows, v, net = 'mc') {
   return `La ratxa més forta, ${num(first.v)} km/h a ${first.name} (${altTxt(first.alt)}).`;
 }
 
-// d: { date, when: "d'ahir" | "d'avui" | "del 25 de setembre", variable, rows, sentence }
+// Mides del rànquing vertical: Stories (1080 × 1920) i publicació 4:5 (1080 × 1350, Instagram i Facebook).
+// A la 4:5 la capçalera es redueix (k) i les files s'encongeixen si cal perquè hi càpiguen totes les estacions.
+export const POST = { W: 1080, H: 1350 };
+function rankLayout(fmt, cat) {
+  if (fmt === 'post') {
+    return { post: true, H: POST.H, top: 62, k: 0.8, foot: 1262, limit: 1228, sent: 26, lh: 36, gapA: 10, gapB: 22, capGap: 32, lines: 3, axis: 44, rowMax: cat ? 84 : 78 };
+  }
+  return { post: false, H, top: TOP, k: 1, foot: FOOT_Y, limit: LIMIT, sent: 30, lh: 42, gapA: 14, gapB: 30, capGap: 38, lines: cat ? 4 : 3, axis: 52, rowMax: cat ? 100 : 88 };
+}
+
+// d: { date, when: "d'ahir" | "d'avui" | "del 25 de setembre", variable, rows, sentence, net, kind, time, fmt: 'story' | 'post' }
 export function drawRanking(ctx, d) {
+  const cat = d.net === 'cat';
+  const F = rankLayout(d.fmt, cat);
   background(ctx, false);
   const cfg = RANK_VARS[d.variable];
-  const cat = d.net === 'cat';
   const all = rankRows(d.rows, d.variable);
   const list = cat ? all.slice(0, CAT_TOP) : all;
   // Columnes: nom (des de NX) i barres (des de BX). A Catalunya els noms són més llargs i les barres, més curtes.
   const NX = 120, BX = cat ? 500 : 450, BAR = cat ? 330 : 380;
-  let y = header(ctx, rankEyebrow(d), cfg.t1, d.when, L.blue, L.ink, cfg.color);
+  let y = header(ctx, rankEyebrow(d), cfg.t1, d.when, L.blue, L.ink, cfg.color, F.top, F.k);
 
-  y += 14;
+  y += F.gapA;
   const sentence = nbsp(d.sentence);
   if (sentence.trim()) {
-    font(ctx, 'ui', 30);
+    font(ctx, 'ui', F.sent);
     ctx.fillStyle = L.ink2;
     ctx.textBaseline = 'middle';
-    const lines = wrap(ctx, sentence, 900).slice(0, cat ? 4 : 3);
+    const lines = wrap(ctx, sentence, 900).slice(0, F.lines);
     for (const line of lines) {
-      ctx.fillText(line, X0, y + 21);
-      y += 42;
+      ctx.fillText(line, X0, y + F.lh / 2);
+      y += F.lh;
     }
   }
-  y += 30;
+  y += F.gapB;
   networkCaption(ctx, list.length, X0, y + 11, 20, 2.2, 'left', cat ? all.length : null);
-  y += 38;
+  y += F.capGap;
   hline(ctx, X0, X1, y, L.ink, 2);
   const vals = list.map((r) => r.v);
   const temp = d.variable === 'max' || d.variable === 'min';
@@ -509,13 +521,15 @@ export function drawRanking(ctx, d) {
     font(ctx, 'mono', 20);
     for (let t = Math.ceil(s0 / step) * step; t <= s1; t += step) {
       ctx.fillStyle = t === 0 ? '#1d4ed8' : L.mut;
-      ctx.fillText(`${num(t, 0)}°`, sc.x(t), y + 28);
+      ctx.fillText(`${num(t, 0)}°`, sc.x(t), y + F.axis / 2 + 2);
     }
     ctx.textAlign = 'left';
-    y += 52;
+    y += F.axis;
   }
 
-  const RH = Math.min(cat ? 100 : 88, Math.floor((LIMIT - y) / Math.max(list.length, 1)));
+  const RH = Math.min(F.rowMax, Math.floor((F.limit - y) / Math.max(list.length, 1)));
+  // Escala de les files: a la 4:5, si n'hi ha moltes, tot (lletra, barres, punts) una mica més petit
+  const rs = F.post ? Math.min(1, RH / 88) : 1;
 
   if (dots) {
     // Línies verticals de l'escala (la de 0 °C, més marcada)
@@ -533,23 +547,25 @@ export function drawRanking(ctx, d) {
     }
   }
 
-  // Escala de les barres: la més llarga fa 380 px i totes en tenen una mica
+  // Escala de les barres: la més llarga fa BAR px i totes en tenen una mica
   const hi = Math.max(...vals, 0);
   const lo = temp ? Math.min(...vals) - Math.max(2, (hi - Math.min(...vals)) * 0.5) : 0;
+  const big = Math.round(40 * rs);
   list.forEach((r, i) => {
     const cy = y + RH / 2;
     ctx.textBaseline = 'middle';
-    font(ctx, 'mono', 26);
+    font(ctx, 'mono', Math.round(26 * rs));
     ctx.fillStyle = L.rank;
     ctx.fillText(String(i + 1).padStart(2, '0'), X0, cy);
-    const name = cat ? fitName(ctx, r.name, BX - NX - 24, 32, 20) : (fitFont(ctx, 'head', 32, 700, r.name, 318, 24), r.name);
+    const ns = Math.round(32 * rs);
+    const name = cat ? fitName(ctx, r.name, BX - NX - 24, ns, Math.round(20 * rs)) : (fitFont(ctx, 'head', ns, 700, r.name, 318, Math.round(24 * rs)), r.name);
     ctx.fillStyle = L.ink;
-    ctx.fillText(name, NX, cy - 12);
-    rowSub(ctx, r, cat, NX, cy + 21, BX - NX - 24, 19);
+    ctx.fillText(name, NX, cy - 12 * rs);
+    rowSub(ctx, r, cat, NX, cy + 21 * rs, BX - NX - 24, Math.max(15, Math.round(19 * rs)));
     if (dots) {
       // Pista de l'escala i punt a la temperatura de l'estació
       ctx.strokeStyle = L.line;
-      ctx.lineWidth = 6;
+      ctx.lineWidth = 6 * rs;
       ctx.lineCap = 'round';
       ctx.beginPath();
       ctx.moveTo(sc.x0, cy);
@@ -557,13 +573,13 @@ export function drawRanking(ctx, d) {
       ctx.stroke();
       ctx.lineCap = 'butt';
       ctx.beginPath();
-      ctx.arc(sc.x(r.v), cy, 15, 0, Math.PI * 2);
+      ctx.arc(sc.x(r.v), cy, 15 * rs, 0, Math.PI * 2);
       ctx.fillStyle = tempColor(r.v);
       ctx.fill();
-      ctx.lineWidth = 4;
+      ctx.lineWidth = 4 * rs;
       ctx.strokeStyle = '#ffffff';
       ctx.stroke();
-      font(ctx, 'mono', 40, 500);
+      font(ctx, 'mono', big, 500);
       ctx.fillStyle = tempColorLight(r.v);
       ctx.fillText(`${num(r.v)}°`, 848, cy + 1);
       y += RH;
@@ -572,27 +588,28 @@ export function drawRanking(ctx, d) {
     }
     const len = hi - lo > 0 ? Math.max(0, ((r.v - lo) / (hi - lo)) * BAR) : 0;
     const barColor = temp ? tempColor(r.v) : d.variable === 'pluja' ? (r.v > 0 ? '#60a5fa' : '#c9d5e3') : '#fbbf24';
+    const bh = 34 * rs;
     if (len > 0) {
       ctx.fillStyle = barColor;
       ctx.beginPath();
-      ctx.roundRect(BX, cy - 17, Math.max(len, 12), 34, 6);
+      ctx.roundRect(BX, cy - bh / 2, Math.max(len, 12), bh, 6);
       ctx.fill();
     }
     const vx = BX + (len > 0 ? Math.max(len, 12) + 18 : 0);
-    font(ctx, 'mono', 40, 500);
+    font(ctx, 'mono', big, 500);
     ctx.fillStyle = temp ? tempColorLight(r.v) : r.v > 0 ? cfg.color : L.rank;
     const txt = temp ? `${num(r.v)}°` : num(r.v);
     ctx.fillText(txt, vx, cy + 1);
     if (!temp) {
       const tw = ctx.measureText(txt).width;
-      font(ctx, 'mono', 22);
+      font(ctx, 'mono', Math.round(22 * rs));
       ctx.fillStyle = L.mut;
-      ctx.fillText(cfg.unit, vx + tw + 8, cy + 5);
+      ctx.fillText(cfg.unit, vx + tw + 8, cy + 5 * rs);
     }
     y += RH;
     hline(ctx, X0, X1, y, L.line);
   });
-  footer(ctx, false, '', cat ? CAT_CREDIT : '');
+  footer(ctx, false, '', cat ? CAT_CREDIT : '', F.foot, F.H);
 }
 
 // Rànquing horitzontal (1600 × 900, per a X i webs): títol i frase a l'esquerra, llista a la dreta
