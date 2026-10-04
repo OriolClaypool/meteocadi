@@ -126,7 +126,7 @@ const { internal = false } = Astro.props;
   import { tempColorLight, num, dirLabel, hourMadrid, todayMadrid, dayName, dayMonth, longDate } from '../lib/format.js';
 
   type St = { id: string; name: string; lat: number; lng: number; alt: number | null; com?: string; mun?: string; mc?: boolean; slug?: string;
-    t: number | null; tmax: number | null; tmin: number | null; rain: number | null; wind: number | null; dir: number | null; gust: number | null; hr: number | null; snow: number | null };
+    t: number | null; tmax: number | null; tmin: number | null; rain: number | null; wind: number | null; dir: number | null; gust: number | null; hr: number | null; snow: number | null; inc?: boolean };
 
   const month = Number(todayMadrid().slice(5, 7));
   const snowSeason = month >= 11 || month <= 5;
@@ -363,7 +363,8 @@ const { internal = false } = Astro.props;
 
   let stations: St[] = [];
   const markers = new Map<string, any>();
-  const val = (s: St) => (s as any)[cur.key] as number | null;
+  // Les estacions del Meteocat amb més de 2 hores sense dades (inc) no compten per a la màxima ni la mínima
+  const val = (s: St) => (s.inc && (cur.key === 'tmax' || cur.key === 'tmin') ? null : ((s as any)[cur.key] as number | null));
   const shown = (s: St) => val(s) != null && (mode === 'auto' || mode === 'totes' || (mode === 'capitals' && capIds.has(s.id)));
 
   function capitals() {
