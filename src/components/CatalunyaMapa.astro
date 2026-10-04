@@ -1,6 +1,8 @@
 ---
 // Mapa de Catalunya amb totes les estacions automàtiques del Meteocat (XEMA, dades obertes) i les de Meteocadí.
 // Les dades es carreguen al navegador des de /api/xema i /api/ara; els límits comarcals, des de /api/comarques.
+// Període: avui (des de mitjanit), les darreres 24 hores (/api/xema/24h) o un dia anterior (/api/xema/AAAA-MM-DD,
+// i les nostres estacions de l'arxiu diari, /estudi-dades.json). Es pot enllaçar amb #24h o #AAAA-MM-DD.
 // Dues versions: la pública (/mapa/catalunya), només per consultar, amb marca d'aigua i sense desar la imatge,
 // i la interna (/estudi/mapa, internal), que exposa l'estat del mapa perquè la pàgina en faci les imatges per a xarxes.
 interface Props { internal?: boolean }
@@ -9,6 +11,12 @@ const { internal = false } = Astro.props;
 <div class="cm-bar">
   <div class="cm-vars" role="group" aria-label="Què es mostra al mapa" id="cmVars"></div>
   <span class="cm-when" id="cmWhen">Carregant les dades…</span>
+</div>
+<div class="cm-per" role="group" aria-label="Període de les dades" id="cmPer">
+  <span class="cm-per__lab">Període</span>
+  <button type="button" data-p="today" aria-pressed="true">Avui</button>
+  <button type="button" data-p="24h" aria-pressed="false">Darreres 24 h</button>
+  <label class="cm-per__day"><span>Un altre dia</span><input type="date" id="cmDay" aria-label="Un dia anterior" /></label>
 </div>
 <div class="cm-out" id="cmTop"></div>
 <div id="cmap" class:list={['cmap', { 'cmap--pub': !internal }]} data-internal={internal ? '1' : undefined} aria-label="Mapa de Catalunya amb les dades de les estacions"></div>
@@ -25,6 +33,14 @@ const { internal = false } = Astro.props;
   .cm-vars button { height: 40px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--line); background: #fff; color: var(--ink); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
   .cm-vars button[aria-pressed='true'] { background: var(--ink); border-color: var(--ink); color: #fff; }
   .cm-when { font-family: var(--f-mono); font-size: 13px; color: var(--muted); }
+  .cm-per { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .cm-per__lab { font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-right: 2px; }
+  .cm-per button, .cm-per__day { height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: #fff; color: var(--ink); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .cm-per button[aria-pressed='true'], .cm-per.is-day .cm-per__day { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .cm-per__day { display: inline-flex; align-items: center; gap: 8px; padding-right: 8px; }
+  .cm-per__day input { font: inherit; font-size: 14px; font-weight: 600; border: 0; background: transparent; color: inherit; cursor: pointer; color-scheme: light; }
+  .cm-per.is-day .cm-per__day input { color-scheme: dark; }
+  .cm-vars button:disabled { opacity: 0.4; cursor: default; }
   .cmap { width: 100%; height: min(82vh, 920px); min-height: 520px; border-radius: 16px; border: 1px solid var(--line); background: #e9eef3; overflow: hidden; }
   .cmap .leaflet-tile-pane { filter: saturate(0.3) contrast(0.9) brightness(1.08); opacity: 0.6; }
   .cmap.leaflet-container { font-family: var(--f-ui); background: #e9eef3; }
@@ -107,7 +123,7 @@ const { internal = false } = Astro.props;
   import { FB, FIELD, HI, computeField, comarquesMask, toCanvas, fieldColor } from '../scripts/camp.js';
   // Etiquetes i llegenda amb la mateixa escala que el mapa de color
   const fc = (key: string) => (v: number) => fieldColor(key, v);
-  import { tempColorLight, num, dirLabel, hourMadrid, todayMadrid } from '../lib/format.js';
+  import { tempColorLight, num, dirLabel, hourMadrid, todayMadrid, dayName, dayMonth, longDate } from '../lib/format.js';
 
   type St = { id: string; name: string; lat: number; lng: number; alt: number | null; com?: string; mun?: string; mc?: boolean; slug?: string;
     t: number | null; tmax: number | null; tmin: number | null; rain: number | null; wind: number | null; dir: number | null; gust: number | null; hr: number | null; snow: number | null };
@@ -118,15 +134,30 @@ const { internal = false } = Astro.props;
   // title: títol de la imatge per a xarxes (segona part en color); unit: unitat a la llegenda de la imatge
   const VARS = [
     { key: 't', label: 'Temperatura', legend: 'Temperatura ara (°C)', title: ['Temperatura', 'ara a Catalunya'], accent: '#c2410c', unit: 'Temperatura (°C)', fmt: (v: number) => num(v), color: fc('t'), steps: [-5, 0, 5, 10, 15, 20, 25, 30, 35], two: true },
-    { key: 'tmax', label: 'Màxima', legend: "Màxima d'avui (°C)", title: ['Temperatura màxima', "d'avui a Catalunya"], accent: '#c2410c', unit: 'Màxima (°C)', fmt: (v: number) => num(v), color: fc('tmax'), steps: [0, 5, 10, 15, 20, 25, 30, 35], two: true, today: true },
-    { key: 'tmin', label: 'Mínima', legend: "Mínima d'avui (°C)", title: ['Temperatura mínima', "d'avui a Catalunya"], accent: '#0369a1', unit: 'Mínima (°C)', fmt: (v: number) => num(v), color: fc('tmin'), steps: [-10, -5, 0, 5, 10, 15, 20, 25], two: true, low: true, today: true },
-    { key: 'rain', label: 'Pluja', legend: "Pluja d'avui (mm)", title: ["Pluja d'avui", 'a Catalunya'], accent: '#1d4ed8', unit: 'Pluja (mm)', fmt: (v: number) => num(v), color: (v: number) => (v < 0.1 ? '#e2e8f0' : fieldColor('rain', v)), steps: [0.1, 0.5, 1, 2, 5, 10, 20, 35, 50, 65, 80, 100, 150, 200], today: true },
-    { key: 'gust', label: 'Ratxa màxima', legend: "Ratxa màxima d'avui (km/h)", title: ['Ratxa màxima de vent', "d'avui a Catalunya"], accent: '#b45309', unit: 'Ratxa màxima (km/h)', fmt: (v: number) => String(Math.round(v)), color: fc('gust'), steps: [10, 20, 30, 40, 55, 70, 90], today: true },
+    { key: 'tmax', label: 'Màxima', legend: "Màxima d'avui (°C)", noun: 'Màxima', u: '°C', t1: 'Temperatura màxima', title: ['Temperatura màxima', "d'avui a Catalunya"], accent: '#c2410c', unit: 'Màxima (°C)', fmt: (v: number) => num(v), color: fc('tmax'), steps: [0, 5, 10, 15, 20, 25, 30, 35], two: true, today: true },
+    { key: 'tmin', label: 'Mínima', legend: "Mínima d'avui (°C)", noun: 'Mínima', u: '°C', t1: 'Temperatura mínima', title: ['Temperatura mínima', "d'avui a Catalunya"], accent: '#0369a1', unit: 'Mínima (°C)', fmt: (v: number) => num(v), color: fc('tmin'), steps: [-10, -5, 0, 5, 10, 15, 20, 25], two: true, low: true, today: true },
+    { key: 'rain', label: 'Pluja', legend: "Pluja d'avui (mm)", noun: 'Pluja', u: 'mm', t1: 'Pluja', title: ["Pluja d'avui", 'a Catalunya'], accent: '#1d4ed8', unit: 'Pluja (mm)', fmt: (v: number) => num(v), color: (v: number) => (v < 0.1 ? '#e2e8f0' : fieldColor('rain', v)), steps: [0.1, 0.5, 1, 2, 5, 10, 20, 35, 50, 65, 80, 100, 150, 200], today: true },
+    { key: 'gust', label: 'Ratxa màxima', legend: "Ratxa màxima d'avui (km/h)", noun: 'Ratxa màxima', u: 'km/h', t1: 'Ratxa màxima de vent', title: ['Ratxa màxima de vent', "d'avui a Catalunya"], accent: '#b45309', unit: 'Ratxa màxima (km/h)', fmt: (v: number) => String(Math.round(v)), color: fc('gust'), steps: [10, 20, 30, 40, 55, 70, 90], today: true },
     { key: 'wind', label: 'Vent', legend: 'Vent ara (km/h)', title: ['Vent', 'ara a Catalunya'], accent: '#0f766e', unit: 'Vent (km/h)', fmt: (v: number) => String(Math.round(v)), color: fc('wind'), steps: [10, 20, 30, 40, 55, 70] },
     { key: 'hr', label: 'Humitat', legend: 'Humitat relativa (%)', title: ['Humitat relativa', 'ara a Catalunya'], accent: '#1d4ed8', unit: 'Humitat relativa (%)', fmt: (v: number) => String(Math.round(v)), color: fc('hr'), steps: [30, 50, 70, 85], two: true },
     ...(snowSeason ? [{ key: 'snow', label: 'Neu', legend: 'Gruix de neu (cm)', title: ['Gruix de neu', 'ara a Catalunya'], accent: '#0369a1', unit: 'Gruix de neu (cm)', fmt: (v: number) => String(Math.round(v)), color: snowColor, steps: [1, 5, 20, 50, 100] }] : []),
   ];
   let cur = VARS[0];
+
+  // ---------------------------------------------------------------- període: avui, darreres 24 h o un dia anterior
+  type Period = { kind: 'today' } | { kind: '24h' } | { kind: 'day'; date: string };
+  let period: Period = { kind: 'today' };
+  // "del 2 d'octubre", "de l'1 d'octubre"
+  const deDia = (iso: string) => { const d = Number(iso.slice(8, 10)); return `${d === 1 || d === 11 ? "de l'" : 'del '}${dayMonth(iso)}`; };
+  const per = () =>
+    period.kind === 'today' ? { leg: "d'avui", short: "d'avui", title: "d'avui" }
+    : period.kind === '24h' ? { leg: 'de les darreres 24 h', short: '(24 h)', title: 'de les darreres 24 hores' }
+    : { leg: deDia(period.date), short: 'del dia', title: deDia(period.date) };
+  // Les variables del dia (màxima, mínima, pluja, ratxa) canvien amb el període; les d'ara (temperatura, vent,
+  // humitat, neu) són sempre les darreres i no n'hi ha per als dies anteriors
+  const legendOf = (v: any) => (v.today ? `${v.noun} ${per().leg} (${v.u})` : v.legend);
+  const titleOf = (v: any) => (period.kind === 'today' || !v.today ? v.title : [`${v.t1} ${per().title}`, 'a Catalunya']);
+  const allowed = (v: any) => period.kind !== 'day' || !!v.today;
   // Estacions de la xarxa que no es mostren en aquest mapa: a Bagà n'hi ha tres molt juntes i només hi deixem la del centre
   const HIDDEN_HERE = new Set(['IBAG65', 'IBAG72']);
 
@@ -305,7 +336,7 @@ const { internal = false } = Astro.props;
   function legend() {
     const el = document.getElementById('cmLegend');
     if (!el) return;
-    el.innerHTML = `<b>${cur.legend}</b><div class="sw">${cur.steps.map((s) => `<span><i style="background:${cur.color(s)}"></i>${num(s, s % 1 ? 1 : 0)}</span>`).join('')}</div><div class="cm-fl"><button type="button" id="cmFieldBtn" aria-pressed="${fieldOn}">Mapa de color</button><span id="cmFieldNote"></span></div><label class="cm-op">Intensitat<input type="range" id="cmOp" min="0.25" max="1.6" step="0.05" value="${intensity}" aria-label="Intensitat del mapa de color" /></label>`;
+    el.innerHTML = `<b>${legendOf(cur)}</b><div class="sw">${cur.steps.map((s) => `<span><i style="background:${cur.color(s)}"></i>${num(s, s % 1 ? 1 : 0)}</span>`).join('')}</div><div class="cm-fl"><button type="button" id="cmFieldBtn" aria-pressed="${fieldOn}">Mapa de color</button><span id="cmFieldNote"></span></div><label class="cm-op">Intensitat<input type="range" id="cmOp" min="0.25" max="1.6" step="0.05" value="${intensity}" aria-label="Intensitat del mapa de color" /></label>`;
     L.DomEvent.disableClickPropagation(el);
     el.querySelector('#cmFieldBtn')?.addEventListener('click', () => { fieldOn = !fieldOn; field(); });
     L.DomEvent.disableScrollPropagation(el);
@@ -353,11 +384,12 @@ const { internal = false } = Astro.props;
     const rows: [string, string][] = [];
     const add = (label: string, v: number | null, f: (x: number) => string) => v != null && rows.push([label, f(v)]);
     add('Temperatura', s.t, (v) => `${num(v)} °C`);
-    add("Màxima d'avui", s.tmax, (v) => `${num(v)} °C`);
-    add("Mínima d'avui", s.tmin, (v) => `${num(v)} °C`);
-    add("Pluja d'avui", s.rain, (v) => `${num(v)} mm`);
+    const sf = per().short;
+    add(`Màxima ${sf}`, s.tmax, (v) => `${num(v)} °C`);
+    add(`Mínima ${sf}`, s.tmin, (v) => `${num(v)} °C`);
+    add(`Pluja ${sf}`, s.rain, (v) => `${num(v)} mm`);
     add('Vent', s.wind, (v) => `${Math.round(v)} km/h ${dirLabel(s.dir)}`.trim());
-    add("Ratxa màx. d'avui", s.gust, (v) => `${Math.round(v)} km/h`);
+    add(`Ratxa màx. ${sf}`, s.gust, (v) => `${Math.round(v)} km/h`);
     add('Humitat', s.hr, (v) => `${Math.round(v)} %`);
     if (snowSeason) add('Gruix de neu', s.snow, (v) => `${Math.round(v)} cm`);
     const where = [s.mun, s.com].filter(Boolean).join(' · ');
@@ -451,11 +483,12 @@ const { internal = false } = Astro.props;
         ? [['Les més baixes', lo], ['Les més altes', hi]]
         : [['Les més altes', hi], ['Les més baixes', lo]]
       : [['Els valors més alts', hi]];
-    box.innerHTML = cards.map(([t, l]) => `<div class="card"><h2>${cur.legend} · ${t}</h2><ol>${(l as St[]).map(item).join('')}</ol></div>`).join('');
+    box.innerHTML = cards.map(([t, l]) => `<div class="card"><h2>${legendOf(cur)} · ${t}</h2><ol>${(l as St[]).map(item).join('')}</ol></div>`).join('');
   }
 
   // Botons de variable
   const bar = document.getElementById('cmVars')!;
+  const varBtns = new Map<any, HTMLButtonElement>();
   VARS.forEach((v) => {
     const b = document.createElement('button');
     b.type = 'button';
@@ -467,7 +500,44 @@ const { internal = false } = Astro.props;
       draw();
     });
     bar.appendChild(b);
+    varBtns.set(v, b);
   });
+  // Per a un dia anterior només hi ha les variables del dia: les altres es desactiven (i si n'hi havia una, la pluja)
+  function varsForPeriod() {
+    if (!allowed(cur)) cur = VARS.find((v) => v.key === 'rain')!;
+    for (const [v, b] of varBtns) {
+      b.disabled = !allowed(v);
+      b.title = allowed(v) ? '' : 'Només per a avui i les darreres 24 hores';
+      b.setAttribute('aria-pressed', String(v === cur));
+    }
+  }
+
+  // Selector de període. L'adreça porta #24h o #AAAA-MM-DD, per poder compartir l'enllaç d'un dia o d'un episodi.
+  const perEl = document.getElementById('cmPer')!;
+  const dayIn = document.getElementById('cmDay') as HTMLInputElement;
+  const isoDay = (t: number) => new Date(t).toISOString().slice(0, 10);
+  const yesterday = () => isoDay(Date.parse(`${todayMadrid()}T12:00:00Z`) - 864e5);
+  dayIn.min = '2010-01-01';
+  dayIn.max = yesterday();
+  function setPeriod(p: Period, reload = true) {
+    period = p;
+    perEl.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String((b as HTMLElement).dataset.p === p.kind)));
+    perEl.classList.toggle('is-day', p.kind === 'day');
+    dayIn.value = p.kind === 'day' ? p.date : '';
+    try { history.replaceState(null, '', p.kind === 'today' ? location.pathname + location.search : `#${p.kind === '24h' ? '24h' : p.date}`); } catch {}
+    varsForPeriod();
+    if (reload) load();
+  }
+  perEl.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => setPeriod({ kind: (b as HTMLElement).dataset.p as 'today' | '24h' })));
+  dayIn.addEventListener('change', () => {
+    const d = dayIn.value;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(d) && d >= dayIn.min && d <= yesterday()) setPeriod({ kind: 'day', date: d });
+  });
+  {
+    const h = location.hash.slice(1);
+    if (h === '24h') setPeriod({ kind: '24h' }, false);
+    else if (/^\d{4}-\d{2}-\d{2}$/.test(h) && h >= '2010-01-01' && h <= yesterday()) setPeriod({ kind: 'day', date: h }, false);
+  }
 
   // ---------------------------------------------------------------- versió pública: marca d'aigua, sense desar la imatge
   let latest: Date | null = null;
@@ -530,12 +600,20 @@ const { internal = false } = Astro.props;
         });
         const hasField = fieldOn && !!(FIELD as any)[cur.key] && fieldRaw?.key === cur.key;
         const vb = map.getBounds();
+        const when = latest || new Date();
+        // Capçalera de la imatge quan no és avui
+        const day = todayMadrid(when);
+        const eyebrow = period.kind === '24h'
+          ? `Darreres 24 hores · fins ${dayName(day)} ${dayMonth(day)} a les ${hourMadrid(when)}`.toLocaleUpperCase('ca')
+          : period.kind === 'day' ? `${longDate(period.date)} · dia sencer`.toLocaleUpperCase('ca') : undefined;
         return {
           key: cur.key,
-          when: latest || new Date(),
+          when,
+          eyebrow,
+          suffix: period.kind === '24h' ? '-24h' : period.kind === 'day' ? '-dia' : '',
           // La zona que es veu: si s'hi ha fet zoom, la imatge mostra aquesta zona
           view: { lat0: vb.getSouth(), lat1: vb.getNorth(), lng0: vb.getWest(), lng1: vb.getEast() },
-          title: cur.title,
+          title: titleOf(cur),
           accent: cur.accent,
           today: !!(cur as any).today,
           stations: list,
@@ -548,31 +626,91 @@ const { internal = false } = Astro.props;
     };
   }
   // Dades: XEMA (dades obertes) + xarxa Meteocadí
+  // Arxiu diari de les nostres estacions (per estació: [màxima, mínima, ratxa, pluja]; susp: dies incomplets)
+  let archive: Promise<any> | null = null;
+  const loadArchive = () => (archive ||= fetch('/estudi-dades.json').then((r) => (r.ok ? r.json() : null)).catch(() => null));
+  // Darreres 24 hores d'una estació nostra a partir de la sèrie de /api/ara (cada 15 minuts). La pluja de WU és
+  // acumulada des de mitjanit: se sumen els increments i, quan torna a zero, el que porta del dia nou. Si la sèrie
+  // no arriba a l'inici de la finestra, no es dona cap valor (seria només una part de les 24 hores).
+  function last24(d: any, startMs: number) {
+    const s = d?.series;
+    if (!s?.t?.length || s.t[0] * 1000 > startMs + 45 * 60e3) return null;
+    let tmax = -Infinity, tmin = Infinity, gust = -Infinity, rain = 0, prev: number | null = null, any = false;
+    for (let i = 0; i < s.t.length; i++) {
+      const r = s.rain?.[i];
+      if (s.t[i] * 1000 < startMs) { if (r != null) prev = r; continue; }
+      any = true;
+      const t = s.temp?.[i], g = s.gust?.[i];
+      if (t != null) { tmax = Math.max(tmax, t); tmin = Math.min(tmin, t); }
+      if (g != null) gust = Math.max(gust, g);
+      if (r != null) {
+        if (prev != null) rain += r >= prev ? r - prev : r;
+        prev = r;
+      }
+    }
+    if (!any) return null;
+    const fin = (v: number) => (Number.isFinite(v) ? Math.round(v * 10) / 10 : null);
+    return { tmax: fin(tmax), tmin: fin(tmin), gust: fin(gust), rain: Math.round(rain * 10) / 10 };
+  }
+  let loadSeq = 0;
   async function load(force = false) {
-    const [x, a] = await Promise.all([
-      fetch('/api/xema').then((r) => (r.ok ? r.json() : null)).catch(() => null),
-      loadAra(force).catch(() => null),
+    const seq = ++loadSeq;
+    const p = period;
+    const when = document.getElementById('cmWhen');
+    if (when) when.textContent = 'Carregant les dades…';
+    const xurl = p.kind === 'today' ? '/api/xema' : `/api/xema/${p.kind === '24h' ? '24h' : p.date}`;
+    const [x, a, arx] = await Promise.all([
+      fetch(xurl).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+      p.kind === 'day' ? null : loadAra(force).catch(() => null),
+      p.kind === 'day' ? loadArchive() : null,
     ]);
+    if (seq !== loadSeq) return; // mentrestant s'ha triat un altre període
     const list: St[] = (x?.stations || []).map((s: any) => ({ ...s, mc: false }));
     const ara = (a as any)?.stations || {};
+    const start24 = x?.period?.start ? Date.parse(x.period.start) : Date.now() - 24 * 3600e3;
+    const arxDay = p.kind === 'day' ? (arx?.days || []).find((d: any) => d.date === p.date) : null;
+    let ours = 0, ours24 = 0;
     for (const st of STATIONS as any[]) {
       if (HIDDEN_HERE.has(st.id)) continue;
+      const base = { id: st.id, slug: st.slug, name: st.name, lat: st.lat, lng: st.lng, alt: st.alt, com: st.comarca, mun: st.loc, mc: true, snow: null };
+      if (p.kind === 'day') {
+        const v = arxDay?.s?.[st.id];
+        if (!v || arxDay.susp?.includes(st.id)) continue;
+        list.push({ ...base, t: null, wind: null, dir: null, hr: null, tmax: v[0], tmin: v[1], gust: v[2], rain: v[3] });
+        ours++;
+        continue;
+      }
       const d = ara[st.id];
       if (!d || d.stale) continue;
-      list.push({ id: st.id, slug: st.slug, name: st.name, lat: st.lat, lng: st.lng, alt: st.alt, com: st.comarca, mun: st.loc, mc: true,
-        t: d.temp ?? null, tmax: d.max ?? null, tmin: d.min ?? null, rain: d.rain ?? null, wind: d.wind ?? null, dir: d.dir ?? null, gust: d.gustMax ?? d.gust ?? null, hr: d.hum ?? null, snow: null });
+      const now = { t: d.temp ?? null, wind: d.wind ?? null, dir: d.dir ?? null, hr: d.hum ?? null };
+      const l24 = p.kind === '24h' ? last24(d, start24) : null;
+      if (l24) ours24++;
+      const day = p.kind === '24h'
+        ? l24 || { tmax: null, tmin: null, gust: null, rain: null }
+        : { tmax: d.max ?? null, tmin: d.min ?? null, rain: d.rain ?? null, gust: d.gustMax ?? d.gust ?? null };
+      list.push({ ...base, ...now, ...day });
+      ours++;
     }
     stations = list;
-    latest = x?.latest ? new Date(x.latest) : (a as any)?.updated ? new Date((a as any).updated) : null;
-    const when = document.getElementById('cmWhen');
+    latest = p.kind === 'day'
+      ? new Date(Date.parse(x?.period?.end || `${p.date}T22:00:00Z`) - 60e3)
+      : x?.latest ? new Date(x.latest) : (a as any)?.updated ? new Date((a as any).updated) : null;
     if (when) {
       const parts = [];
-      if (x?.latest) parts.push(`Meteocat fins a les ${hourMadrid(new Date(x.latest))}`);
-      if ((a as any)?.updated) parts.push(`Meteocadí a les ${hourMadrid(new Date((a as any).updated))}`);
-      when.textContent = x?.error && !list.length ? "Ara no s'han pogut carregar les dades." : parts.join(' · ') || '';
+      if (p.kind === 'day') {
+        parts.push(`${longDate(p.date)}, dia sencer`);
+        if (!ours) parts.push('sense dades de la xarxa Meteocadí');
+      } else {
+        if (x?.latest) parts.push(`${p.kind === '24h' ? 'Darreres 24 h fins a les' : 'Meteocat fins a les'} ${hourMadrid(new Date(x.latest))}`);
+        if ((a as any)?.updated) parts.push(`Meteocadí a les ${hourMadrid(new Date((a as any).updated))}`);
+        // Les nostres estacions només hi surten si la sèrie de WU arriba a cobrir les 24 hores senceres
+        if (p.kind === '24h' && ours && !ours24) parts.push('xarxa Meteocadí: només el valor actual');
+      }
+      when.textContent = (x?.error || !x) && !list.length ? "Ara no s'han pogut carregar les dades." : parts.join(' · ') || '';
     }
     draw();
   }
   load();
-  setInterval(() => load(true), 15 * 60 * 1000);
+  // Avui i les 24 hores es refresquen soles; un dia anterior ja no canvia
+  setInterval(() => { if (period.kind !== 'day') load(true); }, 15 * 60 * 1000);
 </script>

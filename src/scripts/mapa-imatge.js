@@ -150,7 +150,8 @@ export async function renderMapImage(o) {
   // ---- capçalera: data i hora, i títol de dues línies (la segona en color)
   const day = todayMadrid(o.when);
   const hour = hourMadrid(o.when);
-  const eyebrow = `${dayName(day)} ${dayMonth(day)} · ${o.today ? 'fins a les' : 'a les'} ${hour}`.toLocaleUpperCase('ca');
+  // o.eyebrow: capçalera pròpia (darreres 24 hores, un dia anterior)
+  const eyebrow = o.eyebrow || `${dayName(day)} ${dayMonth(day)} · ${o.today ? 'fins a les' : 'a les'} ${hour}`.toLocaleUpperCase('ca');
   ctx.textBaseline = 'middle';
   font(ctx, 'mono', f.eyebrow);
   ctx.fillStyle = C.blue;
