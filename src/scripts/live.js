@@ -96,13 +96,14 @@ export function paint(j) {
       const g = d?.gustMax ?? d?.gust;
       set(f('gust'), g != null ? `${Math.round(g)}` : '—', g != null ? (g >= 40 ? '#fbbf24' : '#c3cfde') : undefined);
       set(f('rain'), d?.rain != null ? `${num(d.rain)} mm` : '—', d?.rain != null ? precipColor(d.rain) : undefined);
-      const ago = d?.stale && d.epoch ? L.lastReading(Math.round((Date.now() / 1000 - d.epoch) / 3600)) : null;
+      // Fora de servei: els sensors exteriors no donen dades (control de qualitat de /api/ara)
+      const ago = d?.down ? L.outOfService : d?.stale && d.epoch ? L.lastReading(Math.round((Date.now() / 1000 - d.epoch) / 3600)) : null;
       const nameEl = row.querySelector('.st-name small');
       if (nameEl && !nameEl.dataset.orig) nameEl.dataset.orig = nameEl.textContent;
       if (nameEl) nameEl.textContent = ago ? `${nameEl.dataset.orig} · ${ago.toLowerCase()}` : nameEl.dataset.orig;
       set(
         f('mob'),
-        d
+        d?.down ? L.outOfService : d
           ? [d.max != null ? L.maxMin(`${num(d.max)}°`, `${num(d.min)}°`) : null, d.wind != null ? `${dirLabel(d.dir)} ${Math.round(d.wind)} km/h` : null, d.rain ? `${num(d.rain)} mm` : null]
               .filter(Boolean)
               .join('  ·  ')

@@ -20,6 +20,7 @@ const T = {
     online: (ok, n) => `${ok} de ${n} estacions en línia`,
     lastReading: (h) => `Última lectura fa ${h} h`,
     noDataNow: 'Sense dades ara mateix',
+    outOfService: 'Fora de servei',
     noData: 'Sense dades',
     maxMin: (a, b) => `màx ${a} · mín ${b}`,
     // taula d'estacions
@@ -50,6 +51,7 @@ const T = {
     online: (ok, n) => `${ok} de ${n} estaciones en línea`,
     lastReading: (h) => `Última lectura hace ${h} h`,
     noDataNow: 'Sin datos ahora mismo',
+    outOfService: 'Fuera de servicio',
     noData: 'Sin datos',
     maxMin: (a, b) => `máx ${a} · mín ${b}`,
     thStation: 'ESTACIÓN', thNow: 'AHORA', thMax: 'MÁX.', thMin: 'MÍN.', thWind: 'VIENTO', thGust: 'RACHA', thRain: 'LLUVIA', thSpark: 'ÚLTIMAS HORAS',

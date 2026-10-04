@@ -35,6 +35,8 @@ async function get(path, params) {
 }
 
 const n = (v) => (v == null || v === '' || isNaN(Number(v)) ? null : Number(v));
+// Límits físics (com els de la xarxa pròpia, src/lib/qc.js): fora d'aquí és un error del sensor
+const lim = (v, a, b) => (v == null || v < a || v > b ? null : v);
 const kmh = (ms) => (ms == null ? null : Math.round(ms * 3.6 * 10) / 10);
 const r1 = (v) => (v == null ? null : Math.round(v * 10) / 10);
 // Textos que venen de fora i es pinten a la pàgina: sense < > " (per si mai hi arribés codi HTML)
@@ -147,17 +149,17 @@ export async function xemaData(period, now = new Date()) {
         alt: n(s.altitud),
         com: plain(s.nom_comarca),
         mun: plain(s.nom_municipi),
-        t: t?.v ?? null,
+        t: lim(t?.v ?? null, -40, 48),
         time: t ? `${t.t.slice(0, 19)}Z` : null,
-        hr: L(id, '33')?.v ?? null,
-        wind: kmh(wind?.v ?? null),
+        hr: lim(L(id, '33')?.v ?? null, 1, 100),
+        wind: lim(kmh(wind?.v ?? null), 0, 200),
         dir: dir?.v ?? null,
-        snow: L(id, '38')?.v ?? null,
-        tmax: A(id, 'mx', '40'),
-        tmin: A(id, 'mn', '42'),
-        rain: r1(A(id, 'sm', '35')),
+        snow: lim(L(id, '38')?.v ?? null, 0, 1000),
+        tmax: lim(A(id, 'mx', '40'), -40, 48),
+        tmin: lim(A(id, 'mn', '42'), -40, 48),
+        rain: lim(r1(A(id, 'sm', '35')), 0, 1000),
         rain1h: r35[id]?.length ? r1(r35[id].reduce((a, b) => a + b, 0)) : null,
-        gust: kmh(A(id, 'mx', '50', '53', '56')),
+        gust: lim(kmh(A(id, 'mx', '50', '53', '56')), 0, 250),
         ...(incomplete(id) ? { inc: true } : {}),
       };
     })

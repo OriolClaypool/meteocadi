@@ -58,7 +58,7 @@ export function mountStation(root) {
       if (badge) badge.textContent = 'SENSE DADES ARA MATEIX';
       return;
     }
-    if (badge) badge.textContent = d.stale ? `ÚLTIMA LECTURA · ${hhmm(d.epoch)}` : `EN DIRECTE · LECTURA DE LES ${hhmm(d.epoch)}`;
+    if (badge) badge.textContent = d.down ? 'FORA DE SERVEI · ELS SENSORS NO DONEN DADES' : d.stale ? `ÚLTIMA LECTURA · ${hhmm(d.epoch)}` : `EN DIRECTE · LECTURA DE LES ${hhmm(d.epoch)}`;
     set('temp', `${num(d.temp)}°`, tempColor(d.temp));
     set('max', d.max != null ? `${num(d.max)}°` : '—', tempColor(d.max));
     set('min', d.min != null ? `${num(d.min)}°` : '—', tempColor(d.min));

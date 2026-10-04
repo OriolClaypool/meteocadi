@@ -5,7 +5,11 @@
 // Ara el servidor fa com a màxim 12 crides cada 15 minuts, independentment de les visites.
 //
 // Per estació retorna: lectura actual, màxima/mínima/ratxa d'avui i la sèrie d'avui cada 15 min.
+// Control de qualitat (src/lib/qc.js): els valors impossibles o incoherents amb les veïnes surten a null, i
+// l'estació porta bad: ['rain', 'wind', 'temp'] amb el que s'ha descartat. Si els sensors exteriors no donen
+// res (temperatura, humitat i vent buits), l'estació surt com a down (fora de servei) i també stale.
 import { STATIONS } from '../src/lib/stations.js';
+import { LIMITS, clean, despike, rainSuspects, windSuspects, tempSuspects } from '../src/lib/qc.js';
 import { onlyCleanUrl } from './_net.js';
 
 const KEY = () => process.env.WU_API_KEY || 'b146442062ee4f8a86442062ee4f8acd';
@@ -16,6 +20,9 @@ function todayMadrid(d = new Date()) {
 }
 
 const r1 = (v) => (v == null || isNaN(v) ? null : Math.round(Number(v) * 10) / 10);
+const T = (v) => r1(clean(v, LIMITS.temp));
+const MAXOF = (xs) => (xs.length ? Math.max(...xs) : null);
+const MINOF = (xs) => (xs.length ? Math.min(...xs) : null);
 
 async function getJson(url) {
   const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
@@ -31,39 +38,54 @@ async function fromAllDay(id) {
   const last = obs[obs.length - 1];
   const m = last.metric;
   const today = todayMadrid();
-  const todays = obs.filter((o) => String(o.obsTimeLocal || '').slice(0, 10) === today);
-  const pool = todays.length ? todays : [last];
-  const hi = Math.max(...pool.map((o) => o.metric.tempHigh ?? o.metric.tempAvg ?? -99));
-  const lo = Math.min(...pool.map((o) => o.metric.tempLow ?? o.metric.tempAvg ?? 99));
-  const gustMax = Math.max(...pool.map((o) => o.metric.windgustHigh ?? 0));
+  // Temperatura de cada lectura, sense valors impossibles ni pics aïllats
+  const tAvg = despike(obs.map((o) => o.epoch), obs.map((o) => T(o.metric.tempAvg)));
+  const bad = new Set(obs.map((o, i) => (T(o.metric.tempAvg) != null && tAvg[i] == null ? i : -1)).filter((i) => i >= 0));
+  const todays = obs.map((o, i) => i).filter((i) => String(obs[i].obsTimeLocal || '').slice(0, 10) === today);
+  const pool = todays.length ? todays : [obs.length - 1];
+  // Màxima i mínima de cada lectura (si s'allunya més de 6 °C de la mitjana de la mateixa lectura, és un pic)
+  const ext = (i, k) => {
+    const a = tAvg[i];
+    const e = T(obs[i].metric[k]);
+    if (bad.has(i)) return null;
+    return e != null && (a == null || Math.abs(e - a) <= 6) ? e : a;
+  };
+  const hi = MAXOF(pool.map((i) => ext(i, 'tempHigh')).filter((v) => v != null));
+  const lo = MINOF(pool.map((i) => ext(i, 'tempLow')).filter((v) => v != null));
+  const gustMax = MAXOF(pool.map((i) => clean(obs[i].metric.windgustHigh, LIMITS.gust)).filter((v) => v != null));
 
   // Sèrie cada 15 minuts (per a minigràfics i gràfics de la pàgina de l'estació)
   const series = { t: [], temp: [], wind: [], gust: [], rain: [], hum: [] };
-  let lastSlot = -1;
-  for (const o of obs) {
+  // Una lectura per quart d'hora: la primera amb temperatura vàlida (si un pic s'ha descartat, la següent)
+  const slots = new Map();
+  obs.forEach((o, i) => {
     const slot = Math.floor(o.epoch / 900);
-    if (slot === lastSlot) continue;
-    lastSlot = slot;
+    const cur = slots.get(slot);
+    if (cur == null || (tAvg[cur] == null && tAvg[i] != null)) slots.set(slot, i);
+  });
+  [...slots.values()].forEach((i) => {
+    const o = obs[i];
     series.t.push(o.epoch);
-    series.temp.push(r1(o.metric.tempAvg));
-    series.wind.push(r1(o.metric.windspeedAvg));
-    series.gust.push(r1(o.metric.windgustHigh));
-    series.rain.push(r1(o.metric.precipTotal));
-    series.hum.push(o.humidityAvg ?? null);
-  }
+    series.temp.push(tAvg[i]);
+    series.wind.push(r1(clean(o.metric.windspeedAvg, LIMITS.wind)));
+    series.gust.push(r1(clean(o.metric.windgustHigh, LIMITS.gust)));
+    series.rain.push(r1(clean(o.metric.precipTotal, LIMITS.rain)));
+    series.hum.push(clean(o.humidityAvg, LIMITS.hum));
+  });
 
+  const li = obs.length - 1;
   return {
-    temp: r1(m.tempAvg),
-    dewpt: r1(m.dewptAvg),
-    windchill: r1(m.windchillAvg),
-    heatindex: r1(m.heatindexAvg),
-    wind: r1(m.windspeedAvg),
-    gust: r1(m.windgustHigh),
-    dir: last.winddirAvg ?? null,
-    hum: last.humidityAvg ?? null,
-    pres: r1(m.pressureMax),
-    rain: r1(m.precipTotal),
-    rainRate: r1(m.precipRate),
+    temp: tAvg[li],
+    dewpt: T(m.dewptAvg),
+    windchill: T(m.windchillAvg),
+    heatindex: T(m.heatindexAvg),
+    wind: r1(clean(m.windspeedAvg, LIMITS.wind)),
+    gust: r1(clean(m.windgustHigh, LIMITS.gust)),
+    dir: clean(last.winddirAvg, LIMITS.dir),
+    hum: clean(last.humidityAvg, LIMITS.hum),
+    pres: r1(clean(m.pressureMax, LIMITS.pres)),
+    rain: r1(clean(m.precipTotal, LIMITS.rain)),
+    rainRate: r1(clean(m.precipRate, LIMITS.rain)),
     max: r1(hi),
     min: r1(lo),
     gustMax: r1(gustMax),
@@ -82,9 +104,10 @@ async function fromCurrent(id) {
   if (!o) throw new Error('no data');
   const m = o.metric || {};
   return {
-    temp: r1(m.temp), dewpt: r1(m.dewpt), windchill: r1(m.windChill), heatindex: r1(m.heatIndex),
-    wind: r1(m.windSpeed), gust: r1(m.windGust), dir: o.winddir ?? null, hum: o.humidity ?? null,
-    pres: r1(m.pressure), rain: r1(m.precipTotal), rainRate: r1(m.precipRate),
+    temp: T(m.temp), dewpt: T(m.dewpt), windchill: T(m.windChill), heatindex: T(m.heatIndex),
+    wind: r1(clean(m.windSpeed, LIMITS.wind)), gust: r1(clean(m.windGust, LIMITS.gust)), dir: clean(o.winddir, LIMITS.dir),
+    hum: clean(o.humidity, LIMITS.hum), pres: r1(clean(m.pressure, LIMITS.pres)), rain: r1(clean(m.precipTotal, LIMITS.rain)),
+    rainRate: r1(clean(m.precipRate, LIMITS.rain)),
     max: null, min: null, gustMax: null,
     epoch: o.epoch ?? null, obsTime: o.obsTimeLocal ?? null, lat: o.lat ?? null, lon: o.lon ?? null,
     series: null,
@@ -104,6 +127,39 @@ async function station(id) {
   }
 }
 
+// Control de qualitat de tota la xarxa (cal comparar cada estació amb les veïnes)
+const OUTDOOR = ['temp', 'dewpt', 'windchill', 'heatindex', 'wind', 'gust', 'dir', 'hum', 'rain', 'rainRate', 'max', 'min', 'gustMax'];
+const DROP = {
+  rain: { keys: ['rain', 'rainRate'], series: ['rain'] },
+  wind: { keys: ['wind', 'gust', 'dir', 'gustMax'], series: ['wind', 'gust'] },
+  temp: { keys: ['temp', 'dewpt', 'windchill', 'heatindex', 'max', 'min'], series: ['temp'] },
+};
+export function qualityControl(stations) {
+  const live = Object.entries(stations).filter(([, d]) => d && !d.stale);
+  const drop = (d, what) => {
+    for (const k of DROP[what].keys) d[k] = null;
+    if (d.series) for (const k of DROP[what].series) d.series[k] = d.series[k].map(() => null);
+    d.bad = [...new Set([...(d.bad || []), what])];
+  };
+  // Fora de servei: la lectura no porta res dels sensors exteriors (només en queda la pressió de la consola)
+  for (const [, d] of live) {
+    if (d.temp == null && d.hum == null && d.wind == null) {
+      for (const k of OUTDOOR) d[k] = null;
+      d.series = null;
+      d.down = true;
+      d.stale = true;
+    }
+  }
+  const ok = live.filter(([, d]) => !d.down);
+  const pick = (k) => Object.fromEntries(ok.map(([id, d]) => [id, d[k]]));
+  for (const id of rainSuspects(pick('rain'))) drop(stations[id], 'rain');
+  for (const id of windSuspects(pick('gustMax'))) drop(stations[id], 'wind');
+  for (const id of tempSuspects(pick('temp'))) drop(stations[id], 'temp');
+  for (const id of tempSuspects(pick('max'), 10)) stations[id].max = null;
+  for (const id of tempSuspects(pick('min'), 10)) stations[id].min = null;
+  return stations;
+}
+
 // Darrera resposta bona, reutilitzada mentre la instància de la funció segueix activa (si la CDN no la té)
 let memo = null;
 
@@ -121,6 +177,7 @@ export default async function handler(req, res) {
     if (d) d.stale = d.epoch ? now - d.epoch > 90 * 60 : false;
     stations[id] = d;
   }
+  qualityControl(stations);
   const ok = out.filter(([, d]) => d && !d.stale).length;
   // Si no ha respost cap estació, no ho guardem a la memòria cau gaire estona
   res.setHeader('Cache-Control', ok ? 'public, s-maxage=900, stale-while-revalidate=1800' : 'public, s-maxage=60');

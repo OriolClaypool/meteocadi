@@ -4,6 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { STATIONS, BY_ID } from './stations.js';
+import { LIMITS, inRange, rainSuspects, windSuspects, tempSuspects } from './qc.js';
 
 const ROOT = path.resolve(process.env.DADES_DIR || 'dades'); // DADES_DIR: només per a proves amb dades inventades
 let _cache = null;
@@ -21,9 +22,10 @@ export function loadDays() {
           const j = JSON.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
           const stations = {};
           for (const [id, v] of Object.entries(j.stations || {})) {
-            if (v && v.tempHigh != null && v.tempLow != null) stations[id] = v;
+            // Sense temperatura vàlida (sensors exteriors apagats, valors de "sense dades"…) l'estació no compta aquell dia
+            if (v && inRange(v.tempHigh, LIMITS.temp) && inRange(v.tempLow, LIMITS.temp) && v.tempHigh >= v.tempLow) stations[id] = { ...v };
           }
-          days.push({ date: j.date || f.slice(0, 10), stations });
+          days.push({ date: j.date || f.slice(0, 10), stations, qc: qcDay(stations) });
         } catch {
           /* fitxer malmès: l'ignorem */
         }
@@ -32,6 +34,22 @@ export function loadDays() {
   }
   _cache = days;
   return days;
+}
+
+// Control de qualitat d'un dia (src/lib/qc.js): la pluja d'un pluviòmetre que no recull i la ratxa d'un anemòmetre
+// encallat queden a null; així cap pàgina (rècords, historial, episodis, estudi, mapa) no les fa servir.
+// Retorna què s'ha descartat ({ rain: [ids], wind: [ids] }).
+function qcDay(stations) {
+  const field = (k, lim) => Object.fromEntries(Object.entries(stations).map(([id, v]) => [id, inRange(v[k], lim) ? Number(v[k]) : null]));
+  for (const v of Object.values(stations)) {
+    if (!inRange(v.precipTotal, LIMITS.rain)) v.precipTotal = null;
+    if (!inRange(v.windgustHigh, LIMITS.gust)) v.windgustHigh = null;
+  }
+  const rain = [...rainSuspects(field('precipTotal', LIMITS.rain))];
+  const wind = [...windSuspects(field('windgustHigh', LIMITS.gust))];
+  for (const id of rain) stations[id].precipTotal = null;
+  for (const id of wind) stations[id].windgustHigh = null;
+  return { rain, wind };
 }
 
 // Dies amb dades d'almenys la meitat de les estacions
@@ -59,6 +77,10 @@ export function suspicious(day) {
     const m = near.length % 2 ? near[(near.length - 1) / 2] : (near[near.length / 2 - 1] + near[near.length / 2]) / 2;
     if (m >= 8 && v.tempHigh - v.tempLow < m * 0.35) out.add(id);
   }
+  // Errors grossos: màxima o mínima a més de 10 °C de les estacions d'altitud semblant
+  const field = (k) => Object.fromEntries(entries.map(([id, v]) => [id, Number(v[k])]));
+  for (const id of tempSuspects(field('tempHigh'), 10)) out.add(id);
+  for (const id of tempSuspects(field('tempLow'), 10)) out.add(id);
   return out;
 }
 
