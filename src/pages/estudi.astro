@@ -1,6 +1,7 @@
 ---
 // Estudi: eina interna (no indexada) per fer les imatges verticals de xarxes.
-// Previsió (text propi), Resum del dia i Rànquing (dades de l'arxiu o d'avui en directe).
+// Previsió (text propi), Resum del dia i Rànquing (dades de l'arxiu o d'avui en directe). El rànquing també es pot
+// fer amb les estacions del Meteocat de tot Catalunya (les 10 primeres).
 import Base from '../layouts/Base.astro';
 import { WEATHER } from '../scripts/estudi/draw.js';
 import EstudiTop from '../components/EstudiTop.astro';
@@ -60,9 +61,13 @@ import EstudiTop from '../components/EstudiTop.astro';
         <!-- ============ RESUM I RÀNQUING ============ -->
         <div data-panel="resum ranquing" hidden>
           <div class="st-edhead"><div><p class="st-eyebrow">DADES DE LA XARXA</p><h1 id="dataTitle">Resum del dia</h1></div></div>
+          <div class="st-field" data-panel="ranquing" hidden>
+            <label>Quines estacions</label>
+            <div class="st-seg" id="rankNet"><button type="button" data-net="mc" aria-pressed="true">Xarxa Meteocadí</button><button type="button" data-net="cat" aria-pressed="false">Tot Catalunya</button></div>
+          </div>
           <div class="st-field">
             <label>Quin dia</label>
-            <div class="st-seg" id="dayChoice"><button type="button" data-choice="ahir" aria-pressed="true">Ahir</button><button type="button" data-choice="avui" aria-pressed="false">Avui fins ara</button><button type="button" data-choice="altre" aria-pressed="false">Un altre dia</button></div>
+            <div class="st-seg" id="dayChoice"><button type="button" data-choice="ahir" aria-pressed="true">Ahir</button><button type="button" data-choice="avui" aria-pressed="false">Avui fins ara</button><button type="button" data-choice="24h" aria-pressed="false" hidden>24 hores</button><button type="button" data-choice="altre" aria-pressed="false">Un altre dia</button></div>
             <input id="otherDate" type="date" hidden />
             <p class="st-note" id="dayNote"></p>
           </div>
@@ -77,7 +82,7 @@ import EstudiTop from '../components/EstudiTop.astro';
             </div>
             <div class="st-field"><label for="sentence">La frase de sota el títol <span>Es pot editar</span></label><textarea id="sentence" rows="3"></textarea><button type="button" class="st-link" id="sentenceReset" style="margin-top:6px;">Tornar a la frase automàtica</button></div>
           </div>
-          <p class="st-note">Les dades de cada dia es desen cada matí cap a les 6. Les estacions amb el dia incomplet no entren als extrems ni al rànquing de temperatures.</p>
+          <p class="st-note" id="dataNote">Les dades de cada dia es desen cada matí cap a les 6. Les estacions amb el dia incomplet no entren als extrems ni al rànquing de temperatures.</p>
         </div>
       </section>
 

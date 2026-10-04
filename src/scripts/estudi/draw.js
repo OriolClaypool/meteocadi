@@ -83,7 +83,8 @@ export function wrap(ctx, text, width) {
       continue;
     }
     let line = '';
-    for (const word of para.trim().split(/\s+/)) {
+    // Només els espais normals separen paraules: els no separables de nbsp() mantenen "10 mm" junt
+    for (const word of para.trim().split(/[ \t]+/)) {
       const test = line ? `${line} ${word}` : word;
       if (ctx.measureText(test).width > width && line) {
         out.push(line);
@@ -157,7 +158,7 @@ function background(ctx, dark) {
   if (dark) contours(ctx);
 }
 
-function footer(ctx, dark, pageLabel = '') {
+function footer(ctx, dark, pageLabel = '', credit = '') {
   ctx.textBaseline = 'middle';
   tracking(ctx, -0.36);
   font(ctx, 'head', 36, 800);
@@ -170,6 +171,11 @@ function footer(ctx, dark, pageLabel = '') {
     ctx.fillStyle = dark ? A.mut2 : L.mut;
     spaced(ctx, pageLabel, X1, FOOT_Y + 30, 2.6, 'right');
   }
+  if (credit) {
+    font(ctx, 'mono', 17);
+    ctx.fillStyle = dark ? A.mut2 : L.mut;
+    spaced(ctx, credit, X1, FOOT_Y + 32, 1.8, 'right');
+  }
   const w = W / 4;
   STRIP.forEach((c, i) => {
     ctx.fillStyle = c;
@@ -180,9 +186,12 @@ function footer(ctx, dark, pageLabel = '') {
 // Data en majúscules i títol de dues línies. Retorna on acaba.
 function header(ctx, eyebrow, l1, l2, c0, c1, c2, top = TOP) {
   ctx.textBaseline = 'middle';
-  font(ctx, 'mono', 24);
+  const eb = eyebrow.toLocaleUpperCase('ca');
+  let es = 24;
+  font(ctx, 'mono', es);
+  while (es > 17 && spacedWidth(ctx, eb, es * 0.14) > X1 - X0) font(ctx, 'mono', --es);
   ctx.fillStyle = c0;
-  spaced(ctx, eyebrow.toLocaleUpperCase('ca'), X0, top + 15, 3.36);
+  spaced(ctx, eb, X0, top + 15, es * 0.14);
   tracking(ctx, -3.36);
   const s1 = fitFont(ctx, 'head', 96, 800, l1, X1 - X0);
   ctx.fillStyle = c1;
@@ -322,10 +331,51 @@ export function rankRows(rows, v) {
     .sort((a, b) => cfg.dir * (b.v - a.v) || b.alt - a.alt);
 }
 
-// Peu de la llista: deixa clar que són les estacions de la xarxa pròpia (al costat del mapa de Catalunya a X)
-function networkCaption(ctx, n, x, y, size, sp, align = 'left') {
-  const a = 'XARXA METEOCADÍ';
-  const b = ` · ${n} ${n === 1 ? 'ESTACIÓ' : 'ESTACIONS'} DEL BERGUEDÀ`;
+// Rànquing de Catalunya: les 10 primeres de les estacions automàtiques del Meteocat (XEMA). La llicència de les
+// dades obertes demana citar-ne la font.
+export const CAT_TOP = 10;
+const CAT_CREDIT = 'DADES: SERVEI METEOROLÒGIC DE CATALUNYA';
+
+// "Catalunya · dissabte 3 d'octubre" (i, de les darreres 24 hores, fins a quina hora)
+function rankEyebrow(d) {
+  const day = `${dayName(d.date)} ${dayMonth(d.date)}`;
+  if (d.net !== 'cat') return day;
+  return `Catalunya · ${day}${d.kind === '24h' && d.time ? ` · fins a les ${d.time}` : ''}`;
+}
+
+// Nom de l'estació a l'amplada: lletra més petita i, si encara no hi cap, sense la part de després del guió
+// ("Os de Balaguer - el Monestir d'Avellanes" → "Os de Balaguer") o retallat amb "…"
+function fitName(ctx, name, maxW, size, min) {
+  fitFont(ctx, 'head', size, 700, name, maxW, min);
+  if (ctx.measureText(name).width <= maxW) return name;
+  const short = name.split(' - ')[0];
+  if (short !== name) {
+    fitFont(ctx, 'head', size, 700, short, maxW, min);
+    if (ctx.measureText(short).width <= maxW) return short;
+  }
+  let t = name;
+  while (t.length > 3 && ctx.measureText(`${t}…`).width > maxW) t = t.slice(0, -1);
+  return `${t.trimEnd()}…`;
+}
+
+// Segona línia de cada fila: altitud (i comarca, a Catalunya), en lletra més petita si cal
+function rowSub(ctx, r, cat, x, y, maxW, size) {
+  const t = cat && r.com ? `${altTxt(r.alt)} · ${r.com}` : altTxt(r.alt);
+  let s = size;
+  font(ctx, 'mono', s);
+  while (s > 14 && ctx.measureText(t).width > maxW) font(ctx, 'mono', --s);
+  ctx.fillStyle = L.mut;
+  ctx.fillText(t, x, y);
+}
+
+// Peu de la llista: deixa clar de quina xarxa són les estacions (al costat del mapa de Catalunya a X).
+// total: a Catalunya, quantes estacions tenien dades (n són les que surten)
+function networkCaption(ctx, n, x, y, size, sp, align = 'left', total = null) {
+  const cat = total != null;
+  const a = cat ? 'XARXA DEL METEOCAT' : 'XARXA METEOCADÍ';
+  const b = !cat
+    ? ` · ${n} ${n === 1 ? 'ESTACIÓ' : 'ESTACIONS'} DEL BERGUEDÀ`
+    : total > n ? ` · LES ${n} PRIMERES DE ${total} ESTACIONS` : ` · ${n} ${n === 1 ? 'ESTACIÓ' : 'ESTACIONS'}`;
   ctx.textBaseline = 'middle';
   font(ctx, 'mono', size);
   const wa = spacedWidth(ctx, a, sp);
@@ -337,8 +387,52 @@ function networkCaption(ctx, n, x, y, size, sp, align = 'left') {
   spaced(ctx, b, x0 + wa + sp, y, sp);
 }
 
+// "a La Tosa d'Alp" → "a la Tosa d'Alp", "a El Prat de Llobregat" → "al Prat de Llobregat"
+const ART = [[/^El /, 'al '], [/^Els /, 'als '], [/^La /, 'a la '], [/^Les /, 'a les '], [/^L'/, "a l'"]];
+function aLloc(name) {
+  for (const [re, to] of ART) if (re.test(name)) return name.replace(re, to);
+  return `a ${name}`;
+}
+
+// Frase automàtica de Catalunya: el primer i el darrer de totes les estacions i quantes passen d'un llindar
+function catSentence(rows, v) {
+  const list = rankRows(rows, v);
+  if (!list.length) return '';
+  const first = list[0];
+  const last = list[list.length - 1];
+  const where = (r) => `${aLloc(r.name)} (${r.com || altTxt(r.alt)})`;
+  const high = (r) => `${aLloc(r.name)} (${altTxt(r.alt)})`;
+  const count = (f) => list.filter(f).length;
+  const above = (ts, f, txt) => {
+    for (const t of ts) {
+      const c = count((r) => f(r.v, t));
+      if (c >= 2) return ` ${txt(c, t)}`;
+    }
+    return '';
+  };
+  if (v === 'max') {
+    return `La més alta, ${num(first.v)} °C ${where(first)}; la més baixa, ${num(last.v)} °C ${high(last)}.`
+      + above([40, 35, 30], (x, t) => x >= t, (c, t) => `${c} estacions van arribar als ${t} °C.`);
+  }
+  if (v === 'min') {
+    const frost = count((r) => r.v < 0);
+    const warm = count((r) => r.v >= 20);
+    return `La més baixa, ${num(first.v)} °C ${high(first)}; la més alta, ${num(last.v)} °C ${where(last)}.`
+      + (frost >= 2 ? ` ${frost} estacions van baixar de 0 °C.` : warm >= 2 ? ` ${warm} estacions no van baixar dels 20 °C.` : '');
+  }
+  if (v === 'pluja') {
+    const wet = count((r) => r.v > 0);
+    if (!wet) return 'Cap estació del Meteocat va recollir pluja.';
+    return `Va ploure a ${wet} de ${list.length} estacions. El màxim, ${num(first.v)} mm ${where(first)}.`
+      + above([200, 100, 50], (x, t) => x > t, (c, t) => `${c} van passar dels ${t} mm.`);
+  }
+  return `La ratxa més forta, ${num(first.v)} km/h ${high(first)}.`
+    + above([120, 100, 90, 70], (x, t) => x > t, (c, t) => `${c} estacions van superar els ${t} km/h.`);
+}
+
 // Frase automàtica (es pot editar a l'estudi)
-export function rankSentence(rows, v) {
+export function rankSentence(rows, v, net = 'mc') {
+  if (net === 'cat') return catSentence(rows, v);
   const list = rankRows(rows, v);
   if (!list.length) return '';
   const first = list[0];
@@ -368,8 +462,12 @@ export function rankSentence(rows, v) {
 export function drawRanking(ctx, d) {
   background(ctx, false);
   const cfg = RANK_VARS[d.variable];
-  const list = rankRows(d.rows, d.variable);
-  let y = header(ctx, `${dayName(d.date)} ${dayMonth(d.date)}`, cfg.t1, d.when, L.blue, L.ink, cfg.color);
+  const cat = d.net === 'cat';
+  const all = rankRows(d.rows, d.variable);
+  const list = cat ? all.slice(0, CAT_TOP) : all;
+  // Columnes: nom (des de NX) i barres (des de BX). A Catalunya els noms són més llargs i les barres, més curtes.
+  const NX = 120, BX = cat ? 500 : 450, BAR = cat ? 330 : 380;
+  let y = header(ctx, rankEyebrow(d), cfg.t1, d.when, L.blue, L.ink, cfg.color);
 
   y += 14;
   const sentence = nbsp(d.sentence);
@@ -377,14 +475,14 @@ export function drawRanking(ctx, d) {
     font(ctx, 'ui', 30);
     ctx.fillStyle = L.ink2;
     ctx.textBaseline = 'middle';
-    const lines = wrap(ctx, sentence, 900).slice(0, 3);
+    const lines = wrap(ctx, sentence, 900).slice(0, cat ? 4 : 3);
     for (const line of lines) {
       ctx.fillText(line, X0, y + 21);
       y += 42;
     }
   }
   y += 30;
-  networkCaption(ctx, list.length, X0, y + 11, 20, 2.2);
+  networkCaption(ctx, list.length, X0, y + 11, 20, 2.2, 'left', cat ? all.length : null);
   y += 38;
   hline(ctx, X0, X1, y, L.ink, 2);
   const vals = list.map((r) => r.v);
@@ -403,7 +501,7 @@ export function drawRanking(ctx, d) {
       s1 = Math.ceil(m + 3);
     }
     const step = s1 - s0 <= 12 ? 2 : s1 - s0 <= 30 ? 5 : 10;
-    sc = { s0, s1, step, x0: 470, x1: 810 };
+    sc = { s0, s1, step, x0: BX + 20, x1: 810 };
     sc.x = (v) => sc.x0 + ((v - sc.s0) / (sc.s1 - sc.s0)) * (sc.x1 - sc.x0);
     // Eix: valors de l'escala a sobre de la primera fila
     ctx.textBaseline = 'middle';
@@ -417,7 +515,7 @@ export function drawRanking(ctx, d) {
     y += 52;
   }
 
-  const RH = Math.min(88, Math.floor((LIMIT - y) / Math.max(list.length, 1)));
+  const RH = Math.min(cat ? 100 : 88, Math.floor((LIMIT - y) / Math.max(list.length, 1)));
 
   if (dots) {
     // Línies verticals de l'escala (la de 0 °C, més marcada)
@@ -438,19 +536,16 @@ export function drawRanking(ctx, d) {
   // Escala de les barres: la més llarga fa 380 px i totes en tenen una mica
   const hi = Math.max(...vals, 0);
   const lo = temp ? Math.min(...vals) - Math.max(2, (hi - Math.min(...vals)) * 0.5) : 0;
-  const BAR = 380;
   list.forEach((r, i) => {
     const cy = y + RH / 2;
     ctx.textBaseline = 'middle';
     font(ctx, 'mono', 26);
     ctx.fillStyle = L.rank;
     ctx.fillText(String(i + 1).padStart(2, '0'), X0, cy);
-    fitFont(ctx, 'head', 32, 700, r.name, 318, 24);
+    const name = cat ? fitName(ctx, r.name, BX - NX - 24, 32, 20) : (fitFont(ctx, 'head', 32, 700, r.name, 318, 24), r.name);
     ctx.fillStyle = L.ink;
-    ctx.fillText(r.name, 120, cy - 12);
-    font(ctx, 'mono', 19);
-    ctx.fillStyle = L.mut;
-    ctx.fillText(altTxt(r.alt), 120, cy + 21);
+    ctx.fillText(name, NX, cy - 12);
+    rowSub(ctx, r, cat, NX, cy + 21, BX - NX - 24, 19);
     if (dots) {
       // Pista de l'escala i punt a la temperatura de l'estació
       ctx.strokeStyle = L.line;
@@ -480,10 +575,10 @@ export function drawRanking(ctx, d) {
     if (len > 0) {
       ctx.fillStyle = barColor;
       ctx.beginPath();
-      ctx.roundRect(450, cy - 17, Math.max(len, 12), 34, 6);
+      ctx.roundRect(BX, cy - 17, Math.max(len, 12), 34, 6);
       ctx.fill();
     }
-    const vx = 450 + (len > 0 ? Math.max(len, 12) + 18 : 0);
+    const vx = BX + (len > 0 ? Math.max(len, 12) + 18 : 0);
     font(ctx, 'mono', 40, 500);
     ctx.fillStyle = temp ? tempColorLight(r.v) : r.v > 0 ? cfg.color : L.rank;
     const txt = temp ? `${num(r.v)}°` : num(r.v);
@@ -497,7 +592,7 @@ export function drawRanking(ctx, d) {
     y += RH;
     hline(ctx, X0, X1, y, L.line);
   });
-  footer(ctx, false);
+  footer(ctx, false, '', cat ? CAT_CREDIT : '');
 }
 
 // Rànquing horitzontal (1600 × 900, per a X i webs): títol i frase a l'esquerra, llista a la dreta
@@ -509,13 +604,18 @@ export function drawRankingWide(ctx, d) {
   ctx.fillStyle = L.bg;
   ctx.fillRect(0, 0, WW, HH);
   const cfg = RANK_VARS[d.variable];
-  const list = rankRows(d.rows, d.variable);
+  const cat = d.net === 'cat';
+  const all = rankRows(d.rows, d.variable);
+  const list = cat ? all.slice(0, CAT_TOP) : all;
 
   // Columna esquerra: data, títol de dues línies (la segona en color) i frase
   ctx.textBaseline = 'middle';
-  font(ctx, 'mono', 21);
+  const eb = rankEyebrow(d).toLocaleUpperCase('ca');
+  let es = 21;
+  font(ctx, 'mono', es);
+  while (es > 14 && spacedWidth(ctx, eb, es * 0.138) > LX1 - LX0) font(ctx, 'mono', --es);
   ctx.fillStyle = L.blue;
-  spaced(ctx, `${dayName(d.date)} ${dayMonth(d.date)}`.toLocaleUpperCase('ca'), LX0, 92, 2.9);
+  spaced(ctx, eb, LX0, 92, es * 0.138);
   tracking(ctx, -2.8);
   const s1 = fitFont(ctx, 'head', 84, 800, cfg.t1, LX1 - LX0);
   const s2 = fitFont(ctx, 'head', 84, 800, d.when, LX1 - LX0);
@@ -536,6 +636,11 @@ export function drawRankingWide(ctx, d) {
   ctx.fillStyle = L.ink;
   ctx.fillText('meteocadi.cat', LX0, 820);
   tracking(ctx, 0);
+  if (cat) {
+    font(ctx, 'mono', 15);
+    ctx.fillStyle = L.mut;
+    spaced(ctx, CAT_CREDIT, LX0, 862, 1.5);
+  }
   const sw = WW / 4;
   STRIP.forEach((c, i) => {
     ctx.fillStyle = c;
@@ -547,16 +652,16 @@ export function drawRankingWide(ctx, d) {
   const temp = d.variable === 'max' || d.variable === 'min';
   const dots = d.variable === 'min' && list.length > 0;
   // Títol de la llista a l'altura de la data de l'esquerra
-  networkCaption(ctx, list.length, RX0, 92, 18, 2.2);
+  networkCaption(ctx, list.length, RX0, 92, 18, 2.2, 'left', cat ? all.length : null);
   let y = 118;
-  const NX = RX0 + 62, BX = RX0 + 420, BAR = 300;
+  const NX = RX0 + 62, BX = RX0 + (cat ? 450 : 420), BAR = cat ? 270 : 300;
   let sc = null;
   if (dots) {
     let a = Math.floor(Math.min(...vals)) - 1;
     let b = Math.ceil(Math.max(...vals)) + 1;
     if (b - a < 6) { const m = (a + b) / 2; a = Math.floor(m - 3); b = Math.ceil(m + 3); }
     const step = b - a <= 12 ? 2 : b - a <= 30 ? 5 : 10;
-    sc = { s0: a, s1: b, step, x0: BX, x1: BX + 280 };
+    sc = { s0: a, s1: b, step, x0: BX, x1: BX + (cat ? 250 : 280) };
     sc.x = (v) => sc.x0 + ((v - sc.s0) / (sc.s1 - sc.s0)) * (sc.x1 - sc.x0);
     ctx.textAlign = 'center';
     font(ctx, 'mono', 17);
@@ -592,12 +697,10 @@ export function drawRankingWide(ctx, d) {
     font(ctx, 'mono', 22);
     ctx.fillStyle = L.rank;
     ctx.fillText(String(i + 1).padStart(2, '0'), RX0, cy);
-    fitFont(ctx, 'head', Math.min(28, RH * 0.42), 700, r.name, BX - NX - 24, 18);
+    const name = cat ? fitName(ctx, r.name, BX - NX - 24, Math.min(28, RH * 0.42), 18) : (fitFont(ctx, 'head', Math.min(28, RH * 0.42), 700, r.name, BX - NX - 24, 18), r.name);
     ctx.fillStyle = L.ink;
-    ctx.fillText(r.name, NX, cy - RH * 0.15);
-    font(ctx, 'mono', Math.min(17, RH * 0.26));
-    ctx.fillStyle = L.mut;
-    ctx.fillText(altTxt(r.alt), NX, cy + RH * 0.22);
+    ctx.fillText(name, NX, cy - RH * 0.15);
+    rowSub(ctx, r, cat, NX, cy + RH * 0.22, BX - NX - 24, Math.floor(Math.min(17, RH * 0.26)));
     if (dots) {
       ctx.strokeStyle = L.line;
       ctx.lineWidth = 6;

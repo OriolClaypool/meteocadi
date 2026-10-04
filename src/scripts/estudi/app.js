@@ -13,6 +13,7 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } },
 };
 const K_TAB = 'meteocadi-estudi-tab';
+const K_NET = 'meteocadi-estudi-xarxa';
 const K_PV = 'meteocadi-estudi-previsio-v1';
 
 function addDays(iso, n) {
@@ -119,18 +120,21 @@ export async function startEstudi() {
   let choice = 'ahir';
   let rankVar = 'max';
   let rankFmt = 'story'; // 'story' (1080 × 1920) o 'wide' (1600 × 900, per a X)
+  // Rànquing de la xarxa pròpia ('mc') o de les estacions del Meteocat de tot Catalunya ('cat')
+  let rankNet = store.get(K_NET) === 'cat' ? 'cat' : 'mc';
   let sentence = { key: '', text: '', edited: false };
+  const NOTES = {
+    mc: "Les dades de cada dia es desen cada matí cap a les 6. Les estacions amb el dia incomplet no entren als extrems ni al rànquing de temperatures.",
+    cat: "Estacions automàtiques del Servei Meteorològic de Catalunya (XEMA), de les dades obertes de la Generalitat, amb uns 45-75 minuts de retard. Surten les 10 primeres; les que tenen més de 2 hores sense dades no entren al rànquing de temperatures.",
+  };
+  const catMode = () => tpl === 'ranquing' && rankNet === 'cat';
 
   async function getArchive() {
     if (archive) return archive;
     const r = await fetch('/estudi-dades.json', { cache: 'no-cache' });
     if (!r.ok) throw new Error('arxiu');
     archive = await r.json();
-    const dates = archive.days.map((d) => d.date);
-    if (dates.length) {
-      $('otherDate').min = dates[0];
-      $('otherDate').max = dates[dates.length - 1];
-    }
+    syncNet();
     return archive;
   }
 
@@ -143,8 +147,51 @@ export async function startEstudi() {
     return live;
   }
 
+  // Estacions del Meteocat (/api/xema): les d'avui i les de les darreres 24 h es tornen a demanar al cap de 5 minuts;
+  // els dies tancats ja no canvien
+  const xcache = new Map();
+  async function getXema(url, liveData) {
+    const c = xcache.get(url);
+    if (c && (!liveData || Date.now() - c.at < 5 * 60 * 1000)) return c.j;
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('xema');
+    const j = await r.json();
+    if (j.error) throw new Error('xema');
+    xcache.set(url, { at: Date.now(), j });
+    return j;
+  }
+
+  async function xemaData() {
+    const today = todayMadrid();
+    const yest = addDays(today, -1);
+    let kind, date, url;
+    if (choice === 'avui') [kind, date, url] = ['avui', today, '/api/xema'];
+    else if (choice === '24h') [kind, date, url] = ['24h', today, '/api/xema/24h'];
+    else {
+      date = choice === 'ahir' ? yest : $('otherDate').value || yest;
+      if (date > yest) date = yest;
+      [kind, url] = [date === yest ? 'ahir' : 'dia', `/api/xema/${date}`];
+    }
+    const j = await getXema(url, kind === 'avui' || kind === '24h');
+    const rows = (j.stations || []).map((s) => ({
+      id: s.id, name: s.name, alt: s.alt ?? 0, com: s.com, max: s.tmax, min: s.tmin, gust: s.gust, rain: s.rain, susp: !!s.inc,
+    }));
+    let time = '', note = '';
+    if (kind !== 'ahir' && kind !== 'dia' && j.latest) {
+      const end = new Date(j.latest);
+      time = hourMadrid(end);
+      // Les 24 hores acaben avui (o a mitjanit, és a dir, ahir)
+      date = todayMadrid(new Date(end.getTime() - 60e3));
+      note = kind === '24h'
+        ? `Les 24 hores que acaben a les ${time}, la darrera lectura del Meteocat.`
+        : `Dades del Meteocat fins a les ${time}. S'actualitzen cada mitja hora.`;
+    }
+    return { date, kind, time, rows, note, net: 'cat' };
+  }
+
   // Retorna { date, kind, time, rows, note }
   async function dayData() {
+    if (catMode()) return xemaData();
     const today = todayMadrid();
     const yest = addDays(today, -1);
     if (choice === 'avui') {
@@ -214,7 +261,9 @@ export async function startEstudi() {
       d = await dayData();
     } catch {
       if (seq !== drawSeq) return;
-      $('status').textContent = choice === 'avui' ? "No s'han pogut carregar les dades en directe." : "No s'ha pogut carregar l'arxiu de dades.";
+      $('status').textContent = catMode()
+        ? "No s'han pogut carregar les dades del Meteocat. Torna-ho a provar d'aquí a una estona."
+        : choice === 'avui' ? "No s'han pogut carregar les dades en directe." : "No s'ha pogut carregar l'arxiu de dades.";
       $('download').disabled = true;
       return;
     }
@@ -229,11 +278,12 @@ export async function startEstudi() {
     if (tpl === 'resum') {
       drawResum(ctx, d);
     } else {
-      const key = `${d.date}|${rankVar}|${d.kind}`;
-      if (sentence.key !== key) sentence = { key, text: rankSentence(d.rows, rankVar), edited: false };
+      const net = d.net || 'mc';
+      const key = `${d.date}|${rankVar}|${d.kind}|${net}`;
+      if (sentence.key !== key) sentence = { key, text: rankSentence(d.rows, rankVar, net), edited: false };
       if ($('sentence').value !== sentence.text) $('sentence').value = sentence.text;
-      const when = d.kind === 'ahir' ? "d'ahir" : d.kind === 'avui' ? "d'avui" : delDia(d.date);
-      (rankFmt === 'wide' ? drawRankingWide : drawRanking)(ctx, { date: d.date, when, variable: rankVar, rows: d.rows, sentence: sentence.text });
+      const when = d.kind === 'ahir' ? "d'ahir" : d.kind === 'avui' ? "d'avui" : d.kind === '24h' ? 'de les darreres 24 h' : delDia(d.date);
+      (rankFmt === 'wide' ? drawRankingWide : drawRanking)(ctx, { date: d.date, when, variable: rankVar, rows: d.rows, sentence: sentence.text, net, kind: d.kind, time: d.time });
     }
     lastData = d;
   }
@@ -242,10 +292,46 @@ export async function startEstudi() {
   function syncTpl() {
     document.querySelectorAll('[data-tpl]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.tpl === tpl)));
     document.querySelectorAll('[data-panel]').forEach((p) => (p.hidden = !p.dataset.panel.split(' ').includes(tpl)));
-    $('dataTitle').textContent = tpl === 'resum' ? 'Resum del dia' : 'Rànquing';
     $('saveStatus').hidden = tpl !== 'previsio';
     page = 0;
+    syncNet();
   }
+
+  // Xarxa del rànquing: "24 hores" només hi és amb les estacions del Meteocat (de les nostres només hi ha dies
+  // sencers a l'arxiu i el d'avui des de mitjanit). Les dates possibles també canvien.
+  function syncNet() {
+    const cat = catMode();
+    document.querySelectorAll('[data-net]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.net === rankNet)));
+    const b24 = document.querySelector('[data-choice="24h"]');
+    b24.hidden = !cat;
+    // Amb quatre botons, "Avui fins ara" no hi cap en una línia
+    document.querySelector('[data-choice="avui"]').textContent = cat ? 'Avui' : 'Avui fins ara';
+    if (!cat && choice === '24h') {
+      choice = 'avui';
+      document.querySelectorAll('[data-choice]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.choice === choice)));
+    }
+    $('dataNote').textContent = NOTES[cat ? 'cat' : 'mc'];
+    $('dataTitle').textContent = tpl === 'resum' ? 'Resum del dia' : cat ? 'Rànquing de Catalunya' : 'Rànquing';
+    const od = $('otherDate');
+    if (cat) {
+      od.min = '2010-01-01';
+      od.max = addDays(todayMadrid(), -1);
+    } else if (archive?.days?.length) {
+      od.min = archive.days[0].date;
+      od.max = archive.days[archive.days.length - 1].date;
+    } else {
+      od.removeAttribute('min');
+      od.removeAttribute('max');
+    }
+  }
+  document.querySelectorAll('[data-net]').forEach((b) =>
+    b.addEventListener('click', () => {
+      rankNet = b.dataset.net;
+      store.set(K_NET, rankNet);
+      syncNet();
+      draw();
+    }),
+  );
   document.querySelectorAll('[data-tpl]').forEach((b) =>
     b.addEventListener('click', () => {
       tpl = b.dataset.tpl;
@@ -462,7 +548,9 @@ export async function startEstudi() {
     const n = (d) => d.replaceAll('-', '');
     if (tpl === 'previsio') return `meteocadi-previsio-${n(pv.date)}${pvLayout?.pages.length > 1 ? `-${page + 1}` : ''}.png`;
     const date = lastData?.date || todayMadrid();
-    return tpl === 'resum' ? `meteocadi-resum-${n(date)}.png` : `meteocadi-ranquing-${rankVar}-${n(date)}${rankFmt === 'wide' ? '-horitzontal' : ''}.png`;
+    if (tpl === 'resum') return `meteocadi-resum-${n(date)}.png`;
+    const cat = lastData?.net === 'cat';
+    return `meteocadi-ranquing-${cat ? 'catalunya-' : ''}${rankVar}-${n(date)}${cat && lastData.kind === '24h' ? `-24h-${lastData.time.replace(':', '')}` : ''}${rankFmt === 'wide' ? '-horitzontal' : ''}.png`;
   }
   async function blob() {
     await document.fonts.ready;

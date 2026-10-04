@@ -63,10 +63,11 @@ const latestRows = (now) =>
     $limit: '20000',
   });
 
-// Màxima, mínima, pluja i ratxa de cada estació entre start (inclòs) i end (exclòs, o fins ara)
+// Màxima, mínima, pluja i ratxa de cada estació entre start (inclòs) i end (exclòs, o fins ara), amb el nombre de
+// lectures (nn) per saber si hi falten dades
 const aggRows = (start, end) =>
   get('nzvn-apee.json', {
-    $select: 'codi_estacio,codi_variable,max(valor_lectura) as mx,min(valor_lectura) as mn,sum(valor_lectura) as sm',
+    $select: 'codi_estacio,codi_variable,max(valor_lectura) as mx,min(valor_lectura) as mn,sum(valor_lectura) as sm,count(valor_lectura) as nn',
     $where: `data_lectura>='${floating(start)}'${end ? ` AND data_lectura<'${floating(end)}'` : ''} AND codi_variable in('40','42','35','50','53','56')`,
     $group: 'codi_estacio,codi_variable',
     $limit: '5000',
@@ -123,6 +124,15 @@ export async function xemaData(period, now = new Date()) {
     return null;
   };
 
+  // Lectures semihoràries que hi hauria d'haver al període. Si a una estació li'n falten més de 4 (2 hores) de
+  // temperatura, la màxima i la mínima poden no ser les reals: es marca amb inc (com les "susp" de la xarxa pròpia)
+  const until = live ? lastEnd || now : end;
+  const expected = Math.round((until.getTime() - start.getTime()) / (30 * 60e3));
+  const incomplete = (id) => {
+    const nn = n(agg[`${id}|40`]?.nn);
+    return nn != null && nn < expected - 4;
+  };
+
   const stations = stationsMeta
     .map((s) => {
       const id = s.codi_estacio;
@@ -148,6 +158,7 @@ export async function xemaData(period, now = new Date()) {
         rain: r1(A(id, 'sm', '35')),
         rain1h: r35[id]?.length ? r1(r35[id].reduce((a, b) => a + b, 0)) : null,
         gust: kmh(A(id, 'mx', '50', '53', '56')),
+        ...(incomplete(id) ? { inc: true } : {}),
       };
     })
     .filter((s) => s.lat != null && s.lng != null && (live ? s.t != null || s.rain != null || s.wind != null : s.tmax != null || s.rain != null || s.gust != null));
