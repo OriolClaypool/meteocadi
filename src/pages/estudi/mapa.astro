@@ -87,7 +87,7 @@ import CatalunyaMapa from '../../components/CatalunyaMapa.astro';
         if (!blob) return;
         const day = todayMadrid(snap.when);
         const hhmm = hourMadrid(snap.when).replace(':', '');
-        const name = `meteocadi-catalunya-${snap.key}-${day}-${hhmm}${b.dataset.f === 'story' ? '-historia' : b.dataset.f === 'wide' ? '-horitzontal' : ''}.png`;
+        const name = `meteocadi-catalunya-${snap.key}${snap.suffix || ''}-${day}-${hhmm}${b.dataset.f === 'story' ? '-historia' : b.dataset.f === 'wide' ? '-horitzontal' : ''}.png`;
         if (dlgUrl) URL.revokeObjectURL(dlgUrl);
         dlgUrl = URL.createObjectURL(blob);
         dlgFile = new File([blob], name, { type: 'image/png' });
