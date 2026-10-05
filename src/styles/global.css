@@ -480,8 +480,8 @@ button { font: inherit; }
 .road__cam { margin: 0; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); background: #0b1524; }
 .road__cam img { display: block; width: 100%; height: auto; aspect-ratio: 704 / 480; background: #0b1524; }
 .road__cam figcaption { padding: 10px 14px; font-size: 13px; color: #c3cfde; }
-.road__cam.is-off img { display: none; }
-.road__cam.is-off figcaption::before { content: attr(data-off) ' · '; }
+/* Una càmera que no dona imatge (l'SCT la té apagada o l'ha retirada) no es mostra: un requadre buit no serveix */
+.road__cam.is-off { display: none; }
 
 /* Episodis destacats */
 .ep-type { display: inline-block; margin: 18px 0 12px; font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ep, var(--accent)); font-weight: 600; }

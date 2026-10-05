@@ -176,7 +176,7 @@ export async function startEstudi() {
     }
     const j = await getXema(url, kind === 'avui' || kind === '24h');
     const rows = (j.stations || []).map((s) => ({
-      id: s.id, name: s.name, alt: s.alt ?? 0, com: s.com, max: s.tmax, min: s.tmin, gust: s.gust, rain: s.rain, susp: !!s.inc,
+      id: s.id, name: s.name, alt: s.alt ?? 0, com: s.com, max: s.tmax, min: s.tmin, gust: s.gust, rain: s.rinc ? null : s.rain, susp: !!s.inc,
     }));
     let time = '', note = '';
     if (kind !== 'ahir' && kind !== 'dia' && j.latest) {
