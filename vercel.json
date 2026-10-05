@@ -400,6 +400,9 @@
     "api/vent.js": {
       "maxDuration": 30
     },
+    "api/xema.js": {
+      "maxDuration": 30
+    },
     "api/xema/[periode].js": {
       "maxDuration": 30
     }

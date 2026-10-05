@@ -187,6 +187,7 @@ export async function startEstudi() {
       note = kind === '24h'
         ? `Les 24 hores que acaben a les ${time}, la darrera lectura del Meteocat.`
         : `Dades del Meteocat fins a les ${time}. S'actualitzen cada mitja hora.`;
+      if (j.stale) note += " Ara el portal de Meteocat no respon: són les darreres dades bones.";
     }
     return { date, kind, time, rows, note, net: 'cat' };
   }

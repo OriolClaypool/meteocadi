@@ -7,6 +7,8 @@
 import { xemaData, xemaRange, ymdMadrid } from '../_xema.js';
 
 const FIRST = '2010-01-01';
+// Darrera resposta bona de les darreres 24 hores (vegeu api/xema.js): si el portal falla, es fa servir marcada amb stale
+let memo24 = null;
 const MAX_DAYS = 31;
 const isDay = (d) => /^\d{4}-\d{2}-\d{2}$/.test(d || '') && !isNaN(Date.parse(`${d}T12:00:00Z`)) && d >= FIRST;
 const span = (a, b) => Math.round((Date.parse(`${b}T12:00:00Z`) - Date.parse(`${a}T12:00:00Z`)) / 864e5) + 1;
@@ -40,10 +42,15 @@ export default async function handler(req, res) {
     // Un dia (o uns quants) acabat fa més de 6 hores ja no canvia (les dades arriben amb una hora de retard): 30 dies a la CDN
     const closed = period.kind !== '24h' && now.getTime() - Date.parse(body.period.end) > 6 * 3600e3;
     res.setHeader('Cache-Control', closed ? 'public, s-maxage=2592000, stale-while-revalidate=86400' : 'public, s-maxage=900, stale-while-revalidate=1800');
+    if (period.kind === '24h') memo24 = { at: Date.now(), body };
     res.status(200).json(body);
   } catch (e) {
     console.error('[xema]', periode, String(e));
     res.setHeader('Cache-Control', 'public, s-maxage=60');
+    if (period.kind === '24h' && memo24 && Date.now() - memo24.at < 3 * 3600e3) {
+      res.status(200).json({ ...memo24.body, stale: true });
+      return;
+    }
     res.status(200).json({ updated: now.toISOString(), error: true, stations: [] });
   }
 }
