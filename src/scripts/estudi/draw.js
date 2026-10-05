@@ -2,7 +2,7 @@
 // Tres plantilles amb el mateix sistema: capçalera (data + títol en dues línies, la segona en color),
 // contingut i peu amb meteocadi.cat. Marges pensats per a Stories: capçalera a 180 px, peu a ~1.700 px.
 import { tempColor, num, dayName, dayMonth, cap } from '../../lib/format.js';
-import { SCALES, fieldColor, readableOn } from '../../lib/escales.js';
+import { SCALES, fieldColor, readableOn, rainClasses } from '../../lib/escales.js';
 
 export const W = 1080;
 export const H = 1920;
@@ -343,8 +343,11 @@ const valueColor = (variable, v) => (variable === 'pluja' && v < 0.1 ? L.rank : 
 
 // Llegenda de l'escala (com la del mapa): una casella per classe o tram amb el valor a sota, i el títol a sobre.
 // Retorna l'alçada que ocupa. Si les xifres no hi caben, només se n'escriu una de cada dues.
-function drawScale(ctx, variable, x0, x1, y, { sw = 22, fs = 17, cs = 16, gap = 4 } = {}) {
-  const stops = SCALES[SCALE_OF[variable]].stops;
+// max: el valor més alt del rànquing; a la pluja, la llegenda mostra les mateixes classes que el mapa (rainClasses)
+function drawScale(ctx, variable, x0, x1, y, { sw = 22, fs = 17, cs = 16, gap = 4, max = null } = {}) {
+  const all = SCALES[SCALE_OF[variable]].stops;
+  const keep = variable === 'pluja' ? new Set(rainClasses(max ?? 0).steps) : null;
+  const stops = keep ? all.filter(([v]) => keep.has(v)) : all;
   const n = stops.length;
   const w = (x1 - x0 - gap * (n - 1)) / n;
   ctx.textBaseline = 'middle';
@@ -648,7 +651,7 @@ export function drawRanking(ctx, d) {
     y += RH;
     hline(ctx, X0, X1, y, L.line);
   });
-  drawScale(ctx, d.variable, X0, X1, F.legend, F.leg);
+  drawScale(ctx, d.variable, X0, X1, F.legend, { ...F.leg, max: Math.max(0, ...vals) });
   footer(ctx, false, '', cat ? CAT_CREDIT : '', F.foot, F.H);
 }
 
@@ -689,7 +692,7 @@ export function drawRankingWide(ctx, d) {
     wrap(ctx, sentence, LX1 - LX0).slice(0, 6).forEach((line, i) => ctx.fillText(line, LX0, 330 + i * 40));
   }
   // Llegenda de colors a sota de la frase (a l'altura on acaba la columna)
-  drawScale(ctx, d.variable, LX0, LX1, 690, { sw: 18, fs: 13, cs: 13, gap: 3 });
+  drawScale(ctx, d.variable, LX0, LX1, 690, { sw: 18, fs: 13, cs: 13, gap: 3, max: Math.max(0, ...list.map((r) => r.v).filter((v) => v != null)) });
   tracking(ctx, -0.36);
   font(ctx, 'head', 36, 800);
   ctx.fillStyle = L.ink;

@@ -136,6 +136,9 @@ const { internal = false } = Astro.props;
   import { STATIONS } from '../lib/stations.js';
   import CONTORN from '../lib/catalunya-contorn.json';
   import { FB, FIELD, HI, computeField, comarquesMask, toCanvas, fieldColor } from '../scripts/camp.js';
+  import { rainClasses } from '../lib/escales.js';
+  // Classes de pluja del mapa d'ara (es recalculen a cada dibuix segons el valor més alt)
+  let rainScale = rainClasses(0);
   // Etiquetes i llegenda amb la mateixa escala que el mapa de color
   const fc = (key: string) => (v: number) => fieldColor(key, v);
   import { tempColorLight, num, dirLabel, hourMadrid, todayMadrid, dayName, dayMonth, longDate } from '../lib/format.js';
@@ -151,7 +154,7 @@ const { internal = false } = Astro.props;
     { key: 't', label: 'Temperatura', legend: 'Temperatura ara (°C)', title: ['Temperatura', 'ara a Catalunya'], accent: '#c2410c', unit: 'Temperatura (°C)', fmt: (v: number) => num(v), color: fc('t'), steps: [-5, 0, 5, 10, 15, 20, 25, 30, 35], two: true },
     { key: 'tmax', label: 'Màxima', legend: "Màxima d'avui (°C)", noun: 'Màxima', u: '°C', t1: 'Temperatura màxima', title: ['Temperatura màxima', "d'avui a Catalunya"], accent: '#c2410c', unit: 'Màxima (°C)', fmt: (v: number) => num(v), color: fc('tmax'), steps: [0, 5, 10, 15, 20, 25, 30, 35], two: true, today: true },
     { key: 'tmin', label: 'Mínima', legend: "Mínima d'avui (°C)", noun: 'Mínima', u: '°C', t1: 'Temperatura mínima', title: ['Temperatura mínima', "d'avui a Catalunya"], accent: '#0369a1', unit: 'Mínima (°C)', fmt: (v: number) => num(v), color: fc('tmin'), steps: [-10, -5, 0, 5, 10, 15, 20, 25], two: true, low: true, today: true },
-    { key: 'rain', label: 'Pluja', legend: "Pluja d'avui (mm)", noun: 'Pluja', u: 'mm', t1: 'Pluja', title: ["Pluja d'avui", 'a Catalunya'], accent: '#1d4ed8', unit: 'Pluja (mm)', fmt: (v: number) => num(v), color: (v: number) => (v < 0.1 ? '#e2e8f0' : fieldColor('rain', v)), steps: [0.1, 0.5, 1, 2, 5, 10, 20, 35, 50, 65, 80, 100, 150, 200], more: [300, 400], today: true },
+    { key: 'rain', label: 'Pluja', legend: "Pluja d'avui (mm)", noun: 'Pluja', u: 'mm', t1: 'Pluja', title: ["Pluja d'avui", 'a Catalunya'], accent: '#1d4ed8', unit: 'Pluja (mm)', fmt: (v: number) => num(v), color: (v: number) => (v < rainScale.floor ? '#e2e8f0' : fieldColor('rain', v)), steps: [], today: true },
     { key: 'gust', label: 'Ratxa màxima', legend: "Ratxa màxima d'avui (km/h)", noun: 'Ratxa màxima', u: 'km/h', t1: 'Ratxa màxima de vent', title: ['Ratxa màxima de vent', "d'avui a Catalunya"], accent: '#b45309', unit: 'Ratxa màxima (km/h)', fmt: (v: number) => String(Math.round(v)), color: fc('gust'), steps: [10, 20, 30, 40, 55, 70, 90], today: true },
     { key: 'wind', label: 'Vent', legend: 'Vent ara (km/h)', title: ['Vent', 'ara a Catalunya'], accent: '#0f766e', unit: 'Vent (km/h)', fmt: (v: number) => String(Math.round(v)), color: fc('wind'), steps: [10, 20, 30, 40, 55, 70] },
     { key: 'hr', label: 'Humitat', legend: 'Humitat relativa (%)', title: ['Humitat relativa', 'ara a Catalunya'], accent: '#1d4ed8', unit: 'Humitat relativa (%)', fmt: (v: number) => String(Math.round(v)), color: fc('hr'), steps: [30, 50, 70, 85], two: true },
@@ -321,7 +324,7 @@ const { internal = false } = Astro.props;
     if (!mask) mask = comarquesMask(comarques);
     if (cfg.step && !maskHi) maskHi = comarquesMask(comarques, HI);
     const pts = stations.filter((s) => val(s) != null && s.lat != null).map((s) => ({ lat: s.lat, lng: s.lng, alt: s.alt ?? 0, v: val(s) as number }));
-    const f = computeField(pts, cur.key, { mask, maskHi, dem: demState === 'ok' ? dem : null, alpha: 1 });
+    const f = computeField(pts, cur.key, { mask, maskHi, dem: demState === 'ok' ? dem : null, alpha: 1, min: cur.key === 'rain' ? rainScale.floor : null });
     if (!f) return;
     const url = toCanvas(f.web).toDataURL();
     const bounds: any = [[FB.lat0, FB.lng0], [FB.lat1, FB.lng1]];
@@ -366,7 +369,8 @@ const { internal = false } = Astro.props;
   const lgEl = corner('bottomright', 'cm-lg', document.getElementById('cmBottom')!);
   lgEl.id = 'cmLegend';
   // Pluja: les classes de 300 i 400 mm només surten a la llegenda quan hi ha acumulats tan grans (diversos dies)
-  const stepsOf = (v: any) => (v.more && (period.kind === 'range' || stations.some((s) => (val(s) ?? 0) >= 200)) ? [...v.steps, ...v.more] : v.steps);
+  // Pluja: classes segons el valor més alt (rainClasses: amb acumulats grans, menys classes de baix i més de dalt)
+  const stepsOf = (v: any) => (v.key === 'rain' ? rainScale.steps : v.steps);
   function legend() {
     const el = document.getElementById('cmLegend');
     if (!el) return;
@@ -436,6 +440,7 @@ const { internal = false } = Astro.props;
 
   function draw() {
     capIds = capitals();
+    if (cur.key === 'rain') rainScale = rainClasses(Math.max(0, ...stations.map((s) => val(s) ?? 0)));
     const seen = new Set<string>();
     for (const s of stations) {
       const v = val(s);

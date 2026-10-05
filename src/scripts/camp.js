@@ -85,8 +85,9 @@ const S2 = 2 * 2;
 // alpha: opacitat de la capa "web" (per defecte la de la variable; el mapa la demana a 1 i la regula amb el control d'intensitat)
 // maskHi: la màscara a HI vegades la resolució (comarquesMask(geo, HI)) per a les variables per classes; si no n'hi
 // ha, s'amplia la de la graella.
-export function computeField(pts, key, { mask, maskHi = null, dem = null, alpha = null }) {
-  const cfg = FIELD[key];
+// min: per sota d'aquest valor no es pinta (la pluja l'adapta al màxim del mapa, vegeu rainClasses)
+export function computeField(pts, key, { mask, maskHi = null, dem = null, alpha = null, min = null }) {
+  const cfg = FIELD[key] && min != null ? { ...FIELD[key], min } : FIELD[key];
   if (!cfg || !mask || pts.length < 5) return null;
   let slope = 0;
   const useDem = !!cfg.dem && !!dem;
