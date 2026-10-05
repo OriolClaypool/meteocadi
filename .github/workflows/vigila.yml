@@ -1,0 +1,29 @@
+# Vigila les estacions de la xarxa (scripts/vigila.mjs): obre una incidència quan una estació falla i la tanca quan torna.
+# Hores en UTC: 5:20, 11:20 i 17:20 (7:20, 13:20 i 19:20 a l'estiu).
+name: Vigila les estacions
+
+on:
+  schedule:
+    - cron: '20 5,11,17 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: vigila
+  cancel-in-progress: false
+
+jobs:
+  vigila:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/vigila.mjs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
