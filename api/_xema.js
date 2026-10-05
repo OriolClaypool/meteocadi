@@ -27,11 +27,55 @@ export function midnightOf(ymd) {
   return new Date(Date.parse(`${ymd}T00:00:00Z`) - h * H);
 }
 
+// CSV del portal (primera fila, les columnes; camps entre cometes, "" dins d'un camp és una cometa) → objectes,
+// com els del JSON (els valors també hi arriben com a text; un camp buit queda com a cadena buida)
+export function parseCsv(text) {
+  const rows = [];
+  let row = [], f = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { f += '"'; i++; } else q = false;
+      } else f += c;
+    } else if (c === '"') q = true;
+    else if (c === ',') { row.push(f); f = ''; }
+    else if (c === '\n' || c === '\r') {
+      if (c === '\r' && text[i + 1] === '\n') i++;
+      row.push(f); f = '';
+      if (row.length > 1 || row[0] !== '') rows.push(row);
+      row = [];
+    } else f += c;
+  }
+  if (f !== '' || row.length) { row.push(f); rows.push(row); }
+  const [head, ...body] = rows;
+  return head ? body.map((r) => Object.fromEntries(head.map((h, i) => [h, r[i] ?? '']))) : [];
+}
+
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// El portal de vegades falla uns minuts (errors 500 a la consulta en JSON, el 5/10/2026 mentre actualitzaven el conjunt
+// de dades) i, mentrestant, la mateixa consulta en CSV respon. Ordre: JSON, CSV i, si tot falla, un darrer intent en JSON.
 async function get(path, params) {
-  const url = `${BASE}/${path}?${new URLSearchParams(params)}`;
-  const r = await fetch(url, { signal: AbortSignal.timeout(9000), headers: HEADERS });
-  if (!r.ok) throw new Error(`${path} HTTP ${r.status}`);
-  return r.json();
+  const qs = new URLSearchParams(params);
+  const tryOnce = async (fmt, ms) => {
+    const r = await fetch(`${BASE}/${path.replace(/\.json$/, `.${fmt}`)}?${qs}`, { signal: AbortSignal.timeout(ms), headers: HEADERS });
+    if (!r.ok) throw new Error(`${path} (${fmt}) HTTP ${r.status}`);
+    return fmt === 'csv' ? parseCsv(await r.text()) : r.json();
+  };
+  let first;
+  try {
+    return await tryOnce('json', 9000);
+  } catch (e) {
+    first = e;
+  }
+  try {
+    return await tryOnce('csv', 8000);
+  } catch (e) {
+    console.warn('[xema]', String(first), '·', String(e));
+  }
+  await wait(1500);
+  return tryOnce('json', 6000);
 }
 
 const n = (v) => (v == null || v === '' || isNaN(Number(v)) ? null : Number(v));
