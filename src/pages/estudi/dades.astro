@@ -1,0 +1,134 @@
+---
+// Estudi · dades (intern, no indexat): explorador de l'historial de les estacions de la xarxa, per dies, mesos o anys.
+// Les dades són a /estudi-historic.json (src/pages/estudi-historic.json.js); la lògica, a src/scripts/estudi/dades.js.
+import Base from '../../layouts/Base.astro';
+import EstudiTop from '../../components/EstudiTop.astro';
+const VARS = [['tmax', 'Màxima'], ['tmin', 'Mínima'], ['tavg', 'Mitjana'], ['rain', 'Pluja'], ['gust', 'Ratxa'], ['wind', 'Vent mitjà'], ['hum', 'Humitat'], ['pres', 'Pressió']];
+---
+<Base
+  title="Estudi · Dades | Meteocadí"
+  description="Eina interna de Meteocadí: l'historial de les estacions per dies, mesos o anys."
+  path="/estudi/dades"
+  noindex
+  bare
+>
+  <div class="st">
+    <EstudiTop current="dades" />
+    <div class="wrap dd" id="dRoot">
+      <div class="dd-bar">
+        <div class="dd-grp">
+          <span class="dd-lab">Variable</span>
+          <div class="dd-seg" role="group" aria-label="Variable">
+            {VARS.map(([k, l]) => <button type="button" data-v={k} aria-pressed="false">{l}</button>)}
+          </div>
+          <button type="button" class="dd-tog" id="dCum" aria-pressed="false" hidden>Acumulada</button>
+        </div>
+        <div class="dd-grp">
+          <span class="dd-lab">Agrupa</span>
+          <div class="dd-seg" role="group" aria-label="Agrupa per">
+            <button type="button" data-g="d" aria-pressed="false">Dies</button>
+            <button type="button" data-g="m" aria-pressed="false">Mesos</button>
+            <button type="button" data-g="y" aria-pressed="false">Anys</button>
+          </div>
+        </div>
+        <div class="dd-grp">
+          <span class="dd-lab">Període</span>
+          <label class="dd-date">Del <input type="date" id="dFrom" /></label>
+          <label class="dd-date">al <input type="date" id="dTo" /></label>
+          <div class="dd-seg" role="group" aria-label="Períodes ràpids">
+            <button type="button" data-p="30">30 dies</button>
+            <button type="button" data-p="365">12 mesos</button>
+            <button type="button" data-p="any">Aquest any</button>
+            <button type="button" data-p="tot">Tot</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="dd-st" id="dStations" role="group" aria-label="Estacions (fins a 6)"></div>
+      <p class="dd-status" id="dStatus" role="status">Carregant les dades…</p>
+
+      <section class="dd-card">
+        <div class="dd-head">
+          <h2 id="dTitle"></h2>
+          <div class="dd-legend" id="dLegend"></div>
+        </div>
+        <div class="dd-chart" id="dChart"></div>
+        <div class="dd-tip" id="dTip" hidden></div>
+        <p class="dd-note">Amb menys de la meitat dels dies amb dades, el mes o l'any no surt; amb menys del 80 %, surt més clar (al gràfic) o amb un asterisc (a la taula). Els valors que el control de qualitat descarta (pluviòmetres que no recullen, pics de pluja o de vent impossibles, temperatures de dies incomplets) no hi són.</p>
+      </section>
+
+      <div class="dd-sums" id="dSummary"></div>
+
+      <section class="dd-card">
+        <div class="dd-head">
+          <h2>Taula</h2>
+          <button type="button" class="dd-btn" id="dCsv">Descarrega CSV</button>
+        </div>
+        <div class="tscroll dd-table" id="dTable"></div>
+      </section>
+    </div>
+  </div>
+</Base>
+
+<script>
+  import { mountDades } from '../../scripts/estudi/dades.js';
+  const root = document.getElementById('dRoot');
+  if (root) mountDades(root);
+</script>
+
+<style>
+  .dd { padding-top: 28px; padding-bottom: 60px; display: flex; flex-direction: column; gap: 18px; }
+  .dd-bar { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: center; }
+  .dd-grp { display: flex; flex-wrap: wrap; gap: 8px 10px; align-items: center; }
+  .dd-lab { font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--mut); }
+  .dd-seg { display: inline-flex; flex-wrap: wrap; gap: 4px; background: #eef3f8; padding: 4px; border-radius: 10px; }
+  .dd-seg button, .dd-tog, .dd-btn { border: 0; background: none; padding: 7px 12px; border-radius: 7px; color: var(--mut); font-weight: 600; font-size: 14px; cursor: pointer; }
+  .dd-seg button[aria-pressed='true'] { background: #fff; color: var(--ink); box-shadow: 0 1px 4px rgba(16, 35, 59, 0.1); }
+  .dd-tog { border: 1px solid var(--line); background: #fff; }
+  .dd-tog[aria-pressed='true'] { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .dd-btn { border: 1px solid var(--line); background: #fff; color: var(--ink); }
+  .dd-date { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--mut); }
+  .dd-date input { height: 36px; border: 1px solid var(--line); border-radius: 8px; padding: 0 8px; background: #fff; color: var(--ink); }
+  .dd-st { display: flex; flex-wrap: wrap; gap: 8px; }
+  .dd-st :global(button) { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 7px 14px 7px 10px; font-size: 14px; font-weight: 600; color: var(--mut); cursor: pointer; }
+  .dd-st :global(button i) { width: 12px; height: 12px; border-radius: 50%; background: #d5dde6; flex: none; }
+  .dd-st :global(button small) { font-weight: 500; font-size: 12px; color: #8a98a8; }
+  .dd-st :global(button[aria-pressed='true']) { color: var(--ink); border-color: #b9c6d4; }
+  .dd-status { min-height: 18px; font-size: 14px; color: #9a4a00; margin: 0; }
+  .dd-card { position: relative; background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 20px 22px; }
+  .dd-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 20px; margin-bottom: 10px; }
+  .dd-head h2 { font-family: var(--f-head); font-size: 20px; font-weight: 800; margin: 0; }
+  .dd-legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 14px; }
+  .dd-legend :global(span) { display: inline-flex; align-items: center; gap: 6px; }
+  .dd-legend :global(i), .dd-sums :global(i), .dd-tip :global(i), .dd-table :global(th i) { display: inline-block; width: 12px; height: 12px; border-radius: 3px; flex: none; }
+  .dd-chart { width: 100%; }
+  .dd-chart :global(svg) { display: block; width: 100%; height: auto; }
+  .dd-chart :global(.g) { stroke: #e8eef4; stroke-width: 1; }
+  .dd-chart :global(.g.z) { stroke: #b9c6d4; }
+  .dd-chart :global(.ty) { font: 12px var(--f-mono); fill: var(--mut); text-anchor: end; }
+  .dd-chart :global(.tx) { font: 12px var(--f-mono); fill: var(--mut); text-anchor: middle; }
+  .dd-chart :global(.cross) { stroke: #8a98a8; stroke-width: 1; stroke-dasharray: 3 3; }
+  .dd-chart :global(.dd-empty) { padding: 80px 0; text-align: center; color: var(--mut); }
+  .dd-tip { position: absolute; z-index: 5; pointer-events: none; background: #10233b; color: #fff; border-radius: 10px; padding: 10px 12px; font-size: 13px; min-width: 190px; box-shadow: 0 6px 20px rgba(16, 35, 59, 0.25); }
+  .dd-tip :global(p) { margin: 0 0 6px; font-weight: 700; }
+  .dd-tip :global(div) { display: flex; align-items: center; gap: 8px; }
+  .dd-tip :global(b) { margin-left: auto; font-family: var(--f-mono); font-weight: 600; }
+  .dd-tip :global(small) { color: #a9b6c6; }
+  .dd-note { font-size: 13px; color: var(--mut); margin: 10px 0 0; }
+  .dd-sums { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+  .dd-sums :global(.dd-sum) { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
+  .dd-sums :global(h3) { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 700; margin: 0; }
+  .dd-sums :global(.dd-n) { font-size: 12.5px; color: var(--mut); margin: 4px 0 10px; }
+  .dd-sums :global(dl) { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0; }
+  .dd-sums :global(dt) { font-size: 12px; color: var(--mut); }
+  .dd-sums :global(dd) { margin: 2px 0 0; font-family: var(--f-mono); font-size: 16px; font-weight: 600; }
+  .dd-sums :global(dd small) { display: block; font-family: var(--f-ui); font-size: 11.5px; font-weight: 500; color: var(--mut); }
+  .dd-table { max-height: 520px; overflow: auto; }
+  @media (max-width: 640px) {
+    .dd-st :global(button small) { display: none; }
+    .dd-card { padding: 16px 14px; }
+  }
+  .dd-table :global(th) { position: sticky; top: 0; background: #fff; }
+  .dd-table :global(th i) { margin-right: 6px; vertical-align: -1px; }
+  .dd-table :global(sup) { color: var(--mut); }
+</style>

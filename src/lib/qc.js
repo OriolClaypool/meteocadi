@@ -66,6 +66,64 @@ export function windSuspects(values) {
   return out;
 }
 
+// Pluja impossible en una sola estació: 20 mm o més mentre cap altra estació de la xarxa (com a mínim 3 amb dades)
+// arriba a una desena part ni a 2 mm. Un xàfec local pot deixar molta més pluja en un lloc que en un altre, però no
+// 250 mm al Coll de Pal amb 0 a tot arreu (29/3/2026, un error del pluviòmetre).
+export function rainSpikes(values) {
+  const out = new Set();
+  const ids = Object.keys(values).filter((id) => values[id] != null && BY_ID[id]);
+  for (const id of ids) {
+    const v = values[id];
+    const others = ids.filter((j) => j !== id).map((j) => values[j]);
+    if (v >= 20 && others.length >= 3 && Math.max(...others) < Math.max(2, v / 10)) out.add(id);
+  }
+  return out;
+}
+
+// Ratxa impossible en una sola estació: 100 km/h o més, amb el vent mitjà del dia per sota d'una dotzena part de la
+// ratxa i cap altra estació per sobre del 45 % (l'anemòmetre del Pedraforca en dona de 150 a 210 km/h en dies de
+// calma). Un temporal real a dalt (Tancalaporta, 160 km/h amb 49 km/h de mitjana) no hi entra. gusts i avgs: { id: valor }.
+export function gustSpikes(gusts, avgs = {}) {
+  const out = new Set();
+  const ids = Object.keys(gusts).filter((id) => gusts[id] != null && BY_ID[id]);
+  for (const id of ids) {
+    const g = gusts[id];
+    const others = ids.filter((j) => j !== id).map((j) => gusts[j]);
+    const avg = avgs[id];
+    if (g >= 100 && others.length >= 3 && Math.max(...others) < g * 0.45 && (avg == null || avg < g / 12)) out.add(id);
+  }
+  return out;
+}
+
+// Pluja d'ahir repetida: algunes consoles (la Pobla de Lillet, la Nou de Berguedà i Cerdanyola-Poble) no posen a zero
+// el comptador de pluja a mitjanit sinó una o dues hores més tard, i el resum diari de WU (el valor més alt del dia)
+// torna a donar el total del dia abans. Quan el valor és exactament el mateix que el del dia anterior (1 mm o més),
+// la pluja real d'aquell dia no se sap (és com a molt aquest valor): es deixa a null. prev i cur: { id: valor }.
+export function rainCarryOver(prev, cur) {
+  const out = new Set();
+  for (const [id, v] of Object.entries(cur)) {
+    const p = prev?.[id];
+    if (v != null && p != null && v >= 1 && Math.abs(v - p) < 0.005) out.add(id);
+  }
+  return out;
+}
+
+// Pluja des de mitjanit a partir d'una sèrie del comptador de la consola (precipTotal de cada lectura, en ordre):
+// només compten els increments. Si el comptador es posa a zero més tard de mitjanit, el valor de després és la pluja
+// des de la posada a zero; el primer valor del dia (que pot ser el total d'ahir) és el punt de partida.
+// Retorna l'acumulat a cada lectura.
+export function rainFromCounter(values) {
+  const out = [];
+  let acc = 0, prev = null;
+  for (const v of values) {
+    if (v == null || !Number.isFinite(v) || v < 0) { out.push(prev == null ? null : acc); continue; }
+    if (prev != null) acc += v >= prev ? v - prev : v;
+    prev = v;
+    out.push(Math.round(acc * 100) / 100);
+  }
+  return out;
+}
+
 // Temperatura incoherent: a més de maxDiff graus de la mediana de les estacions d'altitud semblant (±300 m, com a
 // mínim 2). Amb inversió tèrmica hi pot haver diferències grans entre fons de vall i cims, per això només es
 // compara amb estacions de la mateixa franja i el marge és ample: només salten els errors grossos.

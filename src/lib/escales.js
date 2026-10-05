@@ -57,3 +57,9 @@ export function readableOn(hex, bg = '#eef3f8') {
   for (let i = 0; i < 30 && (lb + 0.05) / (lum(r, g, b) + 0.05) < 4.5; i++) [r, g, b] = [r * 0.9, g * 0.9, b * 0.9];
   return `#${hex2(r)}${hex2(g)}${hex2(b)}`;
 }
+
+// Text llegible sobre un color de fons (cel·les de les taules de color de l'historial): blanc o blau fosc
+export function inkOn(hex) {
+  const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b < 0.55 ? '#ffffff' : '#10233b';
+}

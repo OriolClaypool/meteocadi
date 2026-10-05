@@ -1,17 +1,26 @@
 ---
 import Base from '../layouts/Base.astro';
-import { months, latestDay, extremes, completeDays } from '../lib/archive.js';
-import { STATIONS, BY_ID, fmtAlt } from '../lib/stations.js';
+import { months, latestDay, extremes, completeDays, years, stationRecords, firstNightly } from '../lib/archive.js';
+import { STATIONS, BY_ID, fmtAlt, shortName } from '../lib/stations.js';
 import { episodes } from '../lib/episodes.js';
 import EpisodeCards from '../components/EpisodeCards.astro';
 import { num, dayName, dayMonth, longDate, monthName, cap, tempColorLight, desDe } from '../lib/format.js';
+// "14/2/2026"
+const dayMonthYear = (iso) => `${Number(iso.slice(8))}/${Number(iso.slice(5, 7))}/${iso.slice(0, 4)}`;
 
 const ms = months();
 const last = latestDay();
 const all = completeDays();
 const eps = episodes();
 const first = all[0];
+const ys = years();
+const nightly = firstNightly();
+const MES = ['Gen', 'Febr', 'Març', 'Abr', 'Maig', 'Juny', 'Jul', 'Ag', 'Set', 'Oct', 'Nov', 'Des'];
+const mkeys = new Set(ms.map((m) => m.key));
+// Rècords de cada estació, des que publica dades
+const recs = STATIONS.map((s) => ({ s, r: stationRecords(s.id) })).filter((x) => x.r);
 const who = (e) => (e ? `${e.station?.name.split(' - ')[0] ?? ''}` : '');
+const curMonth = ms[0];
 ---
 <Base
   title="Historial i rècords meteorològics del Cadí-Moixeró | Meteocadí"
@@ -22,7 +31,7 @@ const who = (e) => (e ? `${e.station?.name.split(' - ')[0] ?? ''}` : '');
   <section class="phead">
     <div class="wrap">
       <h1>Historial <em>i rècords</em></h1>
-      <p>Cada nit arxivem el resum del dia de totes les estacions de la xarxa. {first && <>Arxiu {desDe(first.date)} ({all.length} dies).</>}</p>
+      <p>El resum de cada dia de totes les estacions de la xarxa, des que cadascuna publica dades.{first && <> Arxiu {desDe(first.date)} de {first.date.slice(0, 4)} ({all.length.toLocaleString('ca-ES')} dies).</>}{nightly && first && nightly > first.date && <> Fins al {dayMonth(nightly)} de {nightly.slice(0, 4)}, recuperat de l'historial de cada estació; des d'aleshores, s'arxiva cada nit.</>}</p>
       <p style="margin-top:10px;"><a href="/episodis" style="font-weight:600;">Episodis destacats ›</a> Pluja intensa, vent fort, calor, fred i primera glaçada.</p>
     </div>
   </section>
@@ -47,7 +56,7 @@ const who = (e) => (e ? `${e.station?.name.split(' - ')[0] ?? ''}` : '');
                         <td class="n" style={`color:${tempColorLight(d.tempHigh)}`}>{num(d.tempHigh)}°</td>
                         <td class="n" style={`color:${tempColorLight(d.tempLow)}`}>{num(d.tempLow)}°</td>
                         <td class="n">{d.windgustHigh != null ? `${num(d.windgustHigh)} km/h` : '—'}</td>
-                        <td class="n">{num(d.precipTotal)} mm</td>
+                        <td class="n">{d.precipTotal != null ? `${num(d.precipTotal)} mm` : '—'}</td>
                         <td class="n">{d.humidityAvg != null ? `${Math.round(d.humidityAvg)} %` : '—'}</td>
                       </>
                     ) : (
@@ -73,24 +82,46 @@ const who = (e) => (e ? `${e.station?.name.split(' - ')[0] ?? ''}` : '');
     </section>
   )}
 
-  {ms.map((m) => (
-    <section class="sec sec--pale" style="padding:64px 0;">
+  <section class="sec sec--pale" style="padding:64px 0;">
+    <div class="wrap" style="display:flex;flex-direction:column;gap:20px;">
+      <div>
+        <h2 class="h2" style="font-size:34px;">Any per any</h2>
+        <p class="sub">Màxima i mínima més extremes, ratxa més forta i estació amb més pluja de cada any. Cada any té el seu resum, amb la pluja i la temperatura de cada mes a cada estació.</p>
+      </div>
+      <div class="years">
+        {ys.map((y) => (
+          <article class="year">
+            <a class="year__y" href={`/historial/${y.year}`}>{y.year}<small>{y.days} dies · {y.stations.length} {y.stations.length === 1 ? 'estació' : 'estacions'}{y.open ? ' · en curs' : ''}</small></a>
+            <div class="year__s">
+              <div>Màxima<b style={`color:${tempColorLight(y.max?.v)}`}>{num(y.max?.v)}°</b>{who(y.max)}</div>
+              <div>Mínima<b style={`color:${tempColorLight(y.min?.v)}`}>{num(y.min?.v)}°</b>{who(y.min)}</div>
+              <div>Ratxa<b>{num(y.gust?.v, 0)} <small style="font-size:13px;">km/h</small></b>{who(y.gust)}</div>
+              <div>Més pluja<b>{y.wettest ? num(y.wettest.v, 0) : '—'} <small style="font-size:13px;">mm</small></b>{y.wettest ? who(y.wettest) : 'Cap any sencer'}</div>
+            </div>
+            <div class="year__m">
+              {MES.map((n, i) => {
+                const k = `${y.year}-${String(i + 1).padStart(2, '0')}`;
+                return mkeys.has(k) ? <a href={`/historial/${k}`}>{n}</a> : <span>{n}</span>;
+              })}
+            </div>
+          </article>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  {curMonth && (
+    <section class="sec" style="padding:64px 0;">
       <div class="wrap" style="display:flex;flex-direction:column;gap:24px;">
         <div>
-          <h2 class="h2" style="font-size:34px;">{cap(monthName(m.month))} de {m.year}</h2>
-          <p class="sub">{m.days} dies arxivats{m.days < 28 ? ` (del ${dayMonth(m.first)} al ${dayMonth(m.last)})` : ''}. <a href={`/historial/${m.key}`} style="font-weight:600;">Resum complet del mes ›</a></p>
+          <h2 class="h2" style="font-size:34px;">{cap(monthName(curMonth.month))} de {curMonth.year}</h2>
+          <p class="sub">{curMonth.days} dies arxivats{curMonth.days < 28 ? ` (del ${dayMonth(curMonth.first)} al ${dayMonth(curMonth.last)})` : ''}. <a href={`/historial/${curMonth.key}`} style="font-weight:600;">Resum complet del mes ›</a></p>
         </div>
-        <div class="recs">
-          <div class="card"><span class="eyebrow">Màxima del mes</span><p class="mono" style={`font-size:30px;color:${tempColorLight(m.max?.v)}`}>{num(m.max?.v)}°</p><p style="font-size:14px;color:var(--muted)">{who(m.max)} · {m.max && `${dayName(m.max.date)} ${dayMonth(m.max.date)}`}</p></div>
-          <div class="card"><span class="eyebrow">Mínima del mes</span><p class="mono" style={`font-size:30px;color:${tempColorLight(m.min?.v)}`}>{num(m.min?.v)}°</p><p style="font-size:14px;color:var(--muted)">{who(m.min)} · {m.min && `${dayName(m.min.date)} ${dayMonth(m.min.date)}`}</p></div>
-          <div class="card"><span class="eyebrow">Ratxa més forta</span><p class="mono" style="font-size:30px;">{num(m.gust?.v)} <small style="font-size:15px;color:var(--muted)">km/h</small></p><p style="font-size:14px;color:var(--muted)">{who(m.gust)} · {m.gust && `${dayName(m.gust.date)} ${dayMonth(m.gust.date)}`}</p></div>
-          <div class="card"><span class="eyebrow">Més pluja acumulada</span><p class="mono" style="font-size:30px;">{num(m.wettest?.v)} <small style="font-size:15px;color:var(--muted)">mm</small></p><p style="font-size:14px;color:var(--muted)">{m.wettest && m.wettest.v > 0 ? who(m.wettest) : 'Cap estació amb pluja'}</p></div>
-        </div>
-        <div class="tscroll" style="background:#fff;border-radius:12px;padding:8px 8px 0;">
+        <div class="tscroll">
           <table class="dtable">
             <thead><tr><th>Dia</th><th class="n">Màxima</th><th>On</th><th class="n">Mínima</th><th>On</th><th class="n">Ratxa</th><th class="n">Pluja màx.</th></tr></thead>
             <tbody>
-              {[...m.daysList].reverse().map((d) => {
+              {[...curMonth.daysList].reverse().map((d) => {
                 const e = extremes(d);
                 return (
                   <tr>
@@ -109,5 +140,33 @@ const who = (e) => (e ? `${e.station?.name.split(' - ')[0] ?? ''}` : '');
         </div>
       </div>
     </section>
-  ))}
+  )}
+
+  {recs.length > 0 && (
+    <section class="sec sec--pale" style="padding:64px 0;">
+      <div class="wrap" style="display:flex;flex-direction:column;gap:20px;">
+        <div>
+          <h2 class="h2" style="font-size:34px;">Rècords <em>de cada estació</em></h2>
+          <p class="sub">Els valors més extrems de cada estació des que publica dades.</p>
+        </div>
+        <div class="tscroll" style="background:#fff;border-radius:12px;padding:8px 8px 0;">
+          <table class="dtable">
+            <thead><tr><th>Estació</th><th class="n">Des de</th><th class="n">Màxima</th><th class="n">Mínima</th><th class="n">Ratxa</th><th class="n">Dia més plujós</th></tr></thead>
+            <tbody>
+              {recs.map(({ s, r }) => (
+                <tr>
+                  <td><a href={`/estacions/${s.slug}`}>{shortName(s)}</a> <small style="color:var(--muted)">{fmtAlt(s.alt)}</small></td>
+                  <td class="n">{r.from.slice(0, 4)}</td>
+                  <td class="n" style={`color:${tempColorLight(r.maxHigh?.v)}`} title={r.maxHigh ? longDate(r.maxHigh.date) : ''}>{num(r.maxHigh?.v)}° <small style="color:var(--muted)">{r.maxHigh && dayMonthYear(r.maxHigh.date)}</small></td>
+                  <td class="n" style={`color:${tempColorLight(r.minLow?.v)}`} title={r.minLow ? longDate(r.minLow.date) : ''}>{num(r.minLow?.v)}° <small style="color:var(--muted)">{r.minLow && dayMonthYear(r.minLow.date)}</small></td>
+                  <td class="n" title={r.maxGust ? longDate(r.maxGust.date) : ''}>{num(r.maxGust?.v, 0)} km/h <small style="color:var(--muted)">{r.maxGust && dayMonthYear(r.maxGust.date)}</small></td>
+                  <td class="n" title={r.maxRain ? longDate(r.maxRain.date) : ''}>{num(r.maxRain?.v)} mm <small style="color:var(--muted)">{r.maxRain && dayMonthYear(r.maxRain.date)}</small></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  )}
 </Base>

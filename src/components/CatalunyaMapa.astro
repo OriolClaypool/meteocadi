@@ -132,6 +132,7 @@ const { internal = false } = Astro.props;
   import L from 'leaflet';
   import 'leaflet/dist/leaflet.css';
   import { loadAra } from '../scripts/live.js';
+  import { archiveFor } from '../scripts/arxiu-dades.js';
   import { STATIONS } from '../lib/stations.js';
   import CONTORN from '../lib/catalunya-contorn.json';
   import { FB, FIELD, HI, computeField, comarquesMask, toCanvas, fieldColor } from '../scripts/camp.js';
@@ -168,13 +169,17 @@ const { internal = false } = Astro.props;
   const delAl = (a: string, b: string) => {
     const de = dnum(a) === 1 || dnum(a) === 11 ? "de l'" : 'del ';
     const al = dnum(b) === 1 || dnum(b) === 11 ? "a l'" : 'al ';
-    return a === b ? deDia(a) : a.slice(0, 7) === b.slice(0, 7) ? `${de}${dnum(a)} ${al}${dayMonth(b)}` : `${de}${dayMonth(a)} ${al}${dayMonth(b)}`;
+    // L'any només si no és l'actual (i a les dues dates si el període passa d'un any a l'altre)
+    const yb = b.slice(0, 4) !== todayMadrid().slice(0, 4) || a.slice(0, 4) !== b.slice(0, 4) ? ` de ${b.slice(0, 4)}` : '';
+    const ya = a.slice(0, 4) !== b.slice(0, 4) ? ` de ${a.slice(0, 4)}` : '';
+    if (a === b) return `${deDia(a)}${yb}`;
+    return a.slice(0, 7) === b.slice(0, 7) ? `${de}${dnum(a)} ${al}${dayMonth(b)}${yb}` : `${de}${dayMonth(a)}${ya} ${al}${dayMonth(b)}${yb}`;
   };
   const per = () =>
     period.kind === 'today' ? { leg: "d'avui", short: "d'avui", title: "d'avui" }
     : period.kind === '24h' ? { leg: 'de les darreres 24 h', short: '(24 h)', title: 'de les darreres 24 hores' }
     : period.kind === 'range' ? { leg: delAl(period.from, period.to), short: '(període)', title: delAl(period.from, period.to) }
-    : { leg: deDia(period.date), short: 'del dia', title: deDia(period.date) };
+    : { leg: delAl(period.date, period.date), short: 'del dia', title: delAl(period.date, period.date) };
   const past = () => period.kind === 'day' || period.kind === 'range';
   const rangeToday = () => period.kind === 'range' && period.to === todayMadrid();
   // Les variables del dia (màxima, mínima, pluja, ratxa) canvien amb el període; les d'ara (temperatura, vent,
@@ -694,8 +699,7 @@ const { internal = false } = Astro.props;
   }
   // Dades: XEMA (dades obertes) + xarxa Meteocadí
   // Arxiu diari de les nostres estacions (per estació: [màxima, mínima, ratxa, pluja]; susp: dies incomplets)
-  let archive: Promise<any> | null = null;
-  const loadArchive = () => (archive ||= fetch('/estudi-dades.json').then((r) => (r.ok ? r.json() : null)).catch(() => null));
+  // (els darrers dies a /estudi-dades.json i els anys anteriors a part: src/scripts/arxiu-dades.js)
   // Darreres 24 hores d'una estació nostra a partir de la sèrie de /api/ara (cada 15 minuts). La pluja de WU és
   // acumulada des de mitjanit: se sumen els increments i, quan torna a zero, el que porta del dia nou. Si la sèrie
   // no arriba a l'inici de la finestra, no es dona cap valor (seria només una part de les 24 hores).
@@ -758,7 +762,7 @@ const { internal = false } = Astro.props;
     const [x, a, arx] = await Promise.all([
       fetch(xurl).then((r) => (r.ok ? r.json() : null)).catch(() => null),
       needsAra ? loadAra(force).catch(() => null) : null,
-      p.kind === 'day' || p.kind === 'range' ? loadArchive() : null,
+      p.kind === 'day' ? archiveFor(p.date) : p.kind === 'range' ? archiveFor(p.from, p.to) : null,
     ]);
     if (seq !== loadSeq) return; // mentrestant s'ha triat un altre període
     const list: St[] = (x?.stations || []).map((s: any) => ({ ...s, mc: false }));
@@ -804,7 +808,7 @@ const { internal = false } = Astro.props;
     if (when) {
       const parts = [];
       if (p.kind === 'day') {
-        parts.push(`${longDate(p.date)}, dia sencer`);
+        parts.push(`${longDate(p.date)}${p.date.slice(0, 4) !== todayMadrid().slice(0, 4) ? ` de ${p.date.slice(0, 4)}` : ''}, dia sencer`);
         if (!ours) parts.push('sense dades de la xarxa Meteocadí');
       } else if (p.kind === 'range') {
         const txt = delAl(p.from, p.to);

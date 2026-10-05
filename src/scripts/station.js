@@ -76,7 +76,8 @@ export function mountStation(root) {
     if (s && s.t.length > 1) {
       put('temp', chart(s.t, s.temp, { color: tempColor(d.temp) }));
       put('wind', chart(s.t, s.wind, { color: '#3db8ff', second: s.gust, min0: true }));
-      put('rain', chart(s.t, s.rain, { color: '#60a5fa', step: true, min0: true }));
+      // Pluja des de mitjanit (rainDay: només els increments del comptador; abans, el comptador tal qual)
+      put('rain', chart(s.t, s.rainDay || s.rain, { color: '#60a5fa', step: true, min0: true }));
     } else {
       ['temp', 'wind', 'rain'].forEach((k) => put(k, '<p style="color:#93a3b8;font-size:14px;padding:40px 0;text-align:center;">Sense sèrie d\'avui.</p>'));
     }

@@ -1,0 +1,7 @@
+{
+  "date": "2025-10-13",
+  "font": "historic",
+  "stations": {
+    "IGSOL4": {"tempHigh": 16, "tempLow": 8.1, "tempAvg": 10.9, "dewptAvg": 7.2, "windspeedAvg": 1.7, "windgustHigh": 16.6, "winddirAvg": 20, "precipTotal": 0, "pressureMax": 1026.69, "pressureMin": 1023.71, "humidityHigh": 90, "humidityLow": 49, "humidityAvg": 78.5, "uvHigh": 4, "solarRadiationHigh": 499.4}
+  }
+}

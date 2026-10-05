@@ -9,7 +9,7 @@
 // l'estació porta bad: ['rain', 'wind', 'temp'] amb el que s'ha descartat. Si els sensors exteriors no donen
 // res (temperatura, humitat i vent buits), l'estació surt com a down (fora de servei) i també stale.
 import { STATIONS } from '../src/lib/stations.js';
-import { LIMITS, clean, despike, rainSuspects, windSuspects, tempSuspects } from '../src/lib/qc.js';
+import { LIMITS, clean, despike, rainSuspects, windSuspects, tempSuspects, rainSpikes, gustSpikes, rainFromCounter } from '../src/lib/qc.js';
 import { onlyCleanUrl } from './_net.js';
 
 const KEY = () => process.env.WU_API_KEY || 'b146442062ee4f8a86442062ee4f8acd';
@@ -53,9 +53,25 @@ async function fromAllDay(id) {
   const hi = MAXOF(pool.map((i) => ext(i, 'tempHigh')).filter((v) => v != null));
   const lo = MINOF(pool.map((i) => ext(i, 'tempLow')).filter((v) => v != null));
   const gustMax = MAXOF(pool.map((i) => clean(obs[i].metric.windgustHigh, LIMITS.gust)).filter((v) => v != null));
+  // Vent mitjà d'avui (per al control de ratxes impossibles, gustSpikes)
+  const winds = pool.map((i) => clean(obs[i].metric.windspeedAvg, LIMITS.wind)).filter((v) => v != null);
+  const windAvg = winds.length ? winds.reduce((a, b) => a + b, 0) / winds.length : null;
+  // Pluja des de mitjanit comptant només els increments del comptador de la consola: algunes el posen a zero una
+  // o dues hores tard i, fins aleshores, la lectura dona el total d'ahir (vegeu rainFromCounter). El punt de partida
+  // és la darrera lectura d'ahir.
+  const rainDay = new Array(obs.length).fill(null);
+  if (todays.length) {
+    const from = Math.max(0, todays[0] - 1);
+    const idx = obs.map((o, i) => i).slice(from);
+    const acc = rainFromCounter(idx.map((i) => clean(obs[i].metric.precipTotal, LIMITS.rain)));
+    // Si no hi ha cap lectura d'ahir, la primera d'avui ja és pluja des de mitjanit (comptador posat a zero)
+    const first = from === todays[0] ? clean(obs[from].metric.precipTotal, LIMITS.rain) ?? 0 : 0;
+    idx.forEach((i, k) => { if (i >= todays[0] && acc[k] != null) rainDay[i] = r1(acc[k] + first); });
+  }
 
   // Sèrie cada 15 minuts (per a minigràfics i gràfics de la pàgina de l'estació)
-  const series = { t: [], temp: [], wind: [], gust: [], rain: [], hum: [] };
+  // rain: el comptador de la consola tal com arriba (per a increments: darrera hora, 24 hores); rainDay: pluja des de mitjanit
+  const series = { t: [], temp: [], wind: [], gust: [], rain: [], rainDay: [], hum: [] };
   // Una lectura per quart d'hora: la primera amb temperatura vàlida (si un pic s'ha descartat, la següent)
   const slots = new Map();
   obs.forEach((o, i) => {
@@ -70,6 +86,7 @@ async function fromAllDay(id) {
     series.wind.push(r1(clean(o.metric.windspeedAvg, LIMITS.wind)));
     series.gust.push(r1(clean(o.metric.windgustHigh, LIMITS.gust)));
     series.rain.push(r1(clean(o.metric.precipTotal, LIMITS.rain)));
+    series.rainDay.push(rainDay[i]);
     series.hum.push(clean(o.humidityAvg, LIMITS.hum));
   });
 
@@ -84,8 +101,9 @@ async function fromAllDay(id) {
     dir: clean(last.winddirAvg, LIMITS.dir),
     hum: clean(last.humidityAvg, LIMITS.hum),
     pres: r1(clean(m.pressureMax, LIMITS.pres)),
-    rain: r1(clean(m.precipTotal, LIMITS.rain)),
+    rain: todays.length ? rainDay[todays[todays.length - 1]] ?? 0 : 0,
     rainRate: r1(clean(m.precipRate, LIMITS.rain)),
+    windAvg: r1(windAvg),
     max: r1(hi),
     min: r1(lo),
     gustMax: r1(gustMax),
@@ -128,17 +146,17 @@ async function station(id) {
 }
 
 // Control de qualitat de tota la xarxa (cal comparar cada estació amb les veïnes)
-const OUTDOOR = ['temp', 'dewpt', 'windchill', 'heatindex', 'wind', 'gust', 'dir', 'hum', 'rain', 'rainRate', 'max', 'min', 'gustMax'];
+const OUTDOOR = ['temp', 'dewpt', 'windchill', 'heatindex', 'wind', 'windAvg', 'gust', 'dir', 'hum', 'rain', 'rainRate', 'max', 'min', 'gustMax'];
 const DROP = {
-  rain: { keys: ['rain', 'rainRate'], series: ['rain'] },
-  wind: { keys: ['wind', 'gust', 'dir', 'gustMax'], series: ['wind', 'gust'] },
+  rain: { keys: ['rain', 'rainRate'], series: ['rain', 'rainDay'] },
+  wind: { keys: ['wind', 'windAvg', 'gust', 'dir', 'gustMax'], series: ['wind', 'gust'] },
   temp: { keys: ['temp', 'dewpt', 'windchill', 'heatindex', 'max', 'min'], series: ['temp'] },
 };
 export function qualityControl(stations) {
   const live = Object.entries(stations).filter(([, d]) => d && !d.stale);
   const drop = (d, what) => {
     for (const k of DROP[what].keys) d[k] = null;
-    if (d.series) for (const k of DROP[what].series) d.series[k] = d.series[k].map(() => null);
+    if (d.series) for (const k of DROP[what].series) if (d.series[k]) d.series[k] = d.series[k].map(() => null);
     d.bad = [...new Set([...(d.bad || []), what])];
   };
   // Fora de servei: la lectura no porta res dels sensors exteriors (només en queda la pressió de la consola)
@@ -152,8 +170,8 @@ export function qualityControl(stations) {
   }
   const ok = live.filter(([, d]) => !d.down);
   const pick = (k) => Object.fromEntries(ok.map(([id, d]) => [id, d[k]]));
-  for (const id of rainSuspects(pick('rain'))) drop(stations[id], 'rain');
-  for (const id of windSuspects(pick('gustMax'))) drop(stations[id], 'wind');
+  for (const id of new Set([...rainSuspects(pick('rain')), ...rainSpikes(pick('rain'))])) drop(stations[id], 'rain');
+  for (const id of new Set([...windSuspects(pick('gustMax')), ...gustSpikes(pick('gustMax'), pick('windAvg'))])) drop(stations[id], 'wind');
   for (const id of tempSuspects(pick('temp'))) drop(stations[id], 'temp');
   for (const id of tempSuspects(pick('max'), 10)) stations[id].max = null;
   for (const id of tempSuspects(pick('min'), 10)) stations[id].min = null;

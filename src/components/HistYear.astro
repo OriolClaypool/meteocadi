@@ -1,0 +1,186 @@
+---
+// Resum d'un any a partir de l'arxiu diari (/historial/2025, src/pages/historial/[periode].astro): extrems de la
+// xarxa, mes a mes, pluja i temperatura de cada mes a cada estació (taules de color) i el resum de cada estació.
+import Base from '../layouts/Base.astro';
+import { months } from '../lib/archive.js';
+import { STATIONS, fmtAlt, shortName } from '../lib/stations.js';
+import { episodes } from '../lib/episodes.js';
+import EpisodeCards from './EpisodeCards.astro';
+import HeatTable from './HeatTable.astro';
+import { num, dayName, dayMonth, longDate, monthName, cap, tempColorLight, desDe } from '../lib/format.js';
+
+interface Props { y: any; newer: any; older: any }
+const { y, newer, older } = Astro.props;
+const Y = y.year;
+const MES = ['Gen', 'Febr', 'Març', 'Abr', 'Maig', 'Juny', 'Jul', 'Ag', 'Set', 'Oct', 'Nov', 'Des'];
+const ms = months().filter((m) => m.year === Y).sort((a, b) => a.month - b.month);
+const byMonth = new Map(ms.map((m) => [m.month, m]));
+const eps = episodes().filter((e) => e.months.some((k: string) => k.startsWith(`${Y}-`)));
+const who = (e: any) => (e?.station ? shortName(e.station) : '');
+const dia = (iso: string) => `${dayName(iso)} ${dayMonth(iso)}`;
+const st = [...y.stations].sort((a: any, b: any) => b.station.alt - a.station.alt);
+const partStart = y.first > `${Y}-01-01`;
+
+// Text del resum, fet amb les dades
+const parts: string[] = [];
+parts.push(
+  `${y.open ? 'Resum provisional' : 'Resum'} de l'any ${Y} a les estacions de la xarxa Meteocadí: ${y.days} dies amb dades${partStart ? ` (${desDe(y.first)}${y.open ? ` al ${dayMonth(y.last)}` : ''})` : y.open ? ` (fins al ${dayMonth(y.last)})` : ''} de ${y.stations.length} ${y.stations.length === 1 ? 'estació' : 'estacions'}.` +
+    (y.max && y.min ? ` La màxima més alta va ser de ${num(y.max.v)} °C ${y.max.station.a} (${dia(y.max.date)}) i la mínima més baixa, de ${num(y.min.v)} °C ${y.min.station.a} (${dia(y.min.date)}).` : ''),
+);
+const p2: string[] = [];
+if (y.wettest) p2.push(`L'estació amb més pluja${y.open ? ' fins ara' : ''} va ser ${shortName(y.wettest.station)}, amb ${num(y.wettest.v, 0)} mm.`);
+if (y.maxRain) p2.push(`El dia més plujós, ${dia(y.maxRain.date)}, van caure ${num(y.maxRain.v)} mm ${y.maxRain.station.a}.`);
+if (y.gust) p2.push(`La ratxa de vent més forta va ser de ${num(y.gust.v, 0)} km/h ${y.gust.station.a} (${dia(y.gust.date)}).`);
+if (p2.length) parts.push(p2.join(' '));
+// Diferència entre l'estació més baixa i la més alta amb l'any sencer
+const full = st.filter((x: any) => x.full && x.avgHigh != null);
+if (full.length >= 2) {
+  const hi = full[0], lo = full[full.length - 1];
+  if (hi.station.alt - lo.station.alt >= 600) parts.push(`De mitjana, les màximes van ser de ${num(lo.avgHigh)} °C ${lo.station.a} (${fmtAlt(lo.station.alt)}) i de ${num(hi.avgHigh)} °C ${hi.station.a} (${fmtAlt(hi.station.alt)}).`);
+}
+
+// Taules de color: pluja i temperatura mitjana de cada mes a cada estació
+const cellRain = (x: any, m: number) => {
+  const r = x.months[m];
+  if (!r || r.rain == null) return null;
+  return { v: r.rain, part: !r.rainFull, title: `${shortName(x.station)}, ${monthName(m)} de ${Y}: ${num(r.rain)} mm${r.rainFull ? '' : ` (${r.rainN} dies amb dades)`}` };
+};
+const meanOf = (r: any) => r.avgMean ?? (r.avgHigh != null && r.avgLow != null ? (r.avgHigh + r.avgLow) / 2 : null);
+const cellT = (x: any, m: number) => {
+  const r = x.months[m];
+  const v = r ? meanOf(r) : null;
+  if (v == null) return null;
+  return { v, part: !r.full, title: `${shortName(x.station)}, ${monthName(m)} de ${Y}: ${num(v)} °C de mitjana${r.full ? '' : ` (${r.days} dies amb dades)`}` };
+};
+const rowBase = (x: any) => ({ label: shortName(x.station), href: `/estacions/${x.station.slug}`, sub: fmtAlt(x.station.alt) });
+// Només els mesos amb dades (un any que comença o s'acaba a mig any no porta columnes buides)
+const MS = MES.map((n, i) => ({ n, m: i + 1 })).filter((x) => byMonth.has(x.m));
+const COLS = MS.map((x) => x.n);
+const rainRows = st.map((x: any) => ({ ...rowBase(x), cells: MS.map((c) => cellRain(x, c.m)), total: x.rain != null ? { v: x.rain, part: !x.rainFull, title: `${x.rainN} dies amb dades de pluja` } : null }));
+const tRows = st.map((x: any) => ({ ...rowBase(x), cells: MS.map((c) => cellT(x, c.m)), total: meanOf(x) != null ? { v: meanOf(x), part: !x.full } : null }));
+const colHrefs = MS.map((c) => `/historial/${byMonth.get(c.m).key}`);
+const anyPart = st.some((x: any) => Object.values(x.months).some((r: any) => !r.full || !r.rainFull)) || st.some((x: any) => !x.full);
+
+const title = `El temps el ${Y} al Cadí-Moixeró: resum de l'any${y.open ? ' (provisional)' : ''} | Meteocadí`;
+const description = `L'any ${Y} a les estacions de Meteocadí, al Cadí-Moixeró i el Berguedà: màximes, mínimes, pluja de cada mes i ratxes de vent, estació per estació${y.open ? ' (resum provisional)' : ''}.`;
+const url = `https://www.meteocadi.cat/historial/${Y}`;
+const ld = [
+  {
+    '@type': 'Dataset',
+    name: `Dades meteorològiques de l'any ${Y} · xarxa Meteocadí`,
+    description,
+    url,
+    temporalCoverage: `${y.first}/${y.last}`,
+    spatialCoverage: { '@type': 'Place', name: 'Cadí-Moixeró i Berguedà' },
+    creator: { '@id': 'https://www.meteocadi.cat/#org' },
+    isAccessibleForFree: true,
+    variableMeasured: ['Temperatura màxima', 'Temperatura mínima', 'Temperatura mitjana', 'Precipitació', 'Ratxa de vent'],
+  },
+  {
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Inici', item: 'https://www.meteocadi.cat/' },
+      { '@type': 'ListItem', position: 2, name: 'Historial', item: 'https://www.meteocadi.cat/historial' },
+      { '@type': 'ListItem', position: 3, name: String(Y), item: url },
+    ],
+  },
+];
+---
+<Base title={title} description={description} path={`/historial/${Y}`} jsonLd={ld} current="historial">
+  <section class="phead">
+    <div class="wrap">
+      <nav class="crumbs" aria-label="Ruta"><a href="/">Inici</a><span>›</span><a href="/historial">Historial</a><span>›</span><span>{Y}</span></nav>
+      <h1>L'any {Y} <em>al Cadí-Moixeró</em></h1>
+      <div class="prose" style="margin-top:22px;font-size:17px;">
+        {parts.map((t) => <p>{t}</p>)}
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" style="padding:56px 0;">
+    <div class="wrap" style="display:flex;flex-direction:column;gap:44px;">
+      <div class="recs">
+        <div class="card"><span class="eyebrow">Màxima de l'any</span><p class="mono" style={`font-size:30px;color:${tempColorLight(y.max?.v)}`}>{num(y.max?.v)}°</p><p style="font-size:14px;color:var(--muted)">{who(y.max)}{y.max && ` · ${dia(y.max.date)}`}</p></div>
+        <div class="card"><span class="eyebrow">Mínima de l'any</span><p class="mono" style={`font-size:30px;color:${tempColorLight(y.min?.v)}`}>{num(y.min?.v)}°</p><p style="font-size:14px;color:var(--muted)">{who(y.min)}{y.min && ` · ${dia(y.min.date)}`}</p></div>
+        <div class="card"><span class="eyebrow">Ratxa més forta</span><p class="mono" style="font-size:30px;">{num(y.gust?.v, 0)} <small style="font-size:15px;color:var(--muted)">km/h</small></p><p style="font-size:14px;color:var(--muted)">{who(y.gust)}{y.gust && ` · ${dia(y.gust.date)}`}</p></div>
+        <div class="card"><span class="eyebrow">Dia més plujós</span><p class="mono" style="font-size:30px;">{num(y.maxRain?.v)} <small style="font-size:15px;color:var(--muted)">mm</small></p><p style="font-size:14px;color:var(--muted)">{who(y.maxRain)}{y.maxRain && ` · ${dia(y.maxRain.date)}`}</p></div>
+      </div>
+
+      <div>
+        <h2 class="h2" style="font-size:30px;margin-bottom:6px;">Pluja de cada mes</h2>
+        <p class="sub" style="margin-bottom:18px;">Litres per metre quadrat (mm) a cada estació, amb la mateixa escala de colors que el mapa de pluja. A alta muntanya, a l'hivern, el pluviòmetre no recull bé la neu i el valor pot quedar molt curt.</p>
+        <HeatTable cols={COLS} colHrefs={colHrefs} rows={rainRows} scale="rain" fmt={(v) => num(v, 0)} totalLabel={y.open ? 'Fins ara' : partStart ? 'Total' : 'Any'} />
+      </div>
+
+      <div>
+        <h2 class="h2" style="font-size:30px;margin-bottom:6px;">Temperatura mitjana de cada mes</h2>
+        <p class="sub" style="margin-bottom:18px;">Mitjana de les temperatures de cada dia (°C).</p>
+        <HeatTable cols={COLS} colHrefs={colHrefs} rows={tRows} scale="t" fmt={(v) => num(v)} totalLabel={y.open ? 'Fins ara' : partStart ? 'Total' : 'Any'} />
+        {anyPart && <p class="heat-key"><span><i></i>Mes o any amb dades de menys del 80 % dels dies: el valor pot no ser el real.</span></p>}
+      </div>
+
+      <div>
+        <h2 class="h2" style="font-size:30px;margin-bottom:14px;">Mes a mes</h2>
+        <div class="tscroll">
+          <table class="dtable">
+            <thead><tr><th>Mes</th><th class="n">Dies</th><th class="n">Màxima</th><th>On</th><th class="n">Mínima</th><th>On</th><th class="n">Ratxa</th><th class="n">Més pluja</th><th>On</th></tr></thead>
+            <tbody>
+              {ms.map((m) => (
+                <tr>
+                  <td><a href={`/historial/${m.key}`}>{cap(monthName(m.month))}</a></td>
+                  <td class="n">{m.days}</td>
+                  <td class="n" style={`color:${tempColorLight(m.max?.v)}`}>{num(m.max?.v)}°</td>
+                  <td>{who(m.max)}</td>
+                  <td class="n" style={`color:${tempColorLight(m.min?.v)}`}>{num(m.min?.v)}°</td>
+                  <td>{who(m.min)}</td>
+                  <td class="n">{m.gust ? `${num(m.gust.v, 0)} km/h` : '—'}</td>
+                  <td class="n">{m.wettest && m.wettest.v > 0 ? `${num(m.wettest.v, 0)} mm` : '—'}</td>
+                  <td>{m.wettest && m.wettest.v > 0 ? who(m.wettest) : ''}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div>
+        <h2 class="h2" style="font-size:30px;margin-bottom:14px;">Estació per estació</h2>
+        <div class="tscroll">
+          <table class="dtable">
+            <thead><tr><th>Estació</th><th class="n">Altitud</th><th class="n">Dies</th><th class="n">Mitjana màx.</th><th class="n">Mitjana mín.</th><th class="n">Màxima</th><th class="n">Mínima</th><th class="n">Pluja</th><th class="n">Dies de pluja</th><th class="n">Ratxa</th></tr></thead>
+            <tbody>
+              {st.map((x: any) => (
+                <tr>
+                  <td><a href={`/estacions/${x.station.slug}`}>{shortName(x.station)}</a></td>
+                  <td class="n">{fmtAlt(x.station.alt)}</td>
+                  <td class="n">{x.days}</td>
+                  <td class="n" style={`color:${tempColorLight(x.avgHigh)}`}>{num(x.avgHigh)}°</td>
+                  <td class="n" style={`color:${tempColorLight(x.avgLow)}`}>{num(x.avgLow)}°</td>
+                  <td class="n" title={x.max ? longDate(x.max.date) : ''}>{x.max ? `${num(x.max.v)}°` : '—'}</td>
+                  <td class="n" title={x.min ? longDate(x.min.date) : ''}>{x.min ? `${num(x.min.v)}°` : '—'}</td>
+                  <td class="n" title={x.rainFull ? '' : `${x.rainN} dies amb dades de pluja`}>{x.rain != null ? `${num(x.rain, 0)} mm` : '—'}</td>
+                  <td class="n">{x.rainDays}</td>
+                  <td class="n" title={x.gust ? longDate(x.gust.date) : ''}>{x.gust ? `${num(x.gust.v, 0)} km/h` : '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {eps.length > 0 && (
+        <div>
+          <h2 class="h2" style="font-size:30px;margin-bottom:14px;">Episodis destacats</h2>
+          <EpisodeCards list={eps} />
+        </div>
+      )}
+
+      <nav style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-weight:600;">
+        {older ? <a href={`/historial/${older.year}`}>‹ {older.year}</a> : <span></span>}
+        <a href="/historial">Tot l'historial</a>
+        {newer ? <a href={`/historial/${newer.year}`}>{newer.year} ›</a> : <span></span>}
+      </nav>
+      <p style="font-size:14px;color:var(--muted);">Dades de les estacions de la xarxa Meteocadí (Weather Underground){y.recovered ? ". Els dies d'abans del 20 de setembre de 2026 són recuperats de l'historial de cada estació; des d'aleshores, s'arxiven cada nit" : ', arxivades cada nit'}. Cada estació compta des que publica dades. Les temperatures d'un dia amb dades incompletes no compten per als extrems ni les mitjanes, i la pluja o la ratxa que el control de qualitat descarta tampoc. Els pluviòmetres no mesuren bé la neu.</p>
+    </div>
+  </section>
+</Base>

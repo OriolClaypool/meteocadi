@@ -3,8 +3,8 @@ import Base from '../../layouts/Base.astro';
 import Forecast from '../../components/Forecast.astro';
 import { STATIONS, BY_SLUG, GROUPS, fmtAlt } from '../../lib/stations.js';
 import { PLACES } from '../../lib/places.js';
-import { stationHistory, stationRecords } from '../../lib/archive.js';
-import { tempColorLight, num, dayMonth, dayName, longDate, desDe } from '../../lib/format.js';
+import { stationHistory, stationRecords, stationYears, stationClimate } from '../../lib/archive.js';
+import { tempColorLight, num, dayMonth, dayName, longDate, fullDate, desDe, monthName, cap } from '../../lib/format.js';
 
 export function getStaticPaths() {
   return STATIONS.map((s) => ({ params: { slug: s.slug } }));
@@ -13,6 +13,11 @@ export function getStaticPaths() {
 const s = BY_SLUG[Astro.params.slug];
 const hist = stationHistory(s.id);
 const rec = stationRecords(s.id);
+const yrs = stationYears(s.id);
+const clim = stationClimate(s.id).filter((c) => c.avgHigh != null || c.rain != null || c.max);
+// Anys amb almenys un mes complet de cada mes de l'any: amb un sol any, la taula és la d'aquell any
+const climYears = clim.length ? Math.max(...clim.map((c) => c.n)) : 0;
+const dm = (iso) => `${Number(iso.slice(8))}/${Number(iso.slice(5, 7))}/${iso.slice(0, 4)}`;
 const places = PLACES.filter((p) => p.stations.includes(s.id));
 const near = STATIONS.filter((x) => x.id !== s.id)
   .map((x) => ({ x, d: Math.hypot(x.lat - s.lat, (x.lng - s.lng) * 0.74) }))
@@ -86,35 +91,93 @@ const VARS = [
       <div class="sec__head" style="margin:0;">
         <div>
           <h2 class="h2">Historial de l'estació</h2>
-          <p class="sub">{rec ? `Dades arxivades ${desDe(rec.from)}: ${rec.days} dies.` : "L'arxiu d'aquesta estació encara no té dies complets."}</p>
+          <p class="sub">{rec ? `Dades ${desDe(rec.from)} de ${rec.from.slice(0, 4)}: ${rec.days.toLocaleString('ca-ES')} dies.` : "L'arxiu d'aquesta estació encara no té dies complets."}</p>
         </div>
       </div>
       {rec && (
         <div class="recs">
-          <div class="card"><span class="eyebrow" style="color:var(--muted)">Màxima més alta</span><p class="mono" style={`font-size:32px;color:${tempColorLight(rec.maxHigh?.tempHigh)}`}>{num(rec.maxHigh?.tempHigh)}°</p><p style="color:var(--muted);font-size:14px;">{rec.maxHigh && longDate(rec.maxHigh.date)}</p></div>
-          <div class="card"><span class="eyebrow" style="color:var(--muted)">Mínima més baixa</span><p class="mono" style={`font-size:32px;color:${tempColorLight(rec.minLow?.tempLow)}`}>{num(rec.minLow?.tempLow)}°</p><p style="color:var(--muted);font-size:14px;">{rec.minLow && longDate(rec.minLow.date)}</p></div>
-          <div class="card"><span class="eyebrow" style="color:var(--muted)">Ratxa més forta</span><p class="mono" style="font-size:32px;">{num(rec.maxGust?.windgustHigh)} <small style="font-size:16px;color:var(--muted)">km/h</small></p><p style="color:var(--muted);font-size:14px;">{rec.maxGust && longDate(rec.maxGust.date)}</p></div>
-          <div class="card"><span class="eyebrow" style="color:var(--muted)">Pluja total</span><p class="mono" style="font-size:32px;">{num(rec.rainTotal)} <small style="font-size:16px;color:var(--muted)">mm</small></p><p style="color:var(--muted);font-size:14px;">Mitjana de màximes {num(rec.avgHigh)}° · mínimes {num(rec.avgLow)}°</p></div>
+          <div class="card"><span class="eyebrow" style="color:var(--muted)">Màxima més alta</span><p class="mono" style={`font-size:32px;color:${tempColorLight(rec.maxHigh?.v)}`}>{num(rec.maxHigh?.v)}°</p><p style="color:var(--muted);font-size:14px;">{rec.maxHigh && fullDate(rec.maxHigh.date)}</p></div>
+          <div class="card"><span class="eyebrow" style="color:var(--muted)">Mínima més baixa</span><p class="mono" style={`font-size:32px;color:${tempColorLight(rec.minLow?.v)}`}>{num(rec.minLow?.v)}°</p><p style="color:var(--muted);font-size:14px;">{rec.minLow && fullDate(rec.minLow.date)}</p></div>
+          <div class="card"><span class="eyebrow" style="color:var(--muted)">Ratxa més forta</span><p class="mono" style="font-size:32px;">{num(rec.maxGust?.v, 0)} <small style="font-size:16px;color:var(--muted)">km/h</small></p><p style="color:var(--muted);font-size:14px;">{rec.maxGust && fullDate(rec.maxGust.date)}</p></div>
+          <div class="card"><span class="eyebrow" style="color:var(--muted)">Dia més plujós</span><p class="mono" style="font-size:32px;">{num(rec.maxRain?.v)} <small style="font-size:16px;color:var(--muted)">mm</small></p><p style="color:var(--muted);font-size:14px;">{rec.maxRain && fullDate(rec.maxRain.date)}</p></div>
         </div>
       )}
+
+      {clim.length > 0 && (
+        <div>
+          <h3 style="font-size:24px;font-weight:800;margin-bottom:6px;">{climYears >= 2 ? `El clima ${s.a} mes a mes` : 'Mes a mes'}</h3>
+          <p class="sub" style="margin-bottom:16px;">{climYears >= 2 ? `Mitjana dels mesos amb dades completes (fins a ${climYears} anys) i els valors més extrems de cada mes.` : "Valors de cada mes amb dades completes i els més extrems de cada mes. Amb més anys de dades, seran les mitjanes."}</p>
+          <div class="tscroll">
+            <table class="dtable">
+              <thead><tr><th>Mes</th><th class="n">Mitjana màx.</th><th class="n">Mitjana mín.</th><th class="n">Pluja</th><th class="n">Dies de pluja</th><th class="n">Màxima</th><th class="n">Mínima</th><th class="n">Ratxa</th>{climYears >= 2 && <th class="n">Anys</th>}</tr></thead>
+              <tbody>
+                {clim.map((c) => (
+                  <tr>
+                    <td>{cap(monthName(c.month))}</td>
+                    <td class="n" style={`color:${tempColorLight(c.avgHigh)}`}>{c.avgHigh != null ? `${num(c.avgHigh)}°` : '—'}</td>
+                    <td class="n" style={`color:${tempColorLight(c.avgLow)}`}>{c.avgLow != null ? `${num(c.avgLow)}°` : '—'}</td>
+                    <td class="n">{c.rain != null ? `${num(c.rain, 0)} mm` : '—'}</td>
+                    <td class="n">{c.rainDays != null ? num(c.rainDays, 0) : '—'}</td>
+                    <td class="n" title={c.max ? fullDate(c.max.date) : ''}>{c.max ? `${num(c.max.v)}°` : '—'} <small style="color:var(--muted)">{c.max && c.max.date.slice(0, 4)}</small></td>
+                    <td class="n" title={c.min ? fullDate(c.min.date) : ''}>{c.min ? `${num(c.min.v)}°` : '—'} <small style="color:var(--muted)">{c.min && c.min.date.slice(0, 4)}</small></td>
+                    <td class="n" title={c.gust ? fullDate(c.gust.date) : ''}>{c.gust ? `${num(c.gust.v, 0)} km/h` : '—'}</td>
+                    {climYears >= 2 && <td class="n">{c.n}</td>}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {yrs.length > 0 && (
+        <div>
+          <h3 style="font-size:24px;font-weight:800;margin-bottom:6px;">Any per any</h3>
+          <p class="sub" style="margin-bottom:16px;">Cada any, amb la pluja i la temperatura de cada mes a totes les estacions, al resum de l'any.</p>
+          <div class="tscroll">
+            <table class="dtable">
+              <thead><tr><th>Any</th><th class="n">Dies</th><th class="n">Mitjana màx.</th><th class="n">Mitjana mín.</th><th class="n">Màxima</th><th class="n">Mínima</th><th class="n">Pluja</th><th class="n">Dies de pluja</th><th class="n">Ratxa</th></tr></thead>
+              <tbody>
+                {yrs.map((y) => (
+                  <tr>
+                    <td><a href={`/historial/${y.year}`}>{y.year}</a>{y.open && <small style="color:var(--muted)"> en curs</small>}</td>
+                    <td class="n">{y.days}</td>
+                    <td class="n" style={`color:${tempColorLight(y.avgHigh)}`}>{num(y.avgHigh)}°</td>
+                    <td class="n" style={`color:${tempColorLight(y.avgLow)}`}>{num(y.avgLow)}°</td>
+                    <td class="n" title={y.max ? fullDate(y.max.date) : ''}>{y.max ? `${num(y.max.v)}°` : '—'} <small style="color:var(--muted)">{y.max && dm(y.max.date).slice(0, -5)}</small></td>
+                    <td class="n" title={y.min ? fullDate(y.min.date) : ''}>{y.min ? `${num(y.min.v)}°` : '—'} <small style="color:var(--muted)">{y.min && dm(y.min.date).slice(0, -5)}</small></td>
+                    <td class="n" title={y.rainFull ? '' : `${y.rainN} dies amb dades de pluja`}>{y.rain != null ? `${num(y.rain, 0)} mm` : '—'}</td>
+                    <td class="n">{y.rainDays}</td>
+                    <td class="n" title={y.gust ? fullDate(y.gust.date) : ''}>{y.gust ? `${num(y.gust.v, 0)} km/h` : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {hist.length > 0 && (
-        <div class="tscroll">
-          <table class="dtable">
-            <thead><tr><th>Dia</th><th class="n">Màx.</th><th class="n">Mín.</th><th class="n">Mitjana</th><th class="n">Ratxa</th><th class="n">Pluja</th><th class="n">Humitat</th></tr></thead>
-            <tbody>
-              {hist.slice(0, 31).map((d) => (
-                <tr>
-                  <td>{dayName(d.date)} {dayMonth(d.date)}</td>
-                  <td class="n" style={`color:${tempColorLight(d.tempHigh)}`}>{num(d.tempHigh)}°</td>
-                  <td class="n" style={`color:${tempColorLight(d.tempLow)}`}>{num(d.tempLow)}°</td>
-                  <td class="n">{num(d.tempAvg)}°</td>
-                  <td class="n">{d.windgustHigh != null ? `${num(d.windgustHigh)} km/h` : '—'}</td>
-                  <td class="n">{num(d.precipTotal)} mm</td>
-                  <td class="n">{d.humidityAvg != null ? `${Math.round(d.humidityAvg)} %` : '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div>
+          <h3 style="font-size:24px;font-weight:800;margin-bottom:16px;">Darrers 31 dies</h3>
+          <div class="tscroll">
+            <table class="dtable">
+              <thead><tr><th>Dia</th><th class="n">Màx.</th><th class="n">Mín.</th><th class="n">Mitjana</th><th class="n">Ratxa</th><th class="n">Pluja</th><th class="n">Humitat</th></tr></thead>
+              <tbody>
+                {hist.slice(0, 31).map((d) => (
+                  <tr>
+                    <td>{dayName(d.date)} {dayMonth(d.date)}</td>
+                    <td class="n" style={`color:${tempColorLight(d.tempHigh)}`}>{num(d.tempHigh)}°</td>
+                    <td class="n" style={`color:${tempColorLight(d.tempLow)}`}>{num(d.tempLow)}°</td>
+                    <td class="n">{num(d.tempAvg)}°</td>
+                    <td class="n">{d.windgustHigh != null ? `${num(d.windgustHigh)} km/h` : '—'}</td>
+                    <td class="n">{d.precipTotal != null ? `${num(d.precipTotal)} mm` : '—'}</td>
+                    <td class="n">{d.humidityAvg != null ? `${Math.round(d.humidityAvg)} %` : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
       <div>

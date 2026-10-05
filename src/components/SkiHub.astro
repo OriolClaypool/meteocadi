@@ -1,5 +1,7 @@
 ---
-// Neu i esquí (Meteocadí Neu): tauler de 7 dies de les estacions d'esquí, carreteres d'accés i informació oficial.
+// Neu i esquí (Meteocadí Neu): resum de la setmana en paraules, tauler de 7 dies de totes les estacions (què farà cada
+// dia, amb colors i paraules: neva, neu a dalt i pluja a baix, pluja, vent, sol…), on nevarà més (rànquing i mapa),
+// la targeta de cada estació, carreteres d'accés i informació oficial.
 // En català a /esqui i en castellà a /es/esqui.
 import Base from '../layouts/Base.astro';
 import MountainNotice from './MountainNotice.astro';
@@ -7,7 +9,7 @@ import RoadStatus from './RoadStatus.astro';
 import { PLACES } from '../lib/places.js';
 import { REGIONS, localizeRegion } from '../lib/regions.js';
 import { localize } from '../lib/places-es.js';
-import { fetchSki, skiCompactHTML, skiSnowText, skiSummary, inSeason } from '../lib/ski.js';
+import { fetchSki, skiCompactHTML, skiSummary, inSeason, skiBoardHTML, skiRankHTML, skiWeekText } from '../lib/ski.js';
 import { todayMadrid, longDate, cap } from '../lib/format.js';
 
 interface Props { lang?: 'ca' | 'es' }
@@ -15,11 +17,11 @@ const { lang = 'ca' } = Astro.props;
 const es = lang === 'es';
 const base = es ? '/es/tiempo/' : '/temps/';
 const resorts = PLACES.filter((p) => p.ski).map((p) => localize(p, lang));
-const light = resorts.map((r) => ({ slug: r.slug, name: r.name, points: r.points, ski: r.ski, region: r.region }));
+const light = resorts.map((r) => ({ slug: r.slug, name: r.name, a: r.a, points: r.points, ski: r.ski, region: r.region }));
 const today = todayMadrid();
 const season = inSeason(today);
 const groups = await fetchSki(light);
-const snowText = skiSnowText(groups, today, lang);
+const weekText = skiWeekText(groups, today, lang, season);
 // Una secció per zona, en l'ordre de regions.js
 const ORDER = ['cerdanya', 'bergueda', 'solsones', 'alt-urgell', 'ripolles', 'pallars-sobira', 'alta-ribagorca', 'vall-d-aran', 'andorra'];
 const zones = [...REGIONS].sort((a, b) => ORDER.indexOf(a.slug) - ORDER.indexOf(b.slug)).map((r) => localizeRegion(r, lang))
@@ -29,6 +31,10 @@ const zones = [...REGIONS].sort((a, b) => ORDER.indexOf(a.slug) - ORDER.indexOf(
     return { ...r, n: idx.length, html };
   })
   .filter((z) => z.n > 0);
+// Tauler i rànquing (es tornen a pintar al navegador amb la previsió del moment)
+const boardZones = zones.map((z) => ({ name: z.name, groups: groups ? light.map((x, i) => (x.region === z.slug ? groups[i] : null)).filter(Boolean) : [] }));
+const boardHTML = groups ? skiBoardHTML(boardZones, { today, lang, season, base }) : '';
+const rankHTML = groups ? skiRankHTML(groups, { today, lang, base }) : '';
 const mapItems = light.map((r, i) => ({ slug: r.slug, name: r.name, lat: r.points[0].lat, lng: r.points[0].lng, snow: groups?.[i] ? Math.round(skiSummary(groups[i], today, lang).snow) : null }));
 
 // Zones per a les incidències de trànsit (lat, lng, radi en km)
@@ -69,7 +75,7 @@ const description = es
         ? 'La previsión de 7 días para la parte alta y la base de cada estación de esquí del Pirineo catalán y Andorra, con la nieve nueva, el viento en las cimas y el estado de las carreteras para llegar.'
         : "La previsió de 7 dies per a la part alta i la base de cada estació d'esquí del Pirineu català i Andorra, amb la neu nova, el vent als cims i l'estat de les carreteres per arribar-hi."}</p>
       <div class="prose" style="margin-top:18px;font-size:17px;">
-        {snowText && <p>{cap(longDate(today, lang))}. {snowText}</p>}
+        <p class="ski-week" data-ski-week>{weekText ? `${cap(longDate(today, lang))}. ${weekText}` : ''}</p>
         {season
           ? <p>{es
               ? 'La valoración del tiempo para esquiar tiene en cuenta el viento arriba, la nevada, el sol, el frío y el calor. No dice nada del estado de las pistas ni de si la estación está abierta: consúltalo siempre en su web.'
@@ -82,17 +88,37 @@ const description = es
     </div>
   </section>
 
+  <section class="sec skb-sec">
+    <div class="wrap">
+      <div class="sec__head">
+        <div>
+          <span class="eyebrow" style="color:#0e6e8c;">{es ? 'PREVISIÓN · 7 DÍAS · TODAS LAS ESTACIONES' : 'PREVISIÓ · 7 DIES · TOTES LES ESTACIONS'}</span>
+          {es ? <h2 class="h2">¿Qué tiempo hará <em>cada día?</em></h2> : <h2 class="h2">Quin temps farà <em>cada dia?</em></h2>}
+          <p class="sub">{es
+            ? 'Cada casilla es un día en una estación. En azul, los días que nieva, con los centímetros de nieve nueva arriba; si abajo llueve, la casilla es azul arriba y verde abajo.'
+            : "Cada casella és un dia en una estació. En blau, els dies que neva, amb els centímetres de neu nova a dalt; si a baix plou, la casella és blava a dalt i verda a baix."}{season ? (es ? ' El punto de color es el tiempo para esquiar.' : ' El punt de color és el temps per esquiar.') : ''}</p>
+        </div>
+      </div>
+      <div class="skb-box" data-ski-board set:html={boardHTML || `<p class="mfc__load">${es ? 'Cargando la previsión…' : 'Carregant la previsió…'}</p>`}></div>
+    </div>
+  </section>
+
   <section class="sec skmap-sec">
     <div class="wrap">
       <div class="sec__head">
         <div>
-          <span class="eyebrow" style="color:#0e6e8c;">{es ? 'MAPA DE NIEVE · 7 DÍAS' : 'MAPA DE NEU · 7 DIES'}</span>
+          <span class="eyebrow" style="color:#0e6e8c;">{es ? 'NIEVE NUEVA · 7 DÍAS' : 'NEU NOVA · 7 DIES'}</span>
           {es ? <h2 class="h2">¿Dónde <em>nevará más?</em></h2> : <h2 class="h2">On nevarà <em>més?</em></h2>}
-          <p class="sub">{es ? 'Cada etiqueta es una estación, con la nieve nueva prevista arriba en los próximos 7 días. Tócala para ver la estación.' : "Cada etiqueta és una estació, amb la neu nova prevista a dalt els pròxims 7 dies. Toca-la per veure l'estació."}</p>
+          <p class="sub">{es ? 'La nieve nueva prevista arriba en los próximos 7 días, de más a menos, y los días que más nevará.' : 'La neu nova prevista a dalt els pròxims 7 dies, de més a menys, i els dies que més nevarà.'}</p>
         </div>
       </div>
-      <div class="skimap" id="skimap" data-skimap={JSON.stringify({ items: mapItems, base, lang })} aria-label={es ? 'Mapa de las estaciones de esquí con la nieve prevista' : "Mapa de les estacions d'esquí amb la neu prevista"}></div>
-      <div class="skimap__lg" aria-hidden="true"><span><i style="background:#ffffff;border:1px solid #c9d5e3"></i>{es ? 'Sin nieve' : 'Sense neu'}</span><span><i style="background:#bfdbfe"></i>1–9 cm</span><span><i style="background:#60a5fa"></i>10–29 cm</span><span><i style="background:#1d4ed8"></i>30 cm {es ? 'o más' : 'o més'}</span></div>
+      <div class="skrm">
+        <div class="skr-box" data-ski-rank set:html={rankHTML}></div>
+        <div>
+          <div class="skimap" id="skimap" data-skimap={JSON.stringify({ items: mapItems, base, lang })} aria-label={es ? 'Mapa de las estaciones de esquí con la nieve prevista' : "Mapa de les estacions d'esquí amb la neu prevista"}></div>
+          <div class="skimap__lg" aria-hidden="true"><span><i style="background:#ffffff;border:1px solid #c9d5e3"></i>{es ? 'Sin nieve' : 'Sense neu'}</span><span><i style="background:#bfdbfe"></i>1–9 cm</span><span><i style="background:#60a5fa"></i>10–29 cm</span><span><i style="background:#1d4ed8"></i>30 cm {es ? 'o más' : 'o més'}</span></div>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -100,8 +126,8 @@ const description = es
     <div class="wrap">
       <div class="sec__head">
         <div>
-          <span class="eyebrow">{es ? 'PREVISIÓN · 7 DÍAS' : 'PREVISIÓ · 7 DIES'}</span>
-          {es ? <h2 class="h2">Panel de nieve <em>de las estaciones</em></h2> : <h2 class="h2">Tauler de neu <em>de les estacions</em></h2>}
+          <span class="eyebrow">{es ? 'ESTACIÓN POR ESTACIÓN' : 'ESTACIÓ PER ESTACIÓ'}</span>
+          {es ? <h2 class="h2">Cada estación, <em>de cerca</em></h2> : <h2 class="h2">Cada estació, <em>de prop</em></h2>}
           <p class="sub">{es
             ? 'Calculada para la parte alta y la base de cada estación. Toca una estación para ver su tabla de 7 días, la previsión por horas y las estaciones meteorológicas más cercanas.'
             : "Calculada per a la part alta i la base de cada estació. Toca una estació per veure'n el tauler de 7 dies, la previsió per hores i les estacions meteorològiques més properes."}</p>
@@ -178,8 +204,19 @@ const description = es
 <script>
   import L from 'leaflet';
   import 'leaflet/dist/leaflet.css';
-  import { fetchSki, skiCompactHTML, skiSummary, inSeason } from '../lib/ski.js';
-  import { todayMadrid } from '../lib/format.js';
+  import { fetchSki, skiCompactHTML, skiSummary, inSeason, skiBoardHTML, skiRankHTML, skiWeekText, snowBg as snowBgOf, snowFg as snowFgOf } from '../lib/ski.js';
+  import { todayMadrid, longDate, cap } from '../lib/format.js';
+
+  // Tauler: en tocar un dia, el detall surt a sota (i el dia queda marcat)
+  document.addEventListener('click', (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLElement>('.skb__c');
+    if (!b) return;
+    const box = b.closest('[data-ski-board]');
+    box?.querySelectorAll('.skb__c.is-on').forEach((x) => x.classList.remove('is-on'));
+    b.classList.add('is-on');
+    const det = box?.querySelector<HTMLElement>('[data-skb-det]');
+    if (det) { det.textContent = b.dataset.det || ''; det.classList.add('is-set'); }
+  });
 
   // Pestanyes per zona (la primera per defecte; #zona a l'adreça tria una zona)
   const tabs = Array.from(document.querySelectorAll<HTMLButtonElement>('[data-tab]'));
@@ -196,8 +233,8 @@ const description = es
   const mapEl = document.getElementById('skimap');
   const cfg = mapEl ? JSON.parse(mapEl.dataset.skimap || '{}') : null;
   const markers = new Map<string, any>();
-  const snowBg = (cm: number | null) => (cm == null ? '#eef3f8' : cm >= 30 ? '#1d4ed8' : cm >= 10 ? '#60a5fa' : cm >= 1 ? '#bfdbfe' : '#ffffff');
-  const snowFg = (cm: number | null) => (cm != null && cm >= 30 ? '#ffffff' : '#10233b');
+  const snowBg = snowBgOf;
+  const snowFg = snowFgOf;
   let map: any = null;
   function pin(it: any) {
     const bg = snowBg(it.snow);
@@ -255,6 +292,21 @@ const description = es
           const html = skiCompactHTML(sub, { today, lang, season, base });
           if (html) box.innerHTML = html;
         });
+        // Tauler (les zones en el mateix ordre que les seccions de sota), rànquing i resum de la setmana
+        const boardBox = document.querySelector<HTMLElement>('[data-ski-board]');
+        if (boardBox) {
+          const zs = Array.from(hub.querySelectorAll<HTMLElement>('.skzone')).map((z) => ({
+            name: z.querySelector('h3')?.textContent || '',
+            groups: groups.filter((g: any) => g.resort.region === z.id),
+          }));
+          const html = skiBoardHTML(zs, { today, lang, season, base });
+          if (html) boardBox.innerHTML = html;
+        }
+        const rankBox = document.querySelector<HTMLElement>('[data-ski-rank]');
+        if (rankBox) rankBox.innerHTML = skiRankHTML(groups, { today, lang, base });
+        const week = document.querySelector<HTMLElement>('[data-ski-week]');
+        const wt = skiWeekText(groups, today, lang, season);
+        if (week && wt) week.textContent = `${cap(longDate(today, lang))}. ${wt}`;
         if (map) {
           groups.forEach((g: any) => {
             const it = cfg.items.find((x: any) => x.slug === g.resort.slug);
@@ -274,6 +326,72 @@ const description = es
 </script>
 
 <style is:global>
+  .ski-week { font-weight: 500; }
+  /* Tauler de la setmana */
+  .skb-sec { padding: 56px 0 24px; }
+  .skb__lg { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-bottom: 14px; font-size: 13.5px; color: var(--ink2); }
+  .skb__lg > span, .skb__lr > span { display: inline-flex; align-items: center; gap: 7px; }
+  .skb__lr { display: inline-flex; flex-wrap: wrap; gap: 8px 14px; padding-left: 14px; border-left: 1px solid var(--line); }
+  .skb__sw { display: inline-block; width: 22px; height: 16px; border-radius: 5px; box-shadow: inset 0 0 0 1px rgba(16, 35, 59, 0.12); }
+  .skb__sw--snow, .skb__c--snow { background: var(--bg, #60a5fa); }
+  .skb__sw--snow { background: linear-gradient(90deg, #bfdbfe 0 33%, #60a5fa 33% 66%, #1d4ed8 66%); }
+  .skb__sw--snowtop, .skb__c--snowtop { background: linear-gradient(180deg, var(--bg, #60a5fa) 0 58%, #a7e8c9 58%); }
+  .skb__sw--rain, .skb__c--rain { background: #a7e8c9; }
+  .skb__sw--wind, .skb__c--wind { background: #fdd2a6; }
+  .skb__sw--sun, .skb__c--sun { background: #fde68a; }
+  .skb__sw--part, .skb__c--part { background: #fdf3cf; }
+  .skb__sw--cloud, .skb__c--cloud, .skb__c--fog { background: #e3e9f0; }
+  .skb__c--fog { background: #d3dbe5; }
+  .skb__w { border: 1px solid var(--line); border-radius: 16px; background: #fff; }
+  .skb { width: 100%; border-collapse: separate; border-spacing: 4px; }
+  .skb thead th { font-family: var(--f-mono); font-size: 11.5px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); font-weight: 500; padding: 10px 2px 4px; text-align: center; }
+  .skb__z th { text-align: left; font-family: var(--f-mono); font-size: 11.5px; letter-spacing: 0.1em; text-transform: uppercase; color: #0e6e8c; padding: 14px 10px 2px; font-weight: 600; }
+  .skb th.skb__n { text-align: left; padding: 4px 10px 4px 10px; white-space: nowrap; min-width: 150px; }
+  .skb th.skb__n a { font-family: var(--f-head); font-size: 16px; font-weight: 800; letter-spacing: -0.01em; color: var(--ink); display: block; }
+  .skb th.skb__n small { font-family: var(--f-mono); font-size: 11px; color: var(--muted); font-weight: 500; }
+  .skb td { padding: 0; }
+  .skb__c { position: relative; width: 100%; min-width: 84px; height: 58px; border: 0; border-radius: 10px; color: var(--fg, #10233b); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; cursor: pointer; font: inherit; padding: 4px 6px; }
+  .skb__c b { font-family: var(--f-head); font-size: 17px; font-weight: 800; line-height: 1.1; }
+  .skb__c b small { font-size: 12px; font-weight: 700; }
+  .skb__c span { font-size: 11.5px; line-height: 1.2; opacity: 0.85; text-align: center; }
+  .skb__c--snowtop span, .skb__c--snowtop b { color: #10233b; }
+  /* Valoració per esquiar: una franja a la part de baix de la casella (no tapa el text) */
+  .skb__c .rt { position: absolute; left: 8px; right: 8px; bottom: 4px; width: auto; height: 4px; border-radius: 2px; }
+  .skb__lr .rt { width: 18px; height: 5px; border-radius: 3px; }
+  .skb__c.is-windy::after { content: ''; position: absolute; right: 5px; top: 5px; width: 8px; height: 8px; border-radius: 2px; background: #ea580c; box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85); }
+  .skb__z th span { position: sticky; left: 10px; }
+  .skb__c:hover, .skb__c:focus-visible { outline: 2px solid #10233b; outline-offset: 1px; }
+  .skb__c.is-on { outline: 3px solid #10233b; outline-offset: 1px; }
+  .skb td.skb__tot { padding-left: 8px; }
+  .skb td.skb__tot b { display: inline-flex; align-items: baseline; justify-content: center; min-width: 64px; padding: 6px 10px; border-radius: 999px; background: var(--bg); color: var(--fg); font-family: var(--f-mono); font-size: 15px; font-weight: 700; box-shadow: inset 0 0 0 1px rgba(16, 35, 59, 0.12); }
+  .skb td.skb__tot b small { font-size: 11px; }
+  .skb thead th.skb__tot { padding-left: 8px; }
+  .skb__det { min-height: 48px; margin: 12px 0 0; padding: 12px 16px; border-radius: 12px; background: var(--pale); font-size: 15px; line-height: 1.5; color: var(--ink); }
+  /* Amb un dia triat, el detall queda a la vista mentre es recorre el tauler */
+  .skb__det.is-set { position: sticky; bottom: 12px; z-index: 3; background: #10233b; color: #fff; box-shadow: 0 8px 24px rgba(16, 35, 59, 0.25); }
+  .skb__lg-wind { display: inline-block; width: 9px; height: 9px; border-radius: 2px; background: #ea580c; }
+  @media (max-width: 760px) {
+    .skb th.skb__n { position: sticky; left: 0; z-index: 2; background: #fff; min-width: 108px; max-width: 108px; white-space: normal; padding: 4px 6px; }
+    .skb th.skb__n a { font-size: 14px; line-height: 1.15; }
+    .skb__z th { position: sticky; left: 0; }
+    .skb__c { min-width: 64px; height: 54px; }
+    .skb__c b { font-size: 15px; }
+    .skb__c span { font-size: 10.5px; }
+    .skb__c--snow span, .skb__c--snowtop span { display: none; }
+  }
+  /* On nevarà més: rànquing i mapa */
+  .skrm { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 24px; align-items: start; }
+  @media (max-width: 960px) { .skrm { grid-template-columns: 1fr; } }
+  .skr { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+  .skr a { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr) 62px; grid-template-areas: 'n b v' 'w w w'; gap: 0 12px; align-items: center; padding: 8px 12px; border-radius: 10px; color: var(--ink); }
+  .skr a:hover { background: var(--pale); color: var(--ink); }
+  .skr__n { grid-area: n; font-family: var(--f-head); font-weight: 800; font-size: 15.5px; }
+  .skr__b { grid-area: b; height: 14px; background: #eef3f8; border-radius: 7px; overflow: hidden; }
+  .skr__b i { display: block; height: 100%; border-radius: 7px; background: var(--bg); box-shadow: inset 0 0 0 1px rgba(16, 35, 59, 0.1); }
+  .skr a > b { grid-area: v; text-align: right; font-family: var(--f-mono); font-size: 15px; font-weight: 700; }
+  .skr a > small { grid-area: w; font-size: 12.5px; color: var(--muted); }
+  .skr a > small:empty { display: none; }
+  .skr__none { padding: 18px; border-radius: 12px; background: var(--pale); }
   .skmap-sec { padding: 64px 0 40px; }
   .skimap { width: 100%; height: min(64vh, 620px); min-height: 420px; border-radius: 18px; border: 1px solid var(--line); overflow: hidden; background: #e9eef3; }
   .skimap .leaflet-tile-pane { filter: saturate(0.35) contrast(0.92) brightness(1.06); opacity: 0.75; }

@@ -307,12 +307,18 @@ export { ink };
 function lastHour(s) {
   if (!s?.t?.length || !s.rain?.length) return null;
   const n = s.t.length - 1;
-  const last = s.rain[n];
-  if (last == null) return null;
+  if (s.rain[n] == null) return null;
   let k = n;
   while (k > 0 && s.t[n] - s.t[k - 1] <= 3600) k--;
-  const first = s.rain[k];
-  return first == null ? null : Math.max(0, last - first);
+  // Només els increments del comptador (si es posa a zero dins de l'hora, el valor de després és pluja nova)
+  let sum = 0, prev = null;
+  for (let i = k; i <= n; i++) {
+    const v = s.rain[i];
+    if (v == null) continue;
+    if (prev != null) sum += v >= prev ? v - prev : v;
+    prev = v;
+  }
+  return prev == null ? null : Math.round(sum * 10) / 10;
 }
 
 async function loadStations() {

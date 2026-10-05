@@ -1,0 +1,7 @@
+{
+  "date": "2025-10-17",
+  "font": "historic",
+  "stations": {
+    "IGISCL6": {"tempHigh": 8.1, "tempLow": 2.5, "tempAvg": 4.3, "dewptAvg": 1.8, "windspeedAvg": 8.3, "windgustHigh": 29, "winddirAvg": 233, "precipTotal": 0, "pressureMax": 1025.03, "pressureMin": 1021.88, "humidityHigh": 96, "humidityLow": 53, "humidityAvg": 84.6, "uvHigh": null, "solarRadiationHigh": null}
+  }
+}

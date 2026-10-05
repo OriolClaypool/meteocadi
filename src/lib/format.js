@@ -113,6 +113,11 @@ export function dayMonthShort(iso) {
   return `${d.getUTCDate()} ${MESOS_CURTS[d.getUTCMonth()]}`;
 }
 
+// "25 de setembre de 2025" / "25 de septiembre de 2025" (rècords de diversos anys)
+export function fullDate(iso, lang = 'ca') {
+  return `${dayMonth(iso, lang)} de ${iso.slice(0, 4)}`;
+}
+
 // "divendres 25 de setembre" / "viernes 25 de septiembre"
 export function longDate(iso, lang = 'ca') {
   return `${dayName(iso, lang)} ${dayMonth(iso, lang)}`;

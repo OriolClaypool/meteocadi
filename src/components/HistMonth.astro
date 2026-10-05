@@ -1,19 +1,17 @@
 ---
-// Una pàgina per mes a partir de l'arxiu diari: /historial/2026-09.
+// Resum d'un mes a partir de l'arxiu diari (/historial/2026-09, src/pages/historial/[periode].astro).
 // Es regenera cada nit amb el nou dia arxivat; mentre el mes no s'acaba, és un resum provisional.
-import Base from '../../layouts/Base.astro';
-import { months, extremes, monthStations } from '../../lib/archive.js';
-import { fmtAlt } from '../../lib/stations.js';
-import { episodesInMonth } from '../../lib/episodes.js';
-import EpisodeCards from '../../components/EpisodeCards.astro';
-import { num, dayName, dayMonth, monthName, deMonth, cap, tempColorLight, todayMadrid } from '../../lib/format.js';
+import Base from '../layouts/Base.astro';
+import { extremes, monthStations } from '../lib/archive.js';
+import { fmtAlt } from '../lib/stations.js';
+import { episodesInMonth } from '../lib/episodes.js';
+import EpisodeCards from './EpisodeCards.astro';
+import { num, dayName, dayMonth, monthName, deMonth, cap, tempColorLight, todayMadrid } from '../lib/format.js';
 
-export function getStaticPaths() {
-  const ms = months(); // del més recent al més antic
-  return ms.map((m, i) => ({ params: { mes: m.key }, props: { m, newer: ms[i - 1] || null, older: ms[i + 1] || null } }));
-}
-
+interface Props { m: any; newer: any; older: any }
 const { m, newer, older } = Astro.props;
+// Dies recuperats de l'historial de WU (abans de l'arxiu de cada nit)
+const recovered = m.daysList.some((d: any) => d.font);
 const st = monthStations(m);
 const eps = episodesInMonth(m.key);
 const nm = monthName(m.month);
@@ -58,7 +56,8 @@ const ld = [
     itemListElement: [
       { '@type': 'ListItem', position: 1, name: 'Inici', item: 'https://www.meteocadi.cat/' },
       { '@type': 'ListItem', position: 2, name: 'Historial', item: 'https://www.meteocadi.cat/historial' },
-      { '@type': 'ListItem', position: 3, name: `${cap(nm)} de ${m.year}`, item: url },
+      { '@type': 'ListItem', position: 3, name: String(m.year), item: `https://www.meteocadi.cat/historial/${m.year}` },
+      { '@type': 'ListItem', position: 4, name: `${cap(nm)} de ${m.year}`, item: url },
     ],
   },
 ];
@@ -66,7 +65,7 @@ const ld = [
 <Base title={title} description={description} path={`/historial/${m.key}`} jsonLd={ld} current="historial">
   <section class="phead">
     <div class="wrap">
-      <nav class="crumbs" aria-label="Ruta"><a href="/">Inici</a><span>›</span><a href="/historial">Historial</a><span>›</span><span>{cap(nm)} de {m.year}</span></nav>
+      <nav class="crumbs" aria-label="Ruta"><a href="/">Inici</a><span>›</span><a href="/historial">Historial</a><span>›</span><a href={`/historial/${m.year}`}>{m.year}</a><span>›</span><span>{cap(nm)}</span></nav>
       <h1>{cap(nm)} de {m.year} <em>al Cadí-Moixeró</em></h1>
       <div class="prose" style="margin-top:22px;font-size:17px;">
         <p>{p1}</p>
@@ -143,10 +142,10 @@ const ld = [
 
       <nav style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-weight:600;">
         {older ? <a href={`/historial/${older.key}`}>‹ {cap(monthName(older.month))} de {older.year}</a> : <span></span>}
-        <a href="/historial">Tot l'historial</a>
+        <a href={`/historial/${m.year}`}>Tot l'any {m.year}</a>
         {newer ? <a href={`/historial/${newer.key}`}>{cap(monthName(newer.month))} de {newer.year} ›</a> : <span></span>}
       </nav>
-      <p style="font-size:14px;color:var(--muted);">Dades de les estacions de la xarxa Meteocadí (Weather Underground), arxivades cada nit. Les temperatures d'un dia amb dades incompletes no compten per als extrems ni les mitjanes.</p>
+      <p style="font-size:14px;color:var(--muted);">Dades de les estacions de la xarxa Meteocadí (Weather Underground){recovered ? ", recuperades de l'historial de cada estació" : ', arxivades cada nit'}. Les temperatures d'un dia amb dades incompletes no compten per als extrems ni les mitjanes, i la pluja o la ratxa que el control de qualitat descarta tampoc.</p>
     </div>
   </section>
 </Base>

@@ -3,6 +3,7 @@
 // copiar-lo, esborrany desat al dispositiu i repartiment en diverses imatges si el text és massa llarg.
 import { STATIONS, shortName } from '../../lib/stations.js';
 import { todayMadrid, hourMadrid, dayMonth, parseDay } from '../../lib/format.js';
+import { archiveFor } from '../arxiu-dades.js';
 import {
   loadFonts, loadIcons, drawResum, drawRanking, drawRankingWide, WIDE, POST, drawPrevisio, layoutPrevisio, rankSentence, capFirst, WEATHER, PHENOMENA,
 } from './draw.js';
@@ -131,13 +132,14 @@ export async function startEstudi() {
   };
   const catMode = () => tpl === 'ranquing' && rankNet === 'cat';
 
-  async function getArchive() {
-    if (archive) return archive;
-    const r = await fetch('/estudi-dades.json', { cache: 'no-cache' });
-    if (!r.ok) throw new Error('arxiu');
-    archive = await r.json();
-    syncNet();
-    return archive;
+  // Arxiu de les estacions pròpies: els darrers dies i, si cal un dia més antic, el seu any (src/scripts/arxiu-dades.js)
+  async function getArchive(date) {
+    const a = await archiveFor(date || addDays(todayMadrid(), -1));
+    if (!a) throw new Error('arxiu');
+    const first = !archive;
+    archive = a;
+    if (first) syncNet();
+    return a;
   }
 
   async function getLive() {
@@ -208,8 +210,8 @@ export async function startEstudi() {
       const time = hourMadrid(new Date(j.updated));
       return { date: today, kind: 'avui', time, rows, note: `Dades en directe de les ${time}. S'actualitzen cada 15 minuts.` };
     }
-    const a = await getArchive();
     let want = choice === 'ahir' ? yest : $('otherDate').value || yest;
+    const a = await getArchive(want);
     let day = a.days.find((d) => d.date === want);
     let note = '';
     if (!day) {
@@ -321,7 +323,7 @@ export async function startEstudi() {
       od.min = '2010-01-01';
       od.max = addDays(todayMadrid(), -1);
     } else if (archive?.days?.length) {
-      od.min = archive.days[0].date;
+      od.min = archive.first || archive.days[0].date;
       od.max = archive.days[archive.days.length - 1].date;
     } else {
       od.removeAttribute('min');

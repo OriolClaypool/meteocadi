@@ -1,0 +1,19 @@
+---
+// Historial per períodes, a partir de l'arxiu diari: /historial/2026-09 (un mes) i /historial/2026 (un any).
+// Una sola ruta per als dos, perquè les adreces són al mateix nivell.
+import { months, years } from '../../lib/archive.js';
+import HistMonth from '../../components/HistMonth.astro';
+import HistYear from '../../components/HistYear.astro';
+
+export function getStaticPaths() {
+  const ms = months(); // del més recent al més antic
+  const ys = years();
+  return [
+    ...ms.map((m, i) => ({ params: { periode: m.key }, props: { kind: 'mes', m, newer: ms[i - 1] || null, older: ms[i + 1] || null } })),
+    ...ys.map((y, i) => ({ params: { periode: String(y.year) }, props: { kind: 'any', y, newer: ys[i - 1] || null, older: ys[i + 1] || null } })),
+  ];
+}
+
+const p = Astro.props as any;
+---
+{p.kind === 'any' ? <HistYear y={p.y} newer={p.newer} older={p.older} /> : <HistMonth m={p.m} newer={p.newer} older={p.older} />}
