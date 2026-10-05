@@ -1,8 +1,9 @@
 ---
 // Mapa de Catalunya amb totes les estacions automàtiques del Meteocat (XEMA, dades obertes) i les de Meteocadí.
 // Les dades es carreguen al navegador des de /api/xema i /api/ara; els límits comarcals, des de /api/comarques.
-// Període: avui (des de mitjanit), les darreres 24 hores (/api/xema/24h) o un dia anterior (/api/xema/AAAA-MM-DD,
-// i les nostres estacions de l'arxiu diari, /estudi-dades.json). Es pot enllaçar amb #24h o #AAAA-MM-DD.
+// Període: avui (des de mitjanit), les darreres 24 hores (/api/xema/24h), un dia anterior (/api/xema/AAAA-MM-DD, i les
+// nostres estacions de l'arxiu diari, /estudi-dades.json) o diversos dies, fins a 31 (/api/xema/AAAA-MM-DD..AAAA-MM-DD,
+// amb l'arxiu i, si inclou avui, /api/ara). Es pot enllaçar amb #24h, #AAAA-MM-DD o #AAAA-MM-DD..AAAA-MM-DD.
 // Dues versions: la pública (/mapa/catalunya), només per consultar, amb marca d'aigua i sense desar la imatge,
 // i la interna (/estudi/mapa, internal), que exposa l'estat del mapa perquè la pàgina en faci les imatges per a xarxes.
 interface Props { internal?: boolean }
@@ -17,6 +18,11 @@ const { internal = false } = Astro.props;
   <button type="button" data-p="today" aria-pressed="true">Avui</button>
   <button type="button" data-p="24h" aria-pressed="false">Darreres 24 h</button>
   <label class="cm-per__day"><span>Un altre dia</span><input type="date" id="cmDay" aria-label="Un dia anterior" /></label>
+  <button type="button" data-p="range" aria-pressed="false">Diversos dies</button>
+  <span class="cm-per__dates">
+    <input type="date" id="cmFrom" aria-label="Primer dia del període" /><span aria-hidden="true">–</span><input type="date" id="cmTo" aria-label="Darrer dia del període" />
+    <span class="cm-per__pre" role="group" aria-label="Períodes ràpids"><button type="button" data-n="3">3 dies</button><button type="button" data-n="7">7 dies</button><button type="button" data-n="30">30 dies</button></span>
+  </span>
 </div>
 <div class="cm-out" id="cmTop"></div>
 <div id="cmap" class:list={['cmap', { 'cmap--pub': !internal }]} data-internal={internal ? '1' : undefined} aria-label="Mapa de Catalunya amb les dades de les estacions"></div>
@@ -41,6 +47,13 @@ const { internal = false } = Astro.props;
   .cm-per__day input { font: inherit; font-size: 14px; font-weight: 600; border: 0; background: transparent; color: inherit; cursor: pointer; color-scheme: light; }
   .cm-per.is-day .cm-per__day input { color-scheme: dark; }
   .cm-vars button:disabled { opacity: 0.4; cursor: default; }
+  /* Diversos dies: les dates i les dreceres només es veuen quan està triat */
+  .cm-per__dates { display: none; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .cm-per.is-range .cm-per__dates { display: inline-flex; }
+  .cm-per__dates input { height: 34px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--ink); background: #fff; color: var(--ink); font: inherit; font-size: 14px; font-weight: 600; color-scheme: light; cursor: pointer; }
+  .cm-per__pre { display: inline-flex; gap: 4px; margin-left: 4px; }
+  .cm-per .cm-per__pre button { height: 30px; padding: 0 10px; font-size: 13px; font-weight: 600; color: var(--muted); }
+  .cm-per .cm-per__pre button:hover { color: var(--ink); border-color: var(--ink); }
   .cmap { width: 100%; height: min(82vh, 920px); min-height: 520px; border-radius: 16px; border: 1px solid var(--line); background: #e9eef3; overflow: hidden; }
   .cmap .leaflet-tile-pane { filter: saturate(0.3) contrast(0.9) brightness(1.08); opacity: 0.6; }
   .cmap.leaflet-container { font-family: var(--f-ui); background: #e9eef3; }
@@ -126,7 +139,7 @@ const { internal = false } = Astro.props;
   import { tempColorLight, num, dirLabel, hourMadrid, todayMadrid, dayName, dayMonth, longDate } from '../lib/format.js';
 
   type St = { id: string; name: string; lat: number; lng: number; alt: number | null; com?: string; mun?: string; mc?: boolean; slug?: string;
-    t: number | null; tmax: number | null; tmin: number | null; rain: number | null; wind: number | null; dir: number | null; gust: number | null; hr: number | null; snow: number | null; inc?: boolean };
+    t: number | null; tmax: number | null; tmin: number | null; rain: number | null; wind: number | null; dir: number | null; gust: number | null; hr: number | null; snow: number | null; inc?: boolean; rinc?: boolean };
 
   const month = Number(todayMadrid().slice(5, 7));
   const snowSeason = month >= 11 || month <= 5;
@@ -136,7 +149,7 @@ const { internal = false } = Astro.props;
     { key: 't', label: 'Temperatura', legend: 'Temperatura ara (°C)', title: ['Temperatura', 'ara a Catalunya'], accent: '#c2410c', unit: 'Temperatura (°C)', fmt: (v: number) => num(v), color: fc('t'), steps: [-5, 0, 5, 10, 15, 20, 25, 30, 35], two: true },
     { key: 'tmax', label: 'Màxima', legend: "Màxima d'avui (°C)", noun: 'Màxima', u: '°C', t1: 'Temperatura màxima', title: ['Temperatura màxima', "d'avui a Catalunya"], accent: '#c2410c', unit: 'Màxima (°C)', fmt: (v: number) => num(v), color: fc('tmax'), steps: [0, 5, 10, 15, 20, 25, 30, 35], two: true, today: true },
     { key: 'tmin', label: 'Mínima', legend: "Mínima d'avui (°C)", noun: 'Mínima', u: '°C', t1: 'Temperatura mínima', title: ['Temperatura mínima', "d'avui a Catalunya"], accent: '#0369a1', unit: 'Mínima (°C)', fmt: (v: number) => num(v), color: fc('tmin'), steps: [-10, -5, 0, 5, 10, 15, 20, 25], two: true, low: true, today: true },
-    { key: 'rain', label: 'Pluja', legend: "Pluja d'avui (mm)", noun: 'Pluja', u: 'mm', t1: 'Pluja', title: ["Pluja d'avui", 'a Catalunya'], accent: '#1d4ed8', unit: 'Pluja (mm)', fmt: (v: number) => num(v), color: (v: number) => (v < 0.1 ? '#e2e8f0' : fieldColor('rain', v)), steps: [0.1, 0.5, 1, 2, 5, 10, 20, 35, 50, 65, 80, 100, 150, 200], today: true },
+    { key: 'rain', label: 'Pluja', legend: "Pluja d'avui (mm)", noun: 'Pluja', u: 'mm', t1: 'Pluja', title: ["Pluja d'avui", 'a Catalunya'], accent: '#1d4ed8', unit: 'Pluja (mm)', fmt: (v: number) => num(v), color: (v: number) => (v < 0.1 ? '#e2e8f0' : fieldColor('rain', v)), steps: [0.1, 0.5, 1, 2, 5, 10, 20, 35, 50, 65, 80, 100, 150, 200], more: [300, 400], today: true },
     { key: 'gust', label: 'Ratxa màxima', legend: "Ratxa màxima d'avui (km/h)", noun: 'Ratxa màxima', u: 'km/h', t1: 'Ratxa màxima de vent', title: ['Ratxa màxima de vent', "d'avui a Catalunya"], accent: '#b45309', unit: 'Ratxa màxima (km/h)', fmt: (v: number) => String(Math.round(v)), color: fc('gust'), steps: [10, 20, 30, 40, 55, 70, 90], today: true },
     { key: 'wind', label: 'Vent', legend: 'Vent ara (km/h)', title: ['Vent', 'ara a Catalunya'], accent: '#0f766e', unit: 'Vent (km/h)', fmt: (v: number) => String(Math.round(v)), color: fc('wind'), steps: [10, 20, 30, 40, 55, 70] },
     { key: 'hr', label: 'Humitat', legend: 'Humitat relativa (%)', title: ['Humitat relativa', 'ara a Catalunya'], accent: '#1d4ed8', unit: 'Humitat relativa (%)', fmt: (v: number) => String(Math.round(v)), color: fc('hr'), steps: [30, 50, 70, 85], two: true },
@@ -144,20 +157,30 @@ const { internal = false } = Astro.props;
   ];
   let cur = VARS[0];
 
-  // ---------------------------------------------------------------- període: avui, darreres 24 h o un dia anterior
-  type Period = { kind: 'today' } | { kind: '24h' } | { kind: 'day'; date: string };
+  // ---------------------------------------------------------------- període: avui, darreres 24 h, un dia anterior o diversos dies
+  type Period = { kind: 'today' } | { kind: '24h' } | { kind: 'day'; date: string } | { kind: 'range'; from: string; to: string };
   let period: Period = { kind: 'today' };
   // "del 2 d'octubre", "de l'1 d'octubre"
-  const deDia = (iso: string) => { const d = Number(iso.slice(8, 10)); return `${d === 1 || d === 11 ? "de l'" : 'del '}${dayMonth(iso)}`; };
+  const dnum = (iso: string) => Number(iso.slice(8, 10));
+  const deDia = (iso: string) => `${dnum(iso) === 1 || dnum(iso) === 11 ? "de l'" : 'del '}${dayMonth(iso)}`;
+  // "del 28 al 30 de setembre", "del 28 de setembre al 5 d'octubre", "de l'1 a l'11 d'octubre"
+  const delAl = (a: string, b: string) => {
+    const de = dnum(a) === 1 || dnum(a) === 11 ? "de l'" : 'del ';
+    const al = dnum(b) === 1 || dnum(b) === 11 ? "a l'" : 'al ';
+    return a === b ? deDia(a) : a.slice(0, 7) === b.slice(0, 7) ? `${de}${dnum(a)} ${al}${dayMonth(b)}` : `${de}${dayMonth(a)} ${al}${dayMonth(b)}`;
+  };
   const per = () =>
     period.kind === 'today' ? { leg: "d'avui", short: "d'avui", title: "d'avui" }
     : period.kind === '24h' ? { leg: 'de les darreres 24 h', short: '(24 h)', title: 'de les darreres 24 hores' }
+    : period.kind === 'range' ? { leg: delAl(period.from, period.to), short: '(període)', title: delAl(period.from, period.to) }
     : { leg: deDia(period.date), short: 'del dia', title: deDia(period.date) };
+  const past = () => period.kind === 'day' || period.kind === 'range';
+  const rangeToday = () => period.kind === 'range' && period.to === todayMadrid();
   // Les variables del dia (màxima, mínima, pluja, ratxa) canvien amb el període; les d'ara (temperatura, vent,
   // humitat, neu) són sempre les darreres i no n'hi ha per als dies anteriors
   const legendOf = (v: any) => (v.today ? `${v.noun} ${per().leg} (${v.u})` : v.legend);
   const titleOf = (v: any) => (period.kind === 'today' || !v.today ? v.title : [`${v.t1} ${per().title}`, 'a Catalunya']);
-  const allowed = (v: any) => period.kind !== 'day' || !!v.today;
+  const allowed = (v: any) => !past() || !!v.today;
   // Estacions de la xarxa que no es mostren en aquest mapa: a Bagà n'hi ha tres molt juntes i només hi deixem la del centre
   const HIDDEN_HERE = new Set(['IBAG65', 'IBAG72']);
 
@@ -333,10 +356,12 @@ const { internal = false } = Astro.props;
   // Llegenda a baix a la dreta, sobre el mar: a l'esquerra tapava les Terres de l'Ebre
   const lgEl = corner('bottomright', 'cm-lg', document.getElementById('cmBottom')!);
   lgEl.id = 'cmLegend';
+  // Pluja: les classes de 300 i 400 mm només surten a la llegenda quan hi ha acumulats tan grans (diversos dies)
+  const stepsOf = (v: any) => (v.more && (period.kind === 'range' || stations.some((s) => (val(s) ?? 0) >= 200)) ? [...v.steps, ...v.more] : v.steps);
   function legend() {
     const el = document.getElementById('cmLegend');
     if (!el) return;
-    el.innerHTML = `<b>${legendOf(cur)}</b><div class="sw">${cur.steps.map((s) => `<span><i style="background:${cur.color(s)}"></i>${num(s, s % 1 ? 1 : 0)}</span>`).join('')}</div><div class="cm-fl"><button type="button" id="cmFieldBtn" aria-pressed="${fieldOn}">Mapa de color</button><span id="cmFieldNote"></span></div><label class="cm-op">Intensitat<input type="range" id="cmOp" min="0.25" max="1.6" step="0.05" value="${intensity}" aria-label="Intensitat del mapa de color" /></label>`;
+    el.innerHTML = `<b>${legendOf(cur)}</b><div class="sw">${stepsOf(cur).map((s: number) => `<span><i style="background:${cur.color(s)}"></i>${num(s, s % 1 ? 1 : 0)}</span>`).join('')}</div><div class="cm-fl"><button type="button" id="cmFieldBtn" aria-pressed="${fieldOn}">Mapa de color</button><span id="cmFieldNote"></span></div><label class="cm-op">Intensitat<input type="range" id="cmOp" min="0.25" max="1.6" step="0.05" value="${intensity}" aria-label="Intensitat del mapa de color" /></label>`;
     L.DomEvent.disableClickPropagation(el);
     el.querySelector('#cmFieldBtn')?.addEventListener('click', () => { fieldOn = !fieldOn; field(); });
     L.DomEvent.disableScrollPropagation(el);
@@ -364,7 +389,8 @@ const { internal = false } = Astro.props;
   let stations: St[] = [];
   const markers = new Map<string, any>();
   // Les estacions del Meteocat amb més de 2 hores sense dades (inc) no compten per a la màxima ni la mínima
-  const val = (s: St) => (s.inc && (cur.key === 'tmax' || cur.key === 'tmin') ? null : ((s as any)[cur.key] as number | null));
+  // (i, a la pluja, les que tenen massa lectures que falten: el total quedaria curt)
+  const val = (s: St) => ((s.inc && (cur.key === 'tmax' || cur.key === 'tmin')) || (s.rinc && cur.key === 'rain') ? null : ((s as any)[cur.key] as number | null));
   const shown = (s: St) => val(s) != null && (mode === 'auto' || mode === 'totes' || (mode === 'capitals' && capIds.has(s.id)));
 
   function capitals() {
@@ -513,31 +539,66 @@ const { internal = false } = Astro.props;
     }
   }
 
-  // Selector de període. L'adreça porta #24h o #AAAA-MM-DD, per poder compartir l'enllaç d'un dia o d'un episodi.
+  // Selector de període. L'adreça porta #24h, #AAAA-MM-DD o #AAAA-MM-DD..AAAA-MM-DD, per poder compartir l'enllaç
+  // d'un dia o d'un episodi.
   const perEl = document.getElementById('cmPer')!;
   const dayIn = document.getElementById('cmDay') as HTMLInputElement;
+  const fromIn = document.getElementById('cmFrom') as HTMLInputElement;
+  const toIn = document.getElementById('cmTo') as HTMLInputElement;
+  const FIRST_DAY = '2010-01-01';
+  const MAX_DAYS = 31;
   const isoDay = (t: number) => new Date(t).toISOString().slice(0, 10);
-  const yesterday = () => isoDay(Date.parse(`${todayMadrid()}T12:00:00Z`) - 864e5);
-  dayIn.min = '2010-01-01';
+  const addDays = (iso: string, n: number) => isoDay(Date.parse(`${iso}T12:00:00Z`) + n * 864e5);
+  const yesterday = () => addDays(todayMadrid(), -1);
+  const isDate = (d: string) => /^\d{4}-\d{2}-\d{2}$/.test(d) && d >= FIRST_DAY;
+  dayIn.min = fromIn.min = toIn.min = FIRST_DAY;
   dayIn.max = yesterday();
+  fromIn.max = toIn.max = todayMadrid();
+  // Un període vàlid: dates en ordre, fins avui i de 31 dies com a molt (si és més llarg, s'escurça per l'inici)
+  function rangeOf(a: string, b: string): Period | null {
+    if (!isDate(a) || !isDate(b)) return null;
+    let [from, to] = a <= b ? [a, b] : [b, a];
+    if (to > todayMadrid()) to = todayMadrid();
+    if (from > to) from = to;
+    if (from < addDays(to, -(MAX_DAYS - 1))) from = addDays(to, -(MAX_DAYS - 1));
+    return { kind: 'range', from, to };
+  }
+  const lastDays = (n: number) => rangeOf(addDays(todayMadrid(), -(n - 1)), todayMadrid())!;
   function setPeriod(p: Period, reload = true) {
     period = p;
-    perEl.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String((b as HTMLElement).dataset.p === p.kind)));
+    perEl.querySelectorAll<HTMLElement>('[data-p]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.p === p.kind)));
     perEl.classList.toggle('is-day', p.kind === 'day');
+    perEl.classList.toggle('is-range', p.kind === 'range');
     dayIn.value = p.kind === 'day' ? p.date : '';
-    try { history.replaceState(null, '', p.kind === 'today' ? location.pathname + location.search : `#${p.kind === '24h' ? '24h' : p.date}`); } catch {}
+    if (p.kind === 'range') { fromIn.value = p.from; toIn.value = p.to; }
+    const hash = p.kind === 'today' ? '' : p.kind === '24h' ? '24h' : p.kind === 'day' ? p.date : `${p.from}..${p.to}`;
+    try { history.replaceState(null, '', hash ? `#${hash}` : location.pathname + location.search); } catch {}
     varsForPeriod();
     if (reload) load();
   }
-  perEl.querySelectorAll('button').forEach((b) => b.addEventListener('click', () => setPeriod({ kind: (b as HTMLElement).dataset.p as 'today' | '24h' })));
+  perEl.querySelectorAll<HTMLElement>('[data-p="today"], [data-p="24h"]').forEach((b) => b.addEventListener('click', () => setPeriod({ kind: b.dataset.p as 'today' | '24h' })));
+  // Diversos dies: per defecte, la darrera setmana (fins ara); si ja n'hi havia un, es manté
+  perEl.querySelector('[data-p="range"]')!.addEventListener('click', () => {
+    if (period.kind !== 'range') setPeriod(lastDays(7));
+  });
+  perEl.querySelectorAll<HTMLElement>('[data-n]').forEach((b) => b.addEventListener('click', () => setPeriod(lastDays(Number(b.dataset.n)))));
+  const onRange = () => {
+    const p = rangeOf(fromIn.value, toIn.value);
+    if (p) setPeriod(p);
+  };
+  fromIn.addEventListener('change', onRange);
+  toIn.addEventListener('change', onRange);
   dayIn.addEventListener('change', () => {
     const d = dayIn.value;
-    if (/^\d{4}-\d{2}-\d{2}$/.test(d) && d >= dayIn.min && d <= yesterday()) setPeriod({ kind: 'day', date: d });
+    if (isDate(d) && d <= yesterday()) setPeriod({ kind: 'day', date: d });
   });
   {
-    const h = location.hash.slice(1);
+    const h = decodeURIComponent(location.hash.slice(1));
+    const m = /^(\d{4}-\d{2}-\d{2})\.\.(\d{4}-\d{2}-\d{2})$/.exec(h);
+    const r = m ? rangeOf(m[1], m[2]) : null;
     if (h === '24h') setPeriod({ kind: '24h' }, false);
-    else if (/^\d{4}-\d{2}-\d{2}$/.test(h) && h >= '2010-01-01' && h <= yesterday()) setPeriod({ kind: 'day', date: h }, false);
+    else if (isDate(h) && h <= yesterday()) setPeriod({ kind: 'day', date: h }, false);
+    else if (r) setPeriod(r, false);
   }
 
   // ---------------------------------------------------------------- versió pública: marca d'aigua, sense desar la imatge
@@ -606,12 +667,13 @@ const { internal = false } = Astro.props;
         const day = todayMadrid(when);
         const eyebrow = period.kind === '24h'
           ? `Darreres 24 hores · fins ${dayName(day)} ${dayMonth(day)} a les ${hourMadrid(when)}`.toLocaleUpperCase('ca')
-          : period.kind === 'day' ? `${longDate(period.date)} · dia sencer`.toLocaleUpperCase('ca') : undefined;
+          : period.kind === 'day' ? `${longDate(period.date)} · dia sencer`.toLocaleUpperCase('ca')
+          : period.kind === 'range' ? `Període de ${Math.round((Date.parse(period.to) - Date.parse(period.from)) / 864e5) + 1} dies${rangeToday() ? ` · fins avui a les ${hourMadrid(when)}` : ''}`.toLocaleUpperCase('ca') : undefined;
         return {
           key: cur.key,
           when,
           eyebrow,
-          suffix: period.kind === '24h' ? '-24h' : period.kind === 'day' ? '-dia' : '',
+          suffix: period.kind === '24h' ? '-24h' : period.kind === 'day' ? '-dia' : period.kind === 'range' ? `-des-${period.from}` : '',
           // La zona que es veu: si s'hi ha fet zoom, la imatge mostra aquesta zona
           view: { lat0: vb.getSouth(), lat1: vb.getNorth(), lng0: vb.getWest(), lng1: vb.getEast() },
           title: titleOf(cur),
@@ -621,7 +683,7 @@ const { internal = false } = Astro.props;
           hideOverlap: mode === 'auto',
           comarques,
           field: hasField ? { canvas: fieldRaw!.canvas, bounds: FB, alpha: Math.min(0.97, fieldRaw!.alpha * intensity), note: fieldRaw!.note } : null,
-          legend: { title: cur.unit, steps: cur.steps.map((s) => ({ color: cur.color(s), label: num(s, s % 1 ? 1 : 0) })) },
+          legend: { title: cur.unit, steps: stepsOf(cur).map((s: number) => ({ color: cur.color(s), label: num(s, s % 1 ? 1 : 0) })) },
         };
       },
     };
@@ -653,17 +715,44 @@ const { internal = false } = Astro.props;
     const fin = (v: number) => (Number.isFinite(v) ? Math.round(v * 10) / 10 : null);
     return { tmax: fin(tmax), tmin: fin(tmin), gust: fin(gust), rain: Math.round(rain * 10) / 10 };
   }
+  // Diversos dies d'una estació nostra: els dies de l'arxiu i, si el període arriba a avui, el d'avui de /api/ara.
+  // Si en falta algun dia, l'estació no hi surt; si un dia té la temperatura o la pluja descartades (dia incomplet o
+  // control de qualitat), aquella variable no es dona per a tot el període.
+  function oursRange(id: string, from: string, to: string, arx: any, ara: any) {
+    const byDate = new Map((arx?.days || []).map((d: any) => [d.date, d]));
+    const today = todayMadrid();
+    let tmax = -Infinity, tmin = Infinity, gust = -Infinity, rain = 0, tOk = true, gOk = true, rOk = true;
+    for (let d = from; d <= to; d = addDays(d, 1)) {
+      let v: (number | null)[];
+      if (d === today) {
+        const a = ara?.[id];
+        if (!a || a.stale) return null;
+        v = [a.max ?? null, a.min ?? null, a.gustMax ?? a.gust ?? null, a.rain ?? null];
+      } else {
+        const day: any = byDate.get(d);
+        if (!day?.s?.[id]) return null;
+        v = day.s[id];
+        if (day.susp?.includes(id)) tOk = false;
+      }
+      if (v[0] == null || v[1] == null) tOk = false;
+      else { tmax = Math.max(tmax, v[0]); tmin = Math.min(tmin, v[1]); }
+      if (v[2] == null) gOk = false; else gust = Math.max(gust, v[2]);
+      if (v[3] == null) rOk = false; else rain += v[3];
+    }
+    return { tmax: tOk ? tmax : null, tmin: tOk ? tmin : null, gust: gOk ? gust : null, rain: rOk ? Math.round(rain * 10) / 10 : null };
+  }
   let loadSeq = 0;
   async function load(force = false) {
     const seq = ++loadSeq;
     const p = period;
     const when = document.getElementById('cmWhen');
     if (when) when.textContent = 'Carregant les dades…';
-    const xurl = p.kind === 'today' ? '/api/xema' : `/api/xema/${p.kind === '24h' ? '24h' : p.date}`;
+    const xurl = p.kind === 'today' ? '/api/xema' : `/api/xema/${p.kind === '24h' ? '24h' : p.kind === 'day' ? p.date : `${p.from}..${p.to}`}`;
+    const needsAra = p.kind === 'today' || p.kind === '24h' || (p.kind === 'range' && p.to === todayMadrid());
     const [x, a, arx] = await Promise.all([
       fetch(xurl).then((r) => (r.ok ? r.json() : null)).catch(() => null),
-      p.kind === 'day' ? null : loadAra(force).catch(() => null),
-      p.kind === 'day' ? loadArchive() : null,
+      needsAra ? loadAra(force).catch(() => null) : null,
+      p.kind === 'day' || p.kind === 'range' ? loadArchive() : null,
     ]);
     if (seq !== loadSeq) return; // mentrestant s'ha triat un altre període
     const list: St[] = (x?.stations || []).map((s: any) => ({ ...s, mc: false }));
@@ -681,6 +770,13 @@ const { internal = false } = Astro.props;
         ours++;
         continue;
       }
+      if (p.kind === 'range') {
+        const v = oursRange(st.id, p.from, p.to, arx, ara);
+        if (!v) continue;
+        list.push({ ...base, t: null, wind: null, dir: null, hr: null, ...v });
+        ours++;
+        continue;
+      }
       const d = ara[st.id];
       if (!d || d.stale) continue;
       const now = { t: d.temp ?? null, wind: d.wind ?? null, dir: d.dir ?? null, hr: d.hum ?? null };
@@ -693,13 +789,17 @@ const { internal = false } = Astro.props;
       ours++;
     }
     stations = list;
-    latest = p.kind === 'day'
-      ? new Date(Date.parse(x?.period?.end || `${p.date}T22:00:00Z`) - 60e3)
+    latest = p.kind === 'day' || (p.kind === 'range' && !rangeToday())
+      ? new Date(Date.parse(x?.period?.end || `${p.kind === 'day' ? p.date : p.to}T22:00:00Z`) - 60e3)
       : x?.latest ? new Date(x.latest) : (a as any)?.updated ? new Date((a as any).updated) : null;
     if (when) {
       const parts = [];
       if (p.kind === 'day') {
         parts.push(`${longDate(p.date)}, dia sencer`);
+        if (!ours) parts.push('sense dades de la xarxa Meteocadí');
+      } else if (p.kind === 'range') {
+        const txt = delAl(p.from, p.to);
+        parts.push(txt[0].toUpperCase() + txt.slice(1) + (p.to === todayMadrid() && x?.latest ? `, fins a les ${hourMadrid(new Date(x.latest))}` : ''));
         if (!ours) parts.push('sense dades de la xarxa Meteocadí');
       } else {
         if (x?.latest) parts.push(`${p.kind === '24h' ? 'Darreres 24 h fins a les' : 'Meteocat fins a les'} ${hourMadrid(new Date(x.latest))}`);
@@ -712,6 +812,6 @@ const { internal = false } = Astro.props;
     draw();
   }
   load();
-  // Avui i les 24 hores es refresquen soles; un dia anterior ja no canvia
-  setInterval(() => { if (period.kind !== 'day') load(true); }, 15 * 60 * 1000);
+  // Avui, les 24 hores i un període que arriba fins avui es refresquen sols; els dies anteriors ja no canvien
+  setInterval(() => { if (!past() || rangeToday()) load(true); }, 15 * 60 * 1000);
 </script>

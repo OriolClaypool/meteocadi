@@ -1,6 +1,6 @@
 // Dades de les estacions automàtiques del Servei Meteorològic de Catalunya (XEMA), des del portal de dades obertes
 // de la Generalitat (analisi.transparenciacatalunya.cat). Compartit per /api/xema (avui) i /api/xema/<període>
-// (darreres 24 hores o un dia anterior). El prefix "_" fa que Vercel no el publiqui com a funció.
+// (darreres 24 hores, un dia anterior o diversos dies). El prefix "_" fa que Vercel no el publiqui com a funció.
 //
 // Lectures de cada mitja hora, amb uns 45-75 minuts de retard; data_lectura és l'inici de cada mitja hora, en UTC.
 // Codis de variable (metadades 4fb2-n3yi): 32 temperatura, 33 humitat, 30/48/46 vent a 10/6/2 m (m/s),
@@ -75,6 +75,79 @@ const aggRows = (start, end) =>
     $limit: '5000',
   });
 
+// Diversos dies (de from a to, dates AAAA-MM-DD, fins avui inclòs): una consulta agregada per dia (la del període
+// sencer, al portal, triga molt més que la suma de les diàries) i es combinen: pluja total, màxima i mínima del
+// període i ratxa màxima. inc / rinc: estacions amb més d'un 10 % de lectures de temperatura / pluja que falten.
+export async function xemaRange(from, to, now = new Date()) {
+  const days = [];
+  for (let d = from; d <= to; d = ymdMadrid(new Date(Date.parse(`${d}T12:00:00Z`) + 24 * H))) days.push(d);
+  const spans = days
+    .map((d) => {
+      const start = midnightOf(d);
+      const end = new Date(Math.min(midnightOf(ymdMadrid(new Date(start.getTime() + 36 * H))).getTime(), now.getTime()));
+      return { start, end };
+    })
+    .filter((x) => x.end > x.start);
+  // Com a molt 6 consultes alhora, per no saturar el portal
+  const results = new Array(spans.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < spans.length) {
+      const i = next++;
+      results[i] = await aggRows(spans[i].start, spans[i].end);
+    }
+  };
+  const [stationsMeta] = await Promise.all([meta(), ...Array.from({ length: Math.min(6, spans.length) }, worker)]);
+  const acc = {};
+  for (const rows of results) {
+    const day = {};
+    for (const row of rows) (day[row.codi_estacio] ||= {})[row.codi_variable] = row;
+    for (const [id, v] of Object.entries(day)) {
+      const a = (acc[id] ||= { tmax: null, tmin: null, rain: null, gust: null, n40: 0, n35: 0 });
+      const mx = n(v['40']?.mx), mn = n(v['42']?.mn), sm = n(v['35']?.sm);
+      const g = n((v['50'] || v['53'] || v['56'])?.mx);
+      if (mx != null) a.tmax = a.tmax == null ? mx : Math.max(a.tmax, mx);
+      if (mn != null) a.tmin = a.tmin == null ? mn : Math.min(a.tmin, mn);
+      if (sm != null) a.rain = (a.rain || 0) + sm;
+      if (g != null) a.gust = a.gust == null ? g : Math.max(a.gust, g);
+      a.n40 += n(v['40']?.nn) || 0;
+      a.n35 += n(v['35']?.nn) || 0;
+    }
+  }
+  const expected = spans.reduce((t, x) => t + Math.round((x.end - x.start) / (30 * 60e3)), 0);
+  const start = spans[0]?.start || midnightOf(from);
+  const end = spans[spans.length - 1]?.end || now;
+  const stations = stationsMeta
+    .map((s) => {
+      const a = acc[s.codi_estacio];
+      if (!a) return null;
+      return {
+        id: s.codi_estacio,
+        name: cleanName(s.nom_estacio),
+        lat: n(s.latitud),
+        lng: n(s.longitud),
+        alt: n(s.altitud),
+        com: plain(s.nom_comarca),
+        mun: plain(s.nom_municipi),
+        t: null, time: null, hr: null, wind: null, dir: null, snow: null, rain1h: null,
+        tmax: lim(a.tmax, -40, 48),
+        tmin: lim(a.tmin, -40, 48),
+        rain: lim(r1(a.rain), 0, 3000),
+        gust: lim(kmh(a.gust), 0, 250),
+        ...(a.n40 && a.n40 < expected * 0.9 ? { inc: true } : {}),
+        ...(a.rain != null && a.n35 < expected * 0.9 ? { rinc: true } : {}),
+      };
+    })
+    .filter((s) => s && s.lat != null && s.lng != null && (s.tmax != null || s.rain != null || s.gust != null));
+  return {
+    updated: now.toISOString(),
+    latest: end.toISOString(),
+    period: { kind: 'range', from, to, start: start.toISOString(), end: end.toISOString() },
+    source: 'Servei Meteorològic de Catalunya (XEMA) · Dades obertes de la Generalitat de Catalunya',
+    stations,
+  };
+}
+
 // period: { kind: 'today' | '24h' | 'day', date? }. Retorna { updated, latest, period, source, stations }.
 // Per a un dia anterior no hi ha valors actuals (temperatura, vent, humitat, neu): només els del dia sencer.
 export async function xemaData(period, now = new Date()) {
@@ -130,8 +203,8 @@ export async function xemaData(period, now = new Date()) {
   // temperatura, la màxima i la mínima poden no ser les reals: es marca amb inc (com les "susp" de la xarxa pròpia)
   const until = live ? lastEnd || now : end;
   const expected = Math.round((until.getTime() - start.getTime()) / (30 * 60e3));
-  const incomplete = (id) => {
-    const nn = n(agg[`${id}|40`]?.nn);
+  const incomplete = (id, code = '40') => {
+    const nn = n(agg[`${id}|${code}`]?.nn);
     return nn != null && nn < expected - 4;
   };
 
@@ -161,6 +234,8 @@ export async function xemaData(period, now = new Date()) {
         rain1h: r35[id]?.length ? r1(r35[id].reduce((a, b) => a + b, 0)) : null,
         gust: lim(kmh(A(id, 'mx', '50', '53', '56')), 0, 250),
         ...(incomplete(id) ? { inc: true } : {}),
+        // Pluja amb més de 2 hores sense lectures: el total quedaria curt
+        ...(incomplete(id, '35') ? { rinc: true } : {}),
       };
     })
     .filter((s) => s.lat != null && s.lng != null && (live ? s.t != null || s.rain != null || s.wind != null : s.tmax != null || s.rain != null || s.gust != null));
