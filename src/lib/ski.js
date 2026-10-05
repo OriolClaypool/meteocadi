@@ -30,7 +30,7 @@ const TXT = {
     none: 'Cap dia bo per esquiar aquesta setmana',
     why: {
       wind3: 'vent molt fort a dalt', wind2: 'vent fort a dalt', wind1: 'una mica de vent a dalt', calm: 'poc vent',
-      storm: 'temporal de neu', snowing: 'nevada', rain: 'pluja a la base', cloud: 'cel tapat', fog: 'boira', sun: 'sol',
+      storm: 'temporal de neu', snowing: 'nevada', rain: 'pluja a la base', rainTop: 'pluja fins a dalt', cloud: 'cel tapat', fog: 'boira', sun: 'sol',
       cold2: 'molt fred a dalt', cold1: 'fred a dalt', hot: 'massa calor per a la neu', warm: 'neu humida a la tarda',
       fresh2: 'molta neu nova', fresh1: 'neu nova',
     },
@@ -46,7 +46,7 @@ const TXT = {
     none: 'Ningún día bueno para esquiar esta semana',
     why: {
       wind3: 'viento muy fuerte arriba', wind2: 'viento fuerte arriba', wind1: 'algo de viento arriba', calm: 'poco viento',
-      storm: 'temporal de nieve', snowing: 'nevada', rain: 'lluvia en la base', cloud: 'cielo cubierto', fog: 'niebla', sun: 'sol',
+      storm: 'temporal de nieve', snowing: 'nevada', rain: 'lluvia en la base', rainTop: 'lluvia hasta arriba', cloud: 'cielo cubierto', fog: 'niebla', sun: 'sol',
       cold2: 'mucho frío arriba', cold1: 'frío arriba', hot: 'demasiado calor para la nieve', warm: 'nieve húmeda por la tarde',
       fresh2: 'mucha nieve nueva', fresh1: 'nieve nueva',
     },
@@ -69,11 +69,14 @@ export function rateDay(top, base, i) {
   else if (g < 30) good.push('calm');
   const p = T.precip ?? 0;
   const rainAtBase = (B.precip ?? 0) >= 1 && (B.min ?? 0) > 1;
-  if (rainAtBase) { s -= 25; bad.push('rain'); }
-  if (p >= 10) { s -= 40; bad.push('storm'); }
-  else if (p >= 3) { s -= 20; if (!rainAtBase) bad.push('snowing'); }
+  // Pluja fins a dalt: hi cau aigua però gairebé no neu (cm de neu molt per sota dels mm de precipitació)
+  const rainAtTop = p >= 1 && (T.snow ?? 0) < p * 0.4;
+  if (rainAtTop) { s -= 35; bad.push('rainTop'); }
+  else if (rainAtBase) { s -= 25; bad.push('rain'); }
+  if (p >= 10) { s -= 40; if (!rainAtTop) bad.push('storm'); }
+  else if (p >= 3) { s -= 20; if (!rainAtBase && !rainAtTop) bad.push('snowing'); }
   else if (p >= 0.5) s -= 6;
-  if (T.code === 45 || T.code === 48) { s -= 15; bad.push('fog'); }
+  if (T.code === 45 || T.code === 48) { s -= 30; bad.push('fog'); }
   else if (T.sun != null) {
     if (T.sun < 3) { s -= 15; if (p < 3) bad.push('cloud'); }
     else if (T.sun < 6) s -= 5;
@@ -366,4 +369,201 @@ export function skiSnowText(groups, today, lang = 'ca') {
   return es
     ? `Nieve prevista en la parte alta de las pistas durante los próximos 7 días: ${joined}.`
     : `Neu prevista a la part alta de les pistes els pròxims 7 dies: ${joined}.`;
+}
+
+// ------------------------------------------------------------------ tauler de la setmana (totes les estacions × 7 dies)
+
+// Com serà el dia en una estació, en paraules. La cota de neu és uns 300 m per sota de la isoterma de 0 °C.
+// kind: snow (neva a tota l'estació) · snowtop (neu a dalt, pluja a baix) · rain · wind (sec i vent fort a dalt) ·
+// sun · part (sol i núvols) · cloud · fog
+export function dayVerdict(g, i) {
+  const T = g.top?.days?.[i];
+  if (!T) return null;
+  const B = g.base?.days?.[i] ?? T;
+  const pts = g.resort.points;
+  const bAlt = pts[pts.length - 1].alt, tAlt = pts[0].alt;
+  const cm = Math.max(0, T.snow ?? 0);
+  const p = Math.max(T.precip ?? 0, B.precip ?? 0);
+  const frz = T.frz ? (T.frz.min + T.frz.max) / 2 : null;
+  const line = frz != null ? Math.max(0, Math.round((frz - 300) / 100) * 100) : null;
+  const windy = (T.gust ?? 0) >= 70;
+  let kind;
+  if (cm >= 1) kind = line != null && line > bAlt + 100 ? 'snowtop' : 'snow';
+  else if (p >= 1) kind = 'rain';
+  else if (windy) kind = 'wind';
+  else if (T.code === 45 || T.code === 48) kind = 'fog';
+  else if ((T.sun != null && T.sun >= 6) || (T.sun == null && T.code != null && T.code <= 1)) kind = 'sun';
+  else if ((T.sun != null && T.sun >= 3) || (T.sun == null && T.code === 2)) kind = 'part';
+  else kind = 'cloud';
+  return { kind, cm, line, windy, bAlt, tAlt, T, B };
+}
+
+const BOARD = {
+  ca: {
+    main: { rain: 'Pluja', wind: 'Vent', sun: 'Sol', part: 'Variable', cloud: 'Núvols', fog: 'Boira' },
+    sub: { snow: "a tota l'estació", snowtop: 'a dalt; a baix, pluja', rain: 'fins a dalt', wind: 'fort a dalt' },
+    legend: [['snow', 'Neva (cm a dalt)'], ['snowtop', 'Neu a dalt, pluja a baix'], ['rain', 'Pluja'], ['wind', 'Vent fort a dalt'], ['sun', 'Sol'], ['part', 'Sol i núvols'], ['cloud', 'Núvols o boira']],
+    long: {
+      snow: (v) => `Neva a tota l'estació: ${num(v.cm, 0)} cm a dalt${v.line != null ? ` (cota de neu a uns ${thousands(v.line)} m)` : ''}.`,
+      snowtop: (v) => `Neu a dalt i pluja a baix: ${num(v.cm, 0)} cm al cim; la cota de neu, a uns ${thousands(v.line)} m, queda dins de l'estació.`,
+      rain: (v) => `Pluja${v.line != null && v.line >= v.tAlt ? ' fins a dalt: la cota de neu és a uns ' + thousands(v.line) + ' m, per sobre del cim' : ''}.`,
+      wind: (v) => `Sec, però amb vent fort a dalt: ratxes de ${Math.round(v.T.gust)} km/h.`,
+      sun: () => 'Sol.', part: () => 'Sol i núvols.', cloud: () => 'Cel tapat.', fog: () => 'Boira.',
+    },
+    temps: (v) => `Al cim, ${num(v.T.min, 0)}° / ${num(v.T.max, 0)}°; a la base, ${num(v.B.min, 0)}° / ${num(v.B.max, 0)}°. Ratxa a dalt: ${Math.round(v.T.gust ?? 0)} km/h.`,
+    windy: 'Vent fort a dalt.',
+    windMark: 'I vent fort a dalt',
+    rate: 'Per esquiar',
+    total: '7 dies',
+    title: 'Tauler de la setmana',
+    tap: "Toca un dia per veure'n el detall.",
+  },
+  es: {
+    main: { rain: 'Lluvia', wind: 'Viento', sun: 'Sol', part: 'Variable', cloud: 'Nubes', fog: 'Niebla' },
+    sub: { snow: 'en toda la estación', snowtop: 'arriba; abajo, lluvia', rain: 'hasta arriba', wind: 'fuerte arriba' },
+    legend: [['snow', 'Nieva (cm arriba)'], ['snowtop', 'Nieve arriba, lluvia abajo'], ['rain', 'Lluvia'], ['wind', 'Viento fuerte arriba'], ['sun', 'Sol'], ['part', 'Sol y nubes'], ['cloud', 'Nubes o niebla']],
+    long: {
+      snow: (v) => `Nieva en toda la estación: ${num(v.cm, 0)} cm arriba${v.line != null ? ` (cota de nieve a unos ${thousands(v.line)} m)` : ''}.`,
+      snowtop: (v) => `Nieve arriba y lluvia abajo: ${num(v.cm, 0)} cm en la cima; la cota de nieve, a unos ${thousands(v.line)} m, queda dentro de la estación.`,
+      rain: (v) => `Lluvia${v.line != null && v.line >= v.tAlt ? ' hasta arriba: la cota de nieve está a unos ' + thousands(v.line) + ' m, por encima de la cima' : ''}.`,
+      wind: (v) => `Seco, pero con viento fuerte arriba: rachas de ${Math.round(v.T.gust)} km/h.`,
+      sun: () => 'Sol.', part: () => 'Sol y nubes.', cloud: () => 'Cielo cubierto.', fog: () => 'Niebla.',
+    },
+    temps: (v) => `En la cima, ${num(v.T.min, 0)}° / ${num(v.T.max, 0)}°; en la base, ${num(v.B.min, 0)}° / ${num(v.B.max, 0)}°. Racha arriba: ${Math.round(v.T.gust ?? 0)} km/h.`,
+    windy: 'Viento fuerte arriba.',
+    windMark: 'Y viento fuerte arriba',
+    rate: 'Para esquiar',
+    total: '7 días',
+    title: 'Panel de la semana',
+    tap: 'Toca un día para ver el detalle.',
+  },
+};
+const bx = (lang) => BOARD[lang === 'es' ? 'es' : 'ca'];
+const escA = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+
+// Color de la neu prevista (el mateix que el mapa de neu): 1–9, 10–29 i 30 cm o més
+export const snowBg = (cm) => (cm == null ? '#eef3f8' : cm >= 30 ? '#1d4ed8' : cm >= 10 ? '#60a5fa' : cm >= 1 ? '#bfdbfe' : '#ffffff');
+export const snowFg = (cm) => (cm != null && cm >= 30 ? '#ffffff' : '#10233b');
+
+// Text llarg d'un dia (detall del tauler)
+export function verdictText(g, i, lang = 'ca', season = true) {
+  const v = dayVerdict(g, i);
+  if (!v) return '';
+  const X = bx(lang);
+  const parts = [X.long[v.kind](v)];
+  if (v.windy && v.kind !== 'wind') parts.push(X.windy);
+  parts.push(X.temps(v));
+  if (season) {
+    const r = rateDay(g.top, g.base, i);
+    if (r) parts.push(`${X.rate}: ${tx(lang).levels[r.level].toLowerCase()}${r.why.length ? ` (${r.why.map((w) => tx(lang).why[w]).join(', ')})` : ''}.`);
+  }
+  return parts.join(' ');
+}
+
+// zones: [{ name, groups: [...] }] en l'ordre en què s'han de mostrar
+export function skiBoardHTML(zones, { today, lang = 'ca', season = true, base = '/temps/' }) {
+  const first = zones.flatMap((z) => z.groups).find((g) => g?.top?.days?.length);
+  if (!first) return '';
+  const X = bx(lang);
+  const L = tx(lang);
+  const days = first.top.days;
+  const idx = skiSummary(first, today, lang).idx;
+  const head = `<tr><th class="skb__n"></th>${idx.map((i, k) => `<th scope="col">${dayLabel(days[i].date, k, lang)}</th>`).join('')}<th scope="col" class="skb__tot">${X.total}</th></tr>`;
+  const rows = zones
+    .map((z) => {
+      const rs = z.groups
+        .filter((g) => g?.top?.days?.length)
+        .map((g) => {
+          const r = g.resort;
+          const pts = r.points;
+          const { idx: gi, snow } = skiSummary(g, today, lang);
+          const cells = gi
+            .map((i, k) => {
+              const v = dayVerdict(g, i);
+              if (!v) return '<td></td>';
+              const isSnow = v.kind === 'snow' || v.kind === 'snowtop';
+              const main = isSnow ? `${num(v.cm, 0)}<small> cm</small>` : X.main[v.kind];
+              const sub = X.sub[v.kind] ?? `${num(v.T.min, 0)}° / ${num(v.T.max, 0)}°`;
+              const style = isSnow ? ` style="--bg:${snowBg(v.cm)};--fg:${snowFg(v.cm)}"` : '';
+              const rt = season ? rateDay(g.top, g.base, i) : null;
+              const when = k === 0 ? L.today.toLowerCase() : k === 1 ? L.tomorrow.toLowerCase() : `${dayName(days[i].date, lang)} ${parseDay(days[i].date).getUTCDate()}`;
+              const label = `${r.name}, ${when}: ${verdictText(g, i, lang, season)}`;
+              return `<td><button type="button" class="skb__c skb__c--${v.kind}${v.windy && v.kind !== 'wind' ? ' is-windy' : ''}"${style} data-det="${escA(label)}" aria-label="${escA(label)}"><b>${main}</b><span>${sub}</span>${rt ? `<i class="rt rt--${rt.level}" aria-hidden="true"></i>` : ''}</button></td>`;
+            })
+            .join('');
+          return `<tr><th scope="row" class="skb__n"><a href="${base}${r.slug}">${r.name}</a><small>${thousands(pts[pts.length - 1].alt)}–${thousands(pts[0].alt)} m</small></th>${cells}<td class="skb__tot"><b style="--bg:${snowBg(snow >= 1 ? snow : 0)};--fg:${snowFg(snow)}">${snow >= 1 ? `${num(snow, 0)}<small> cm</small>` : '—'}</b></td></tr>`;
+        })
+        .join('');
+      return rs ? `<tr class="skb__z"><th colspan="${idx.length + 2}" scope="rowgroup"><span>${z.name}</span></th></tr>${rs}` : '';
+    })
+    .join('');
+  const legend = X.legend.map(([k, t]) => `<span><i class="skb__sw skb__sw--${k}"></i>${t}</span>`).join('') + `<span><i class="skb__lg-wind"></i>${X.windMark}</span>`;
+  const rate = season ? `<span class="skb__lr">${L.levels.slice(1).reverse().map((t, j) => `<span><i class="rt rt--${4 - j}"></i>${t}</span>`).join('')}</span>` : '';
+  return `<div class="skb__lg">${legend}${rate}</div>
+<div class="tscroll skb__w"><table class="skb"><thead>${head}</thead><tbody>${rows}</tbody></table></div>
+<p class="skb__det" data-skb-det aria-live="polite">${X.tap}</p>`;
+}
+
+// Rànquing de neu prevista en 7 dies (de més a menys), amb els dies que més nevarà
+export function skiRankHTML(groups, { today, lang = 'ca', base = '/temps/' }) {
+  const es = lang === 'es';
+  const list = (groups || [])
+    .filter((g) => g?.top?.days?.length)
+    .map((g) => {
+      const s = skiSummary(g, today, lang);
+      const top = s.idx.map((i, k) => ({ i, k, cm: g.top.days[i].snow ?? 0 })).filter((x) => x.cm >= 1).sort((a, b) => b.cm - a.cm).slice(0, 2).sort((a, b) => a.k - b.k);
+      return { g, snow: s.snow, when: top.map((x) => dayLabel(g.top.days[x.i].date, x.k, lang).toLowerCase()) };
+    })
+    .sort((a, b) => b.snow - a.snow);
+  if (!list.length) return '';
+  const max = Math.max(10, list[0].snow);
+  const withSnow = list.filter((x) => x.snow >= 1);
+  if (!withSnow.length) return `<p class="skr__none">${es ? 'No se prevé nieve en ninguna estación durante los próximos 7 días.' : 'No es preveu neu a cap estació els pròxims 7 dies.'}</p>`;
+  const and = es ? ' y ' : ' i ';
+  return `<ol class="skr">${list
+    .map((x) => `<li><a href="${base}${x.g.resort.slug}"><span class="skr__n">${x.g.resort.name}</span><span class="skr__b"><i style="width:${Math.max(x.snow >= 1 ? 3 : 0, (x.snow / max) * 100).toFixed(1)}%;--bg:${snowBg(x.snow >= 1 ? Math.max(x.snow, 1) : 0)}"></i></span><b>${x.snow >= 1 ? `${num(x.snow, 0)} cm` : '—'}</b><small>${x.when.length ? x.when.join(and) : ''}</small></a></li>`)
+    .join('')}</ol>`;
+}
+
+// Resum de la setmana en paraules (capçalera de la pàgina): quan i on nevarà, fins on baixarà la neu, vent i millor dia
+export function skiWeekText(groups, today, lang = 'ca', season = true) {
+  const gs = (groups || []).filter((g) => g?.top?.days?.length);
+  if (!gs.length) return '';
+  const es = lang === 'es';
+  const first = gs[0];
+  const idx = skiSummary(first, today, lang).idx;
+  const dayName2 = (k) => (k === 0 ? (es ? 'hoy' : 'avui') : k === 1 ? (es ? 'mañana' : 'demà') : dayName(first.top.days[idx[k]].date, lang));
+  const per = idx.map((i, k) => {
+    const vs = gs.map((g) => ({ g, v: dayVerdict(g, i) })).filter((x) => x.v);
+    const snowy = vs.filter((x) => x.v.cm >= 1);
+    const best = snowy.sort((a, b) => b.v.cm - a.v.cm)[0];
+    const lines = vs.filter((x) => (x.v.T.precip ?? 0) >= 1 && x.v.line != null).map((x) => x.v.line);
+    const windy = vs.filter((x) => x.v.windy).length;
+    const good = season ? gs.filter((g) => (rateDay(g.top, g.base, i)?.level ?? 0) >= 3).length : 0;
+    return { k, n: snowy.length, best, line: lines.length ? Math.min(...lines) : null, windy, good };
+  });
+  const out = [];
+  const snowDays = per.filter((d) => d.n > 0);
+  const list = (xs) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} ${es ? 'y' : 'i'} ${xs[xs.length - 1]}`);
+  if (snowDays.length) {
+    const top = [...snowDays].sort((a, b) => b.best.v.cm - a.best.v.cm)[0];
+    const many = Math.max(...snowDays.map((d) => d.n));
+    const where = many >= gs.length * 0.75 ? (es ? 'en casi todas las estaciones' : 'a gairebé totes les estacions') : es ? `en ${many} de las ${gs.length} estaciones` : `a ${many} de les ${gs.length} estacions`;
+    out.push(es
+      ? `Se prevé nieve ${list(snowDays.map((d) => dayName2(d.k)))}, ${where}. La nevada más fuerte, ${dayName2(top.k)}: hasta ${num(top.best.v.cm, 0)} cm en ${top.best.g.resort.name}.`
+      : `Es preveu neu ${list(snowDays.map((d) => dayName2(d.k)))}, ${where}. La nevada més forta, ${dayName2(top.k)}: fins a ${num(top.best.v.cm, 0)} cm ${top.best.g.resort.a ?? `a ${top.best.g.resort.name}`}.`);
+    const low = snowDays.map((d) => d.line).filter((x) => x != null);
+    if (low.length) out.push(es ? `La cota de nieve bajará hasta unos ${thousands(Math.min(...low))} m.` : `La cota de neu baixarà fins a uns ${thousands(Math.min(...low))} m.`);
+  } else {
+    const frs = idx.map((i) => first.top.days[i].frz).filter(Boolean);
+    out.push(es ? 'No se prevé nieve en ninguna estación durante los próximos 7 días.' : 'No es preveu neu a cap estació els pròxims 7 dies.');
+    if (frs.length) out.push(es ? `La isoterma de 0 °C estará entre ${thousands(Math.min(...frs.map((f) => f.min)))} y ${thousands(Math.max(...frs.map((f) => f.max)))} m.` : `La isoterma de 0 °C serà entre ${thousands(Math.min(...frs.map((f) => f.min)))} i ${thousands(Math.max(...frs.map((f) => f.max)))} m.`);
+  }
+  const windDays = per.filter((d) => d.windy >= Math.max(2, gs.length * 0.3));
+  if (windDays.length) out.push(es ? `Viento fuerte arriba ${list(windDays.map((d) => dayName2(d.k)))}.` : `Vent fort a dalt ${list(windDays.map((d) => dayName2(d.k)))}.`);
+  if (season) {
+    const b = [...per].sort((a, c) => c.good - a.good)[0];
+    if (b && b.good > 0) out.push(es ? `${cap(dayName2(b.k))} es el día con buen tiempo para esquiar en más estaciones.` : `${cap(dayName2(b.k))} és el dia amb bon temps per esquiar a més estacions.`);
+  }
+  return out.join(' ');
 }
