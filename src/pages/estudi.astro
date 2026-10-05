@@ -67,8 +67,13 @@ import EstudiTop from '../components/EstudiTop.astro';
           </div>
           <div class="st-field">
             <label>Quin dia</label>
-            <div class="st-seg" id="dayChoice"><button type="button" data-choice="ahir" aria-pressed="true">Ahir</button><button type="button" data-choice="avui" aria-pressed="false">Avui fins ara</button><button type="button" data-choice="24h" aria-pressed="false" hidden>24 hores</button><button type="button" data-choice="altre" aria-pressed="false">Un altre dia</button></div>
+            <div class="st-seg" id="dayChoice"><button type="button" data-choice="ahir" aria-pressed="true">Ahir</button><button type="button" data-choice="avui" aria-pressed="false">Avui fins ara</button><button type="button" data-choice="24h" aria-pressed="false" hidden>24 hores</button><button type="button" data-choice="altre" aria-pressed="false">Un altre dia</button><button type="button" data-choice="range" aria-pressed="false" hidden>Diversos dies</button></div>
             <input id="otherDate" type="date" hidden />
+            <div class="st-range" id="rangeBox" hidden>
+              <label>Del <input id="rangeFrom" type="date" /></label>
+              <label>al <input id="rangeTo" type="date" /></label>
+              <div class="st-range__q"><button type="button" data-range="3">3 dies</button><button type="button" data-range="7">7 dies</button><button type="button" data-range="30">30 dies</button></div>
+            </div>
             <p class="st-note" id="dayNote"></p>
           </div>
           <div data-panel="ranquing" hidden>
@@ -155,6 +160,11 @@ import EstudiTop from '../components/EstudiTop.astro';
   .st-canvas.is-wide { width: min(100%, 760px); }
   .st-canvas.is-post { width: min(100%, 520px); }
   #dayChoice button { padding: 8px 4px; }
+  .st-range { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; margin-top: 10px; }
+  .st-range label { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--mut); }
+  .st-range input { height: 38px; border: 1px solid var(--line); border-radius: 8px; padding: 0 8px; background: #fff; color: var(--ink); }
+  .st-range__q { display: inline-flex; gap: 4px; }
+  .st-range__q button { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 6px 12px; font-weight: 600; font-size: 13px; color: var(--ink); cursor: pointer; }
   .st-canvas { width: min(100%, 420px); border-radius: 6px; overflow: hidden; box-shadow: 0 18px 60px rgba(16, 35, 59, 0.18), 0 2px 6px rgba(16, 35, 59, 0.12); background: #060a12; }
   .st-canvas canvas { display: block; width: 100%; height: auto; }
   .st-pvbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 14px; }

@@ -30,6 +30,20 @@ function delDia(iso) {
   return n === 1 || n === 11 ? `de l'${dayMonth(iso)}` : `del ${dayMonth(iso)}`;
 }
 
+// "del 28 al 30 de setembre", "del 28 de setembre al 3 d'octubre", "de l'1 a l'11 d'octubre"
+function delAl(a, b) {
+  if (a === b) return delDia(a);
+  const n = Number(b.slice(8));
+  const al = n === 1 || n === 11 ? "a l'" : 'al ';
+  const ya = a.slice(0, 4) !== b.slice(0, 4) ? ` de ${a.slice(0, 4)}` : '';
+  return a.slice(0, 7) === b.slice(0, 7)
+    ? `${delDia(a).replace(/ d(e |')\S+$/, '')} ${al}${dayMonth(b)}`
+    : `${delDia(a)}${ya} ${al}${dayMonth(b)}`;
+}
+const spanDays = (a, b) => Math.round((parseDay(b) - parseDay(a)) / 864e5) + 1;
+// Diversos dies: com a molt 31 (el mateix límit que /api/xema/AAAA-MM-DD..AAAA-MM-DD)
+const MAX_RANGE = 31;
+
 export async function startEstudi() {
   const canvas = $('poster');
   const ctx = canvas.getContext('2d');
@@ -120,6 +134,8 @@ export async function startEstudi() {
   let live = null;
   let liveAt = 0;
   let choice = 'ahir';
+  // Període del rànquing de diversos dies (per defecte, els darrers 7 dies fins avui)
+  let range = { from: addDays(todayMadrid(), -6), to: todayMadrid() };
   let rankVar = 'max';
   // Format del rànquing: 'story' (1080 × 1920), 'post' (1080 × 1350, 4:5) o 'wide' (1600 × 900, per a X). Es recorda.
   let rankFmt = ['story', 'post', 'wide'].includes(store.get(K_FMT)) ? store.get(K_FMT) : 'story';
@@ -165,6 +181,60 @@ export async function startEstudi() {
     return j;
   }
 
+  // Diversos dies a les estacions del Meteocat: pluja total, màxima més alta, mínima més baixa i ratxa més forta
+  async function xemaRangeData() {
+    const today = todayMadrid();
+    const { from, to } = range;
+    const j = await getXema(`/api/xema/${from}..${to}`, to === today);
+    const rows = (j.stations || []).map((s) => ({
+      id: s.id, name: s.name, alt: s.alt ?? 0, com: s.com, max: s.tmax, min: s.tmin, gust: s.gust, rain: s.rinc ? null : s.rain, susp: !!s.inc,
+    }));
+    const time = to === today && j.latest ? hourMadrid(new Date(j.latest)) : '';
+    let note = `${spanDays(from, to)} dies: pluja total, la màxima més alta, la mínima més baixa i la ratxa més forta del període.${time ? ` Fins a les ${time}.` : ''} Les estacions amb massa lectures que falten no entren a la pluja ni a les temperatures.`;
+    if (j.stale) note += " Ara el portal de Meteocat no respon: són les darreres dades bones.";
+    return { date: to, from, to, kind: 'range', time, rows, note, net: 'cat' };
+  }
+
+  // Diversos dies a la xarxa pròpia: els dies de l'arxiu i, si el període arriba a avui, el d'avui en directe. Una
+  // estació amb algun dia sense dades no hi surt; una variable descartada algun dia (dia incomplet, control de qualitat)
+  // no es dona per a tot el període (com al mapa de Catalunya).
+  async function rangeData() {
+    if (catMode()) return xemaRangeData();
+    const today = todayMadrid();
+    const { from, to } = range;
+    const a = await archiveFor(from, to < today ? to : addDays(today, -1));
+    if (a && !archive) { archive = a; syncNet(); }
+    const byDate = new Map((a?.days || []).map((d) => [d.date, d]));
+    const lv = to === today ? await getLive() : null;
+    const dates = [];
+    for (let d = from; d <= to; d = addDays(d, 1)) dates.push(d);
+    const rows = [];
+    for (const s of STATIONS) {
+      let tmax = -Infinity, tmin = Infinity, gust = -Infinity, rain = 0, tOk = true, gOk = true, rOk = true, ok = true;
+      for (const d of dates) {
+        let v;
+        if (d === today) {
+          const x = lv?.stations?.[s.id];
+          if (!x || x.stale) { ok = false; break; }
+          v = [x.max ?? null, x.min ?? null, x.gustMax ?? x.gust ?? null, x.rain ?? null, false];
+        } else {
+          const day = byDate.get(d);
+          const x = day?.s?.[s.id];
+          if (!x) { ok = false; break; }
+          v = [...x, day.susp?.includes(s.id)];
+        }
+        if (v[0] == null || v[1] == null || v[4]) tOk = false; else { tmax = Math.max(tmax, v[0]); tmin = Math.min(tmin, v[1]); }
+        if (v[2] == null) gOk = false; else gust = Math.max(gust, v[2]);
+        if (v[3] == null) rOk = false; else rain += v[3];
+      }
+      if (!ok) continue;
+      rows.push({ id: s.id, name: shortName(s), alt: s.alt, max: tOk ? tmax : null, min: tOk ? tmin : null, gust: gOk ? gust : null, rain: rOk ? Math.round(rain * 10) / 10 : null, susp: !tOk });
+    }
+    const time = to === today && lv?.updated ? hourMadrid(new Date(lv.updated)) : '';
+    const note = `${dates.length} dies: pluja total, la màxima més alta, la mínima més baixa i la ratxa més forta del període.${time ? ` Avui, fins a les ${time}.` : ''} Les estacions amb algun dia sense dades no hi surten.`;
+    return { date: to, from, to, kind: 'range', time, rows, note };
+  }
+
   async function xemaData() {
     const today = todayMadrid();
     const yest = addDays(today, -1);
@@ -196,6 +266,7 @@ export async function startEstudi() {
 
   // Retorna { date, kind, time, rows, note }
   async function dayData() {
+    if (choice === 'range' && tpl === 'ranquing') return rangeData();
     if (catMode()) return xemaData();
     const today = todayMadrid();
     const yest = addDays(today, -1);
@@ -285,11 +356,11 @@ export async function startEstudi() {
       drawResum(ctx, d);
     } else {
       const net = d.net || 'mc';
-      const key = `${d.date}|${rankVar}|${d.kind}|${net}`;
+      const key = `${d.kind === 'range' ? `${d.from}..${d.to}` : d.date}|${rankVar}|${d.kind}|${net}`;
       if (sentence.key !== key) sentence = { key, text: rankSentence(d.rows, rankVar, net), edited: false };
       if ($('sentence').value !== sentence.text) $('sentence').value = sentence.text;
-      const when = d.kind === 'ahir' ? "d'ahir" : d.kind === 'avui' ? "d'avui" : d.kind === '24h' ? 'de les darreres 24 h' : delDia(d.date);
-      (rankFmt === 'wide' ? drawRankingWide : drawRanking)(ctx, { date: d.date, when, variable: rankVar, rows: d.rows, sentence: sentence.text, net, kind: d.kind, time: d.time, fmt: rankFmt });
+      const when = d.kind === 'ahir' ? "d'ahir" : d.kind === 'avui' ? "d'avui" : d.kind === '24h' ? 'de les darreres 24 h' : d.kind === 'range' ? delAl(d.from, d.to) : delDia(d.date);
+      (rankFmt === 'wide' ? drawRankingWide : drawRanking)(ctx, { date: d.date, from: d.from, to: d.to, days: d.kind === 'range' ? spanDays(d.from, d.to) : 1, when, variable: rankVar, rows: d.rows, sentence: sentence.text, net, kind: d.kind, time: d.time, fmt: rankFmt });
     }
     lastData = d;
   }
@@ -311,11 +382,19 @@ export async function startEstudi() {
     const b24 = document.querySelector('[data-choice="24h"]');
     b24.hidden = !cat;
     // Amb quatre botons, "Avui fins ara" no hi cap en una línia
-    document.querySelector('[data-choice="avui"]').textContent = cat ? 'Avui' : 'Avui fins ara';
+    document.querySelector('[data-choice="avui"]').textContent = cat || tpl === 'ranquing' ? 'Avui' : 'Avui fins ara';
     if (!cat && choice === '24h') {
       choice = 'avui';
       document.querySelectorAll('[data-choice]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.choice === choice)));
     }
+    // Diversos dies: només al rànquing (el resum és d'un sol dia)
+    const bRange = document.querySelector('[data-choice="range"]');
+    bRange.hidden = tpl !== 'ranquing';
+    if (tpl !== 'ranquing' && choice === 'range') {
+      choice = 'ahir';
+      document.querySelectorAll('[data-choice]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.choice === choice)));
+    }
+    $('rangeBox').hidden = choice !== 'range';
     $('dataNote').textContent = NOTES[cat ? 'cat' : 'mc'];
     $('dataTitle').textContent = tpl === 'resum' ? 'Resum del dia' : cat ? 'Rànquing de Catalunya' : 'Rànquing';
     const od = $('otherDate');
@@ -528,10 +607,48 @@ export async function startEstudi() {
       document.querySelectorAll('[data-choice]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
       $('otherDate').hidden = choice !== 'altre';
       if (choice === 'altre' && !$('otherDate').value) $('otherDate').value = addDays(todayMadrid(), -2);
+      $('rangeBox').hidden = choice !== 'range';
+      if (choice === 'range') syncRange();
       draw();
     }),
   );
   $('otherDate').addEventListener('change', () => draw());
+
+  // Període de diversos dies: dues dates (com a molt 31 dies, fins avui) i dreceres de 3, 7 i 30 dies fins avui
+  function syncRange() {
+    const today = todayMadrid();
+    const first = catMode() ? '2010-01-01' : archive?.first || '2025-06-01';
+    if (range.to > today) range.to = today;
+    if (range.from > range.to) range.from = range.to;
+    if (spanDays(range.from, range.to) > MAX_RANGE) range.from = addDays(range.to, -(MAX_RANGE - 1));
+    if (range.from < first) range.from = first;
+    for (const id of ['rangeFrom', 'rangeTo']) { $(id).min = first; $(id).max = today; }
+    $('rangeFrom').value = range.from;
+    $('rangeTo').value = range.to;
+  }
+  $('rangeFrom').addEventListener('change', () => {
+    if (!$('rangeFrom').value) return;
+    range.from = $('rangeFrom').value;
+    // Si el període passa de 31 dies, s'escurça pel final
+    if (spanDays(range.from, range.to) > MAX_RANGE) range.to = addDays(range.from, MAX_RANGE - 1);
+    if (range.to < range.from) range.to = range.from;
+    syncRange();
+    draw();
+  });
+  $('rangeTo').addEventListener('change', () => {
+    if (!$('rangeTo').value) return;
+    range.to = $('rangeTo').value;
+    syncRange();
+    draw();
+  });
+  document.querySelectorAll('[data-range]').forEach((b) =>
+    b.addEventListener('click', () => {
+      const today = todayMadrid();
+      range = { from: addDays(today, -(Number(b.dataset.range) - 1)), to: today };
+      syncRange();
+      draw();
+    }),
+  );
   document.querySelectorAll('[data-var]').forEach((b) =>
     b.addEventListener('click', () => {
       rankVar = b.dataset.var;
@@ -557,6 +674,7 @@ export async function startEstudi() {
     const date = lastData?.date || todayMadrid();
     if (tpl === 'resum') return `meteocadi-resum-${n(date)}.png`;
     const cat = lastData?.net === 'cat';
+    if (lastData?.kind === 'range') return `meteocadi-ranquing-${cat ? 'catalunya-' : ''}${rankVar}-${n(lastData.from)}-${n(lastData.to)}${lastData.time ? `-${lastData.time.replace(':', '')}` : ''}${rankFmt === 'wide' ? '-horitzontal' : rankFmt === 'post' ? '-4x5' : ''}.png`;
     return `meteocadi-ranquing-${cat ? 'catalunya-' : ''}${rankVar}-${n(date)}${cat && lastData.kind === '24h' ? `-24h-${lastData.time.replace(':', '')}` : ''}${rankFmt === 'wide' ? '-horitzontal' : rankFmt === 'post' ? '-4x5' : ''}.png`;
   }
   async function blob() {

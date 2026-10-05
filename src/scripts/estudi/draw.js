@@ -381,9 +381,11 @@ const CAT_CREDIT = 'DADES: SERVEI METEOROLÒGIC DE CATALUNYA';
 
 // "Catalunya · dissabte 3 d'octubre" (i, de les darreres 24 hores, fins a quina hora)
 function rankEyebrow(d) {
-  const day = `${dayName(d.date)} ${dayMonth(d.date)}`;
+  // Diversos dies: "Període de 7 dies" (i l'hora, si arriba fins avui)
+  const day = d.kind === 'range' ? `Període de ${d.days} dies${d.time ? ` · fins avui a les ${d.time}` : ''}` : `${dayName(d.date)} ${dayMonth(d.date)}`;
   if (d.net !== 'cat') return day;
   return `Catalunya · ${day}${d.kind === '24h' && d.time ? ` · fins a les ${d.time}` : ''}`;
+
 }
 
 // Nom de l'estació a l'amplada: lletra més petita i, si encara no hi cap, sense la part de després del guió
