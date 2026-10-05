@@ -9,7 +9,7 @@ export const LLINDARS = {
   // mm en una estació: en un sol dia, o acumulats en dies seguits de pluja (dies amb ≥ 1 mm en alguna estació)
   pluja: { dia: 25, total: 40 },
   // km/h de ratxa màxima, segons si l'estació és d'alta muntanya o de vall
-  vent: { alta: 100, vall: 60 },
+  vent: { alta: 120, vall: 70 },
   // °C de temperatura màxima
   calor: { max: 34 },
   // °C de temperatura mínima

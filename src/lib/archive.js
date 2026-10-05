@@ -4,7 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { STATIONS, BY_ID } from './stations.js';
-import { LIMITS, inRange, rainSuspects, windSuspects, tempSuspects } from './qc.js';
+import { LIMITS, inRange, rainSuspects, windSuspects, tempSuspects, rainSpikes, gustSpikes, rainCarryOver } from './qc.js';
 
 const ROOT = path.resolve(process.env.DADES_DIR || 'dades'); // DADES_DIR: només per a proves amb dades inventades
 let _cache = null;
@@ -25,28 +25,42 @@ export function loadDays() {
             // Sense temperatura vàlida (sensors exteriors apagats, valors de "sense dades"…) l'estació no compta aquell dia
             if (v && inRange(v.tempHigh, LIMITS.temp) && inRange(v.tempLow, LIMITS.temp) && v.tempHigh >= v.tempLow) stations[id] = { ...v };
           }
-          days.push({ date: j.date || f.slice(0, 10), stations, qc: qcDay(stations) });
+          // font: 'historic' als dies recuperats de l'historial de WU, d'abans de l'arxiu de cada nit
+          days.push({ date: j.date || f.slice(0, 10), stations, ...(j.font ? { font: j.font } : {}) });
         } catch {
           /* fitxer malmès: l'ignorem */
         }
       }
     }
   }
+  // Pluja d'ahir repetida (vegeu rainCarryOver): es compara amb el valor original del dia anterior
+  const raw = days.map((d) => Object.fromEntries(Object.entries(d.stations).map(([id, v]) => [id, inRange(v.precipTotal, LIMITS.rain) ? Number(v.precipTotal) : null])));
+  for (let i = 0; i < days.length; i++) {
+    const prevDay = i > 0 && nextDate(days[i - 1].date) === days[i].date ? raw[i - 1] : null;
+    // (els dies ja corregits amb les lectures de 5 minuts, amb precipTotalWU, no cal mirar-los)
+    const cur = Object.fromEntries(Object.entries(raw[i]).filter(([id]) => days[i].stations[id].precipTotalWU === undefined));
+    const carry = [...rainCarryOver(prevDay, cur)];
+    for (const id of carry) days[i].stations[id].precipTotal = null;
+    days[i].qc = { ...qcDay(days[i].stations), carry };
+  }
   _cache = days;
   return days;
 }
+const nextDate = (iso) => new Date(Date.parse(`${iso}T12:00:00Z`) + 864e5).toISOString().slice(0, 10);
 
-// Control de qualitat d'un dia (src/lib/qc.js): la pluja d'un pluviòmetre que no recull i la ratxa d'un anemòmetre
-// encallat queden a null; així cap pàgina (rècords, historial, episodis, estudi, mapa) no les fa servir.
-// Retorna què s'ha descartat ({ rain: [ids], wind: [ids] }).
+// Control de qualitat d'un dia (src/lib/qc.js): la pluja d'un pluviòmetre que no recull o que dona un pic
+// impossible, i la ratxa d'un anemòmetre encallat o amb un pic impossible, queden a null; així cap pàgina (rècords,
+// historial, episodis, estudi, mapa) no les fa servir. Retorna què s'ha descartat ({ rain: [ids], wind: [ids] }).
 function qcDay(stations) {
   const field = (k, lim) => Object.fromEntries(Object.entries(stations).map(([id, v]) => [id, inRange(v[k], lim) ? Number(v[k]) : null]));
   for (const v of Object.values(stations)) {
     if (!inRange(v.precipTotal, LIMITS.rain)) v.precipTotal = null;
     if (!inRange(v.windgustHigh, LIMITS.gust)) v.windgustHigh = null;
   }
-  const rain = [...rainSuspects(field('precipTotal', LIMITS.rain))];
-  const wind = [...windSuspects(field('windgustHigh', LIMITS.gust))];
+  const rainV = field('precipTotal', LIMITS.rain);
+  const gustV = field('windgustHigh', LIMITS.gust);
+  const rain = [...new Set([...rainSuspects(rainV), ...rainSpikes(rainV)])];
+  const wind = [...new Set([...windSuspects(gustV), ...gustSpikes(gustV, field('windspeedAvg', LIMITS.wind))])];
   for (const id of rain) stations[id].precipTotal = null;
   for (const id of wind) stations[id].windgustHigh = null;
   return { rain, wind };
@@ -64,7 +78,13 @@ export function latestDay() {
 
 // Estacions amb un dia probablement incomplet: rang diari molt petit comparat amb
 // estacions d'altitud semblant (les de cim tenen rangs petits de manera natural).
+// Es calcula una sola vegada per dia (amb anys d'arxiu, moltes pàgines el demanen per als mateixos dies).
+const _susp = new WeakMap();
 export function suspicious(day) {
+  if (!_susp.has(day)) _susp.set(day, suspiciousOf(day));
+  return _susp.get(day);
+}
+function suspiciousOf(day) {
   const out = new Set();
   const entries = Object.entries(day.stations).filter(([id]) => BY_ID[id]);
   for (const [id, v] of entries) {
@@ -138,26 +158,22 @@ export function stationHistory(id) {
     .reverse();
 }
 
+// Rècords d'una estació des que publica dades (cada valor, { v, date }). Les temperatures dels dies incomplets no compten.
 export function stationRecords(id) {
-  const h = stationHistory(id);
-  if (!h.length) return null;
-  const best = (field, dir) =>
-    h.reduce((a, b) => (b[field] == null ? a : !a || (dir > 0 ? b[field] > a[field] : b[field] < a[field]) ? b : a), null);
-  const avg = (field) => {
-    const v = h.map((x) => x[field]).filter((x) => x != null);
-    return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
-  };
+  const rows = rowsOf(loadDays(), id);
+  if (!rows.length) return null;
+  const st = stats(rows);
   return {
-    days: h.length,
-    from: h[h.length - 1].date,
-    to: h[0].date,
-    maxHigh: best('tempHigh', 1),
-    minLow: best('tempLow', -1),
-    maxGust: best('windgustHigh', 1),
-    maxRain: best('precipTotal', 1),
-    rainTotal: h.reduce((a, b) => a + (b.precipTotal ?? 0), 0),
-    avgHigh: avg('tempHigh'),
-    avgLow: avg('tempLow'),
+    days: rows.length,
+    from: rows[0].date,
+    to: rows[rows.length - 1].date,
+    maxHigh: st.max,
+    minLow: st.min,
+    maxGust: st.gust,
+    maxRain: st.maxRain,
+    rainTotal: st.rain,
+    avgHigh: st.avgHigh,
+    avgLow: st.avgLow,
   };
 }
 
@@ -201,33 +217,152 @@ export function months() {
     .reverse();
 }
 
+// ---- Estadístiques d'una estació en un conjunt de dies (mes, any, tot l'arxiu) ----
+
+// Files d'una estació: el dia, els seus valors i si les temperatures d'aquell dia són sospitoses (vegeu suspicious)
+export function rowsOf(days, id) {
+  return days.filter((d) => d.stations[id]).map((d) => ({ date: d.date, ...d.stations[id], susp: suspicious(d).has(id) }));
+}
+
+const daysIn = (y, m) => new Date(Date.UTC(y, m, 0)).getUTCDate();
+// Dies de l'any (o fins a un dia, si l'any no s'ha acabat)
+const daysInYear = (y) => ((y % 4 === 0 && y % 100 !== 0) || y % 400 === 0 ? 366 : 365);
+
+// Resum d'una llista de files: mitjanes (sense els dies sospitosos), extrems amb el dia, pluja total i dies de pluja.
+// rainN: dies amb pluja vàlida (per saber si el total és complet).
+export function stats(rows) {
+  const t = rows.filter((r) => !r.susp);
+  const avg = (list, k) => {
+    const v = list.map((r) => r[k]).filter((x) => x != null && !isNaN(x)).map(Number);
+    return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+  };
+  const best = (list, k, dir) => {
+    let b = null;
+    for (const r of list) {
+      if (r[k] == null || isNaN(r[k])) continue;
+      if (!b || (dir > 0 ? r[k] > b.v : r[k] < b.v)) b = { v: Number(r[k]), date: r.date };
+    }
+    return b;
+  };
+  const rr = rows.filter((r) => r.precipTotal != null && !isNaN(r.precipTotal));
+  return {
+    days: rows.length,
+    avgHigh: avg(t, 'tempHigh'),
+    avgLow: avg(t, 'tempLow'),
+    avgMean: avg(t, 'tempAvg'),
+    max: best(t, 'tempHigh', 1),
+    min: best(t, 'tempLow', -1),
+    gust: best(rows, 'windgustHigh', 1),
+    rain: rr.length ? rr.reduce((a, r) => a + Number(r.precipTotal), 0) : null,
+    rainN: rr.length,
+    rainDays: rr.filter((r) => r.precipTotal >= 0.2).length,
+    maxRain: best(rr, 'precipTotal', 1),
+  };
+}
+
 // Estadístiques del mes estació per estació (per a /historial/AAAA-MM).
 // Les temperatures d'un dia incomplet (vegeu suspicious) no compten.
 export function monthStations(month) {
-  return STATIONS.map((s) => {
-    const rows = month.daysList
-      .filter((d) => d.stations[s.id])
-      .map((d) => ({ date: d.date, ...d.stations[s.id], susp: suspicious(d).has(s.id) }));
-    const t = rows.filter((r) => !r.susp);
-    const avg = (list, k) => {
-      const v = list.map((r) => r[k]).filter((x) => x != null);
+  return STATIONS.map((s) => ({ station: s, ...stats(rowsOf(month.daysList, s.id)) })).filter((x) => x.days > 0);
+}
+
+// Un mes és complet per a una estació si té dades del 80 % dels dies (i de pluja, per al total de pluja)
+const FULL = 0.8;
+
+// Anys de l'arxiu (del més recent al més antic), amb els extrems de la xarxa i les dades per estació i per mes
+let _years = null;
+export function years() {
+  if (_years) return _years;
+  const byYear = new Map();
+  for (const d of loadDays()) {
+    if (!Object.keys(d.stations).length) continue;
+    const y = Number(d.date.slice(0, 4));
+    if (!byYear.has(y)) byYear.set(y, []);
+    byYear.get(y).push(d);
+  }
+  _years = [...byYear.entries()]
+    .sort((a, b) => b[0] - a[0])
+    .map(([year, days]) => {
+      const first = days[0].date;
+      const last = days[days.length - 1].date;
+      // Dies de l'any que cobreix l'arxiu (si l'arxiu comença o s'acaba a mig any, només aquest tros)
+      const span = Math.round((Date.parse(`${last}T12:00:00Z`) - Date.parse(`${first}T12:00:00Z`)) / 864e5) + 1;
+      const open = last < `${year}-12-31`;
+      const per = STATIONS.map((s) => {
+        const rows = rowsOf(days, s.id);
+        if (!rows.length) return null;
+        const months = {};
+        for (let m = 1; m <= 12; m++) {
+          const key = `${year}-${String(m).padStart(2, '0')}`;
+          const mr = rows.filter((r) => r.date.startsWith(key));
+          if (!mr.length) continue;
+          const st = stats(mr);
+          const len = key === last.slice(0, 7) ? Number(last.slice(8)) : daysIn(year, m);
+          months[m] = { ...st, full: st.days >= len * FULL, rainFull: st.rainN >= len * FULL };
+        }
+        const st = stats(rows);
+        // Comparable amb la resta: dades de la major part de l'any (o del tros d'any que hi ha)
+        return { station: s, ...st, months, full: st.days >= span * FULL, rainFull: st.rainN >= span * FULL };
+      }).filter(Boolean);
+      const top = (k, dir) => per.map((x) => x[k] && { ...x[k], station: x.station }).filter(Boolean).sort((a, b) => (dir > 0 ? b.v - a.v : a.v - b.v))[0] || null;
+      const wettest = per.filter((x) => x.rainFull && x.rain != null).sort((a, b) => b.rain - a.rain)[0] || null;
+      const monthKeys = [...new Set(days.map((d) => d.date.slice(0, 7)))];
+      return {
+        year, first, last, open, span, days: days.length,
+        complete: !open && first === `${year}-01-01` && days.length >= daysInYear(year) * 0.95,
+        stations: per,
+        max: top('max', 1), min: top('min', -1), gust: top('gust', 1), maxRain: top('maxRain', 1),
+        wettest: wettest ? { v: wettest.rain, station: wettest.station } : null,
+        monthKeys,
+        recovered: days.some((d) => d.font),
+      };
+    });
+  return _years;
+}
+
+// Una estació any per any (del més recent al més antic)
+export function stationYears(id) {
+  return years()
+    .map((y) => {
+      const x = y.stations.find((r) => r.station.id === id);
+      return x ? { year: y.year, open: y.open, ...x } : null;
+    })
+    .filter(Boolean);
+}
+
+// Clima de l'estació mes a mes: mitjanes dels mesos complets de tots els anys i rècords de cada mes.
+// n: quants mesos complets hi ha per a cada mes de l'any (amb menys de 2, la mitjana diu poca cosa)
+export function stationClimate(id) {
+  const ys = stationYears(id);
+  const out = [];
+  for (let m = 1; m <= 12; m++) {
+    const ms = ys.map((y) => y.months[m] && { ...y.months[m], year: y.year }).filter(Boolean);
+    const full = ms.filter((x) => x.full);
+    const rfull = ms.filter((x) => x.rainFull && x.rain != null);
+    const mean = (list, k) => {
+      const v = list.map((x) => x[k]).filter((v) => v != null);
       return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
     };
-    const best = (list, k, dir) =>
-      list.filter((r) => r[k] != null).reduce((a, b) => (!a || (dir > 0 ? b[k] > a[k] : b[k] < a[k]) ? b : a), null);
-    const mx = best(t, 'tempHigh', 1);
-    const mn = best(t, 'tempLow', -1);
-    const gu = best(rows, 'windgustHigh', 1);
-    return {
-      station: s,
-      days: rows.length,
-      avgHigh: avg(t, 'tempHigh'),
-      avgLow: avg(t, 'tempLow'),
-      max: mx ? { v: mx.tempHigh, date: mx.date } : null,
-      min: mn ? { v: mn.tempLow, date: mn.date } : null,
-      gust: gu ? { v: gu.windgustHigh, date: gu.date } : null,
-      rain: rows.reduce((a, r) => a + (r.precipTotal ?? 0), 0),
-      rainDays: rows.filter((r) => (r.precipTotal ?? 0) >= 0.2).length,
-    };
-  }).filter((x) => x.days > 0);
+    const rec = (k, dir) => ms.map((x) => x[k] && { ...x[k] }).filter(Boolean).sort((a, b) => (dir > 0 ? b.v - a.v : a.v - b.v))[0] || null;
+    out.push({
+      month: m,
+      n: full.length,
+      nRain: rfull.length,
+      avgHigh: mean(full, 'avgHigh'),
+      avgLow: mean(full, 'avgLow'),
+      avgMean: mean(full, 'avgMean'),
+      rain: mean(rfull, 'rain'),
+      rainDays: mean(rfull, 'rainDays'),
+      max: rec('max', 1),
+      min: rec('min', -1),
+      gust: rec('gust', 1),
+      maxRain: rec('maxRain', 1),
+    });
+  }
+  return out;
+}
+
+// Primer dia de l'arxiu de cada nit (els anteriors són recuperats de l'historial de WU)
+export function firstNightly() {
+  return loadDays().find((d) => !d.font)?.date ?? null;
 }

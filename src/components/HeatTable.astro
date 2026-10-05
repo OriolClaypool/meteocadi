@@ -1,0 +1,37 @@
+---
+// Taula de color: una fila per estació i una columna per mes (pluja del mes o temperatura mitjana), amb les escales
+// dels mapes (src/lib/escales.js). Les cel·les ratllades són de mesos amb dades de menys del 80 % dels dies.
+import { fieldColor, inkOn } from '../lib/escales.js';
+
+interface Cell { v: number | null; part?: boolean; title?: string }
+interface Row { label: string; href?: string; sub?: string; cells: (Cell | null)[]; total?: Cell | null }
+interface Props { cols: string[]; colHrefs?: (string | null)[]; rows: Row[]; scale: 'rain' | 't'; fmt: (v: number) => string; totalLabel?: string; caption?: string }
+const { cols, colHrefs = [], rows, scale, fmt, totalLabel, caption } = Astro.props;
+const style = (c: Cell) => {
+  if (c.v == null) return '';
+  if (scale === 'rain' && c.v < 0.1) return 'background:#f1f5f9;color:#10233b;';
+  const bg = fieldColor(scale, c.v);
+  return `background-color:${bg};color:${inkOn(bg)};`;
+};
+---
+<div class="tscroll">
+  <table class="heat">
+    {caption && <caption>{caption}</caption>}
+    <thead>
+      <tr>
+        <th class="heat__l">Estació</th>
+        {cols.map((c, i) => <th>{colHrefs[i] ? <a href={colHrefs[i]}>{c}</a> : c}</th>)}
+        {totalLabel && <th>{totalLabel}</th>}
+      </tr>
+    </thead>
+    <tbody>
+      {rows.map((r) => (
+        <tr>
+          <td class="heat__l">{r.href ? <a href={r.href}>{r.label}</a> : r.label}{r.sub && <small>{r.sub}</small>}</td>
+          {r.cells.map((c) => (c == null || c.v == null ? <td class="heat__c is-none">—</td> : <td class={`heat__c${c.part ? ' is-part' : ''}`} style={style(c)} title={c.title}>{fmt(c.v)}</td>))}
+          {totalLabel && (r.total && r.total.v != null ? <td class={`heat__c heat__t${r.total.part ? ' is-part' : ''}`} title={r.total.title}>{fmt(r.total.v)}</td> : <td class="heat__c heat__t is-none">—</td>)}
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>

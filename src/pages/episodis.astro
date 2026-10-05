@@ -10,6 +10,8 @@ const list = episodes();
 const first = completeDays()[0];
 const L = LLINDARS;
 const since = first ? `${elDia(first.date)} de ${first.date.slice(0, 4)}` : '';
+// Per anys (de l'episodi que comença més tard al més antic)
+const byYear = [...list.reduce((m, e) => m.set(e.start.slice(0, 4), [...(m.get(e.start.slice(0, 4)) || []), e]), new Map()).entries()];
 ---
 <Base
   title="Episodis destacats: pluja intensa, vent fort, calor i fred al Cadí-Moixeró | Meteocadí"
@@ -29,7 +31,16 @@ const since = first ? `${elDia(first.date)} de ${first.date.slice(0, 4)}` : '';
   <section class="sec" style="padding:56px 0;">
     <div class="wrap" style="display:flex;flex-direction:column;gap:40px;">
       {list.length > 0 ? (
-        <EpisodeCards list={list} />
+        byYear.length > 1 ? (
+          byYear.map(([y, eps]) => (
+            <div>
+              <h2 class="h2" style="font-size:30px;margin-bottom:14px;"><a href={`/historial/${y}`}>{y}</a> <small style="font-size:16px;color:var(--muted);font-weight:500;">{eps.length} {eps.length === 1 ? 'episodi' : 'episodis'}</small></h2>
+              <EpisodeCards list={eps} />
+            </div>
+          ))
+        ) : (
+          <EpisodeCards list={list} />
+        )
       ) : (
         <div class="card" style="max-width:760px;">
           <p style="font-size:17px;line-height:1.6;">Encara no hi ha cap episodi.{since && ` L'arxiu comença ${since} i, de moment, cap estació ha superat els llindars de sota.`} Quan passi, el resum apareixerà aquí automàticament.</p>

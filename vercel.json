@@ -400,6 +400,9 @@
     "api/vent.js": {
       "maxDuration": 30
     },
+    "api/arxiva.js": {
+      "maxDuration": 60
+    },
     "api/xema.js": {
       "maxDuration": 30
     },

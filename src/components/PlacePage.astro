@@ -18,7 +18,7 @@ import { BY_ID, fmtAlt } from '../lib/stations.js';
 import { stationRecords } from '../lib/archive.js';
 import { dailyForecast } from '../lib/forecast-build.js';
 import { wmoText } from '../lib/wmo.js';
-import { num, longDate, cap, desDe, tempColorLight, todayMadrid } from '../lib/format.js';
+import { num, longDate, fullDate, cap, desDe, tempColorLight, todayMadrid } from '../lib/format.js';
 
 interface Props { slug: string; lang?: 'ca' | 'es' }
 const { slug, lang = 'ca' } = Astro.props;
@@ -273,12 +273,12 @@ const skiFacts = p.ski
         {rec ? (
           <>
             <h2 style="font-size:24px;font-weight:800;">{es ? 'Datos del archivo' : "Dades de l'arxiu"} · {main.name}</h2>
-            <p style="color:var(--muted);font-size:15px;">{cap(desDe(rec.from, lang))} ({rec.days} {es ? 'días archivados' : 'dies arxivats'}).</p>
+            <p style="color:var(--muted);font-size:15px;">{cap(desDe(rec.from, lang))} de {rec.from.slice(0, 4)} ({rec.days.toLocaleString(es ? 'es-ES' : 'ca-ES')} {es ? 'días con datos' : 'dies amb dades'}).</p>
             <div class="recs" style="grid-template-columns:1fr 1fr;">
-              <div class="card"><span class="eyebrow">{es ? 'Máxima más alta' : 'Màxima més alta'}</span><p class="mono" style={`font-size:30px;color:${tempColorLight(rec.maxHigh?.tempHigh)}`}>{num(rec.maxHigh?.tempHigh)}°</p><p style="color:var(--muted);font-size:14px;">{rec.maxHigh && longDate(rec.maxHigh.date, lang)}</p></div>
-              <div class="card"><span class="eyebrow">{es ? 'Mínima más baja' : 'Mínima més baixa'}</span><p class="mono" style={`font-size:30px;color:${tempColorLight(rec.minLow?.tempLow)}`}>{num(rec.minLow?.tempLow)}°</p><p style="color:var(--muted);font-size:14px;">{rec.minLow && longDate(rec.minLow.date, lang)}</p></div>
-              <div class="card"><span class="eyebrow">{es ? 'Media de máximas' : 'Mitjana de màximes'}</span><p class="mono" style="font-size:30px;">{num(rec.avgHigh)}°</p></div>
-              <div class="card"><span class="eyebrow">{es ? 'Lluvia acumulada' : 'Pluja acumulada'}</span><p class="mono" style="font-size:30px;">{num(rec.rainTotal)} <small style="font-size:15px;color:var(--muted)">mm</small></p></div>
+              <div class="card"><span class="eyebrow">{es ? 'Máxima más alta' : 'Màxima més alta'}</span><p class="mono" style={`font-size:30px;color:${tempColorLight(rec.maxHigh?.v)}`}>{num(rec.maxHigh?.v)}°</p><p style="color:var(--muted);font-size:14px;">{rec.maxHigh && fullDate(rec.maxHigh.date, lang)}</p></div>
+              <div class="card"><span class="eyebrow">{es ? 'Mínima más baja' : 'Mínima més baixa'}</span><p class="mono" style={`font-size:30px;color:${tempColorLight(rec.minLow?.v)}`}>{num(rec.minLow?.v)}°</p><p style="color:var(--muted);font-size:14px;">{rec.minLow && fullDate(rec.minLow.date, lang)}</p></div>
+              <div class="card"><span class="eyebrow">{es ? 'Racha más fuerte' : 'Ratxa més forta'}</span><p class="mono" style="font-size:30px;">{num(rec.maxGust?.v, 0)} <small style="font-size:15px;color:var(--muted)">km/h</small></p><p style="color:var(--muted);font-size:14px;">{rec.maxGust && fullDate(rec.maxGust.date, lang)}</p></div>
+              <div class="card"><span class="eyebrow">{es ? 'Día más lluvioso' : 'Dia més plujós'}</span><p class="mono" style="font-size:30px;">{num(rec.maxRain?.v)} <small style="font-size:15px;color:var(--muted)">mm</small></p><p style="color:var(--muted);font-size:14px;">{rec.maxRain && fullDate(rec.maxRain.date, lang)}</p></div>
             </div>
             <a href={`/estacions/${main.slug}`} class="link-arrow">{es ? 'Historial completo de la estación →' : "Historial complet de l'estació →"}</a>
           </>

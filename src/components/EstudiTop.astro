@@ -1,7 +1,7 @@
 ---
-// Capçalera de les eines internes de l'estudi: les tres plantilles d'imatge (/estudi), el mapa de Catalunya (/estudi/mapa)
-// i el radar (/estudi/radar).
-interface Props { current: 'app' | 'mapa' | 'radar' }
+// Capçalera de les eines internes de l'estudi: les tres plantilles d'imatge (/estudi), el mapa de Catalunya (/estudi/mapa),
+// el radar (/estudi/radar) i l'explorador de dades de les estacions (/estudi/dades).
+interface Props { current: 'app' | 'mapa' | 'radar' | 'dades' }
 const { current } = Astro.props;
 const TPL = [
   ['previsio', 'Previsió'],
@@ -17,7 +17,7 @@ const TPL = [
     {current === 'app'
       ? TPL.map(([k, label], i) => <button role="tab" data-tpl={k} aria-selected={i === 0 ? 'true' : 'false'}>{label}</button>)
       : TPL.map(([k, label]) => <a href={`/estudi#${k}`}>{label}</a>)}
-    {[['mapa', 'Mapa'], ['radar', 'Radar']].map(([k, label]) => (current === k ? <a href={`/estudi/${k}`} aria-current="page">{label}</a> : <a href={`/estudi/${k}`}>{label}</a>))}
+    {[['mapa', 'Mapa'], ['radar', 'Radar'], ['dades', 'Dades']].map(([k, label]) => (current === k ? <a href={`/estudi/${k}`} aria-current="page">{label}</a> : <a href={`/estudi/${k}`}>{label}</a>))}
   </nav>
   {current === 'app' && <span class="st-save" id="saveStatus" role="status"></span>}
 </header>
@@ -37,8 +37,8 @@ const TPL = [
   .st-save { margin-left: auto; color: var(--mut); font-size: 13px; }
   @media (max-width: 900px) {
     .st-top { height: auto; flex-wrap: wrap; padding: 12px 16px; gap: 10px 14px; }
-    .st-tabs { order: 5; width: 100%; margin-left: 0; }
-    .st-tabs button, .st-tabs a { flex: 1; padding: 8px 6px; font-size: 14px; }
+    .st-tabs { order: 5; width: 100%; margin-left: 0; flex-wrap: wrap; }
+    .st-tabs button, .st-tabs a { flex: 1 1 calc(33.3% - 4px); padding: 8px 6px; font-size: 14px; }
     .st-app, .st-sep { display: none; }
   }
 </style>
