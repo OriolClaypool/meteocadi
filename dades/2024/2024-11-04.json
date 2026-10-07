@@ -1,0 +1,15 @@
+{
+  "date": "2024-11-04",
+  "font": "historic",
+  "stations": {
+    "IBAG65": {"tempHigh": 15.8, "tempLow": 10.8, "tempAvg": 12.4, "dewptAvg": 11.4, "windspeedAvg": 0, "windgustHigh": 6.4, "winddirAvg": 77, "precipTotal": 4.32, "pressureMax": 1026.08, "pressureMin": 1023.71, "humidityHigh": 98, "humidityLow": 79, "humidityAvg": 94, "uvHigh": null, "solarRadiationHigh": 425},
+    "IBAG67": {"tempHigh": 11.3, "tempLow": 6.9, "tempAvg": 8.7, "dewptAvg": 7.1, "windspeedAvg": 3.4, "windgustHigh": 20.9, "winddirAvg": 75, "precipTotal": 7.11, "pressureMax": 1031.19, "pressureMin": 1025.06, "humidityHigh": 95, "humidityLow": 81, "humidityAvg": 89.6, "uvHigh": null, "solarRadiationHigh": null},
+    "IGISCL6": {"tempHigh": 4.8, "tempLow": 1.3, "tempAvg": 3.4, "dewptAvg": 2.8, "windspeedAvg": 19.2, "windgustHigh": 62.8, "winddirAvg": 206, "precipTotal": 0.51, "pressureMax": 1030, "pressureMin": 1027.43, "humidityHigh": 97, "humidityLow": 90, "humidityAvg": 95.8, "uvHigh": null, "solarRadiationHigh": null},
+    "IGUARD34": {"tempHigh": 6.5, "tempLow": 4, "tempAvg": 5.5, "dewptAvg": 5, "windspeedAvg": 14.5, "windgustHigh": 46.7, "winddirAvg": 196, "precipTotal": 4.06, "pressureMax": 1028.58, "pressureMin": 1026.82, "humidityHigh": 98, "humidityLow": 87, "humidityAvg": 96.4, "uvHigh": null, "solarRadiationHigh": null},
+    "ISANTJ138": {"tempHigh": 15.2, "tempLow": 9.7, "tempAvg": 11.4, "dewptAvg": 10.1, "windspeedAvg": 1.2, "windgustHigh": 20.9, "winddirAvg": 122, "precipTotal": 6.1, "pressureMax": 1025.74, "pressureMin": 1023.37, "humidityHigh": 95, "humidityLow": 76, "humidityAvg": 91.3, "uvHigh": null, "solarRadiationHigh": null},
+    "IGSOL4": {"tempHigh": 12.8, "tempLow": 8, "tempAvg": 10.1, "dewptAvg": 8.8, "windspeedAvg": 2.1, "windgustHigh": 8.6, "winddirAvg": 141, "precipTotal": 4.06, "pressureMax": 1019.9, "pressureMin": 1019.2, "humidityHigh": 96, "humidityLow": 81, "humidityAvg": 92, "uvHigh": 3.8, "solarRadiationHigh": 351.4},
+    "ILANOU4": {"tempHigh": 17.6, "tempLow": 9.7, "tempAvg": 12.2, "dewptAvg": 11.2, "windspeedAvg": 1.4, "windgustHigh": 13, "winddirAvg": 57, "precipTotal": 6.3, "pressureMax": 1016.12, "pressureMin": 1013.92, "humidityHigh": 99, "humidityLow": 71, "humidityAvg": 93.5, "uvHigh": 3, "solarRadiationHigh": 356.7},
+    "ISANTJ53": {"tempHigh": 15.4, "tempLow": 9, "tempAvg": 11.2, "dewptAvg": 10.7, "windspeedAvg": 0.6, "windgustHigh": 7.2, "winddirAvg": 264, "precipTotal": 7.59, "pressureMax": 1024.11, "pressureMin": 1021.84, "humidityHigh": 99, "humidityLow": 81, "humidityAvg": 97.2, "uvHigh": 4, "solarRadiationHigh": 493.1},
+    "IBARCELO40": {"tempHigh": 16.9, "tempLow": 11, "tempAvg": 12.7, "dewptAvg": 11.1, "windspeedAvg": 0.9, "windgustHigh": 16.1, "winddirAvg": 27, "precipTotal": 3.81, "pressureMax": 1021.17, "pressureMin": 1018.22, "humidityHigh": 96, "humidityLow": 67, "humidityAvg": 90.3, "uvHigh": 16, "solarRadiationHigh": 1455}
+  }
+}
