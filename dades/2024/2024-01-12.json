@@ -1,0 +1,13 @@
+{
+  "date": "2024-01-12",
+  "font": "historic",
+  "stations": {
+    "IBAG65": {"tempHigh": 11, "tempLow": -2.1, "tempAvg": 2.3, "dewptAvg": 0.3, "windspeedAvg": 0.2, "windgustHigh": 9.7, "winddirAvg": 56, "precipTotal": 0, "pressureMax": 1029.8, "pressureMin": 1026.75, "humidityHigh": 97, "humidityLow": 58, "humidityAvg": 88, "uvHigh": null, "solarRadiationHigh": 413},
+    "IGISCL6": {"tempHigh": 1.1, "tempLow": -6.7, "tempAvg": -2.2, "dewptAvg": -9.1, "windspeedAvg": 2.2, "windgustHigh": 17.7, "winddirAvg": 84, "precipTotal": 1.02, "pressureMax": 1025.06, "pressureMin": 1019.3, "humidityHigh": 95, "humidityLow": 12, "humidityAvg": 72, "uvHigh": null, "solarRadiationHigh": null},
+    "ISANTJ138": {"tempHigh": 10.8, "tempLow": -1.5, "tempAvg": 3.2, "dewptAvg": -0.1, "windspeedAvg": 1.5, "windgustHigh": 17.7, "winddirAvg": 131, "precipTotal": 0, "pressureMax": 1023.71, "pressureMin": 1021, "humidityHigh": 96, "humidityLow": 51, "humidityAvg": 80.7, "uvHigh": null, "solarRadiationHigh": null},
+    "IGSOL4": {"tempHigh": 8.3, "tempLow": -2.5, "tempAvg": 2.3, "dewptAvg": -2, "windspeedAvg": 6, "windgustHigh": 13.7, "winddirAvg": 336, "precipTotal": 0, "pressureMax": 1023.3, "pressureMin": 1020.4, "humidityHigh": 93, "humidityLow": 56, "humidityAvg": 74, "uvHigh": 4.8, "solarRadiationHigh": 303.4},
+    "ILANOU4": {"tempHigh": 8.1, "tempLow": -1.9, "tempAvg": 1.2, "dewptAvg": 0.4, "windspeedAvg": 1.2, "windgustHigh": 11.1, "winddirAvg": 73, "precipTotal": 1.19, "pressureMax": 1021.23, "pressureMin": 1018.63, "humidityHigh": 99, "humidityLow": 76, "humidityAvg": 95.2, "uvHigh": 3, "solarRadiationHigh": 315.4},
+    "ISANTJ53": {"tempHigh": 10.6, "tempLow": -3.5, "tempAvg": 1.1, "dewptAvg": -0.2, "windspeedAvg": 1.2, "windgustHigh": 11.1, "winddirAvg": 273, "precipTotal": 0.2, "pressureMax": 1022.01, "pressureMin": 1019.34, "humidityHigh": 99, "humidityLow": 57, "humidityAvg": 92.4, "uvHigh": 3, "solarRadiationHigh": 369.6},
+    "IBARCELO40": {"tempHigh": 10.4, "tempLow": -1.8, "tempAvg": 2.6, "dewptAvg": -0.6, "windspeedAvg": 1.6, "windgustHigh": 19.3, "winddirAvg": 78, "precipTotal": 1.27, "pressureMax": 1023.71, "pressureMin": 1018.66, "humidityHigh": 92, "humidityLow": 45, "humidityAvg": 80.7, "uvHigh": 16, "solarRadiationHigh": 1474}
+  }
+}
