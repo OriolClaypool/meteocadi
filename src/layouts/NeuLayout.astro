@@ -1,0 +1,109 @@
+---
+// Plantilla de Meteocadí Neu (/neu): aspecte propi, sense la capçalera ni el peu de la resta del web.
+// Capçalera fosca (la marca i, a l'escriptori, el menú) que cada pàgina omple amb el slot "hero"; peu propi i, al
+// mòbil, el menú a baix. Amagada (noindex, robots i fora del mapa del web) fins que es publiqui.
+import Base from './Base.astro';
+import '../styles/neu.css';
+
+interface Props {
+  title: string;
+  description: string;
+  path: string;
+  current?: 'avui' | 'estacions' | 'mapa' | 'allaus';
+  back?: { href: string; label: string }; // al mòbil, l'enllaç de tornada ocupa el lloc de la marca
+  share?: boolean; // botó de compartir la pàgina
+  card?: { kicker?: string; title?: string; sub?: string; lat?: number; lng?: number; label?: string; pins?: [number, number][] };
+  credits?: string; // fonts de la pàgina, al peu
+}
+const { title, description, path, current = 'avui', back, share = false, card, credits } = Astro.props;
+
+const NAV = [
+  { k: 'avui', href: '/neu', label: 'Avui', d: '<path d="m8 3 4 8 5-5 5 15H2L8 3z"/><path d="M4.14 15.08c2.62-1.57 5.24-1.43 7.86.42 2.74 1.94 5.49 2 8.23.19"/>' },
+  { k: 'estacions', href: '/neu#estacions', label: 'Estacions', d: '<path d="M3 12h.01M3 18h.01M3 6h.01M8 12h13M8 18h13M8 6h13"/>' },
+  { k: 'mapa', href: '/neu#mapa', label: 'Mapa', d: '<path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15M9 3.236v15"/>' },
+  { k: 'allaus', href: '/neu#allaus', label: 'Allaus', d: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>' },
+];
+
+// Carena de muntanyes entre la capçalera i la pàgina: el tros de la maqueta (390 px) i el mateix girat, repetits,
+// perquè a l'escriptori es retalli (slice) en lloc d'estirar-se
+const STEPS = [[22, -9], [18, 6], [26, -16], [20, 9], [24, -13], [22, 11], [26, -14], [21, 10], [24, -9], [20, 12], [26, -11], [18, 7], [24, -12], [22, 10], [22, -6], [26, 12], [26, -10], [3, 1]];
+const pts: [number, number][] = [[0, 30]];
+for (const [dx, dy] of STEPS) { const [x, y] = pts[pts.length - 1]; pts.push([x + dx, y + dy]); }
+const seg = (off: number, mirror: boolean) => (mirror ? [...pts].reverse().map(([x, y]) => [off + 390 - x, y]) : pts.map(([x, y]) => [off + x, y]));
+const ridge = [0, 1, 2, 3, 4, 5].flatMap((k) => seg(k * 390, k % 2 === 1).slice(k ? 1 : 0));
+const ridgeD = `M0 46V${ridge[0][1]}${ridge.map(([x, y]) => `L${x} ${y}`).join('')}V46Z`;
+---
+<Base title={title} description={description} path={path} noindex bare card={{ kicker: 'Meteocadí Neu', ...card }}>
+  <div class="nv">
+    <header class="nv-hero">
+      <div class="nv-in">
+        <div class:list={['nv-top', back && 'nv-top--back']}>
+          {back && (
+            <a class="nv-back" href={back.href}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>{back.label}
+            </a>
+          )}
+          <a class="nv-brand" href="/neu" aria-label="Meteocadí Neu, inici">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12h20M12 2v20M20 16l-4-4 4-4M4 8l4 4-4 4M16 4l-4 4-4-4M8 20l4-4 4 4" /></svg>
+            <b>Meteocadí <span>Neu</span></b>
+          </a>
+          <div class="nv-top__r">
+            <nav class="nv-top__nav" aria-label="Meteocadí Neu">
+              {NAV.map((n) => <a class="nv-top__l" href={n.href} aria-current={n.k === current ? 'page' : undefined}>{n.label}</a>)}
+            </nav>
+            {share && (
+              <button type="button" class="nv-top__l nv-share" data-share aria-label="Comparteix aquesta pàgina">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="m8.59 13.51 6.83 3.98M15.41 6.51l-6.82 3.98" /></svg>
+                <span class="nv-share__ok" hidden>Enllaç copiat</span>
+              </button>
+            )}
+          </div>
+        </div>
+        <slot name="hero" />
+      </div>
+      <svg class="nv-ridge" viewBox="0 0 2340 46" preserveAspectRatio="xMinYMax slice" aria-hidden="true"><path d={ridgeD} fill="#F2F5F9" /></svg>
+    </header>
+
+    <slot />
+
+    <footer class="nv-foot">
+      <div class="nv-in">
+        <p class="nv-foot__b">Meteocadí <span>Neu</span></p>
+        <p>La previsió de neu i esquí de Meteocadí per a les estacions del Pirineu de Catalunya i Andorra.</p>
+        <p>
+          Previsió: <a href="https://open-meteo.com/" rel="noopener">Open-Meteo</a>. Neu mesurada: Servei Meteorològic de
+          Catalunya (XEMA), dades obertes de la Generalitat de Catalunya. Estat de pistes: la web de cada estació.{credits ? ` ${credits}` : ''}
+        </p>
+        <p>Les previsions són orientatives. A la muntanya, cadascú n'assumeix el risc.</p>
+        <p class="nv-foot__l"><a href="/">meteocadi.cat</a><a href="/avis-legal">Avís legal</a><a href="/contacte">Contacte</a></p>
+      </div>
+    </footer>
+
+    <nav class="nv-tab" aria-label="Meteocadí Neu">
+      {NAV.map((n) => (
+        <a href={n.href} aria-current={n.k === current ? 'page' : undefined}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" set:html={n.d} />
+          {n.label}
+        </a>
+      ))}
+    </nav>
+  </div>
+</Base>
+
+<script>
+  // Compartir: el menú del sistema si n'hi ha; si no, copia l'enllaç
+  document.querySelectorAll<HTMLButtonElement>('[data-share]').forEach((b) =>
+    b.addEventListener('click', async () => {
+      const url = location.href.split('#')[0];
+      if (navigator.share) {
+        try { await navigator.share({ title: document.title.replace(/\s*\|\s*Meteocad[ií].*$/, ''), url }); } catch {}
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(url);
+        const ok = b.querySelector<HTMLElement>('.nv-share__ok');
+        if (ok) { ok.hidden = false; setTimeout(() => (ok.hidden = true), 2000); }
+      } catch {}
+    }),
+  );
+</script>

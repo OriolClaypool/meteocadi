@@ -109,6 +109,14 @@ const latestRows = (now) =>
     $limit: '20000',
   });
 
+// Lectura més nova del portal (data_lectura, en UTC) o null. Serveix per saber fins on arriben les dades quan el
+// portal s'atura: el 8/10/2026, a migdia, la lectura més nova encara era la de la 1:00 (hora local) de la matinada.
+const newestRow = () =>
+  get('nzvn-apee.json', { $select: 'max(data_lectura) as m' })
+    .then((r) => r?.[0]?.m || null)
+    .catch(() => null);
+const H3 = 3 * H;
+
 // Màxima, mínima, pluja i ratxa de cada estació entre start (inclòs) i end (exclòs, o fins ara), amb el nombre de
 // lectures (nn) per saber si hi falten dades
 const aggRows = (start, end) =>
@@ -125,10 +133,14 @@ const aggRows = (start, end) =>
 export async function xemaRange(from, to, now = new Date()) {
   const days = [];
   for (let d = from; d <= to; d = ymdMadrid(new Date(Date.parse(`${d}T12:00:00Z`) + 24 * H))) days.push(d);
+  // Si arriba fins avui i el portal va endarrerit (més de 3 hores sense lectures), avui acaba a la lectura més nova:
+  // si no, totes les estacions sortirien amb dades incompletes
+  const newest = to >= ymdMadrid(now) ? await newestRow() : null;
+  const dataEnd = newest && now.getTime() - endOf(newest).getTime() > H3 ? endOf(newest) : now;
   const spans = days
     .map((d) => {
       const start = midnightOf(d);
-      const end = new Date(Math.min(midnightOf(ymdMadrid(new Date(start.getTime() + 36 * H))).getTime(), now.getTime()));
+      const end = new Date(Math.min(midnightOf(ymdMadrid(new Date(start.getTime() + 36 * H))).getTime(), dataEnd.getTime()));
       return { start, end };
     })
     .filter((x) => x.end > x.start);
@@ -186,6 +198,8 @@ export async function xemaRange(from, to, now = new Date()) {
   return {
     updated: now.toISOString(),
     latest: end.toISOString(),
+    // Minuts de retard de les dades (només si el període arriba fins ara)
+    lag: newest ? Math.max(0, Math.round((now.getTime() - end.getTime()) / 60e3)) : null,
     period: { kind: 'range', from, to, start: start.toISOString(), end: end.toISOString() },
     source: 'Servei Meteorològic de Catalunya (XEMA) · Dades obertes de la Generalitat de Catalunya',
     stations,
@@ -210,6 +224,9 @@ export async function xemaData(period, now = new Date()) {
   }
   let newest = null;
   for (const row of latest) if (!newest || row.data_lectura > newest) newest = row.data_lectura;
+  // Sense cap lectura a les darreres 3 hores (el portal s'ha aturat): fins on arriben les dades. Els valors d'ara
+  // queden buits; latest i lag diuen des de quan no se n'actualitza cap (el mapa ho explica i no en pinta res)
+  if (live && !newest) newest = await newestRow();
   const lastEnd = newest ? endOf(newest) : null;
   if (period.kind === '24h') {
     start = new Date((lastEnd || now).getTime() - 24 * H);
@@ -288,8 +305,13 @@ export async function xemaData(period, now = new Date()) {
     updated: now.toISOString(),
     // Fins on arriben les dades: la darrera lectura (avui, 24 h) o el final del dia
     latest: live ? (lastEnd ? lastEnd.toISOString() : null) : end.toISOString(),
+    // Minuts des de la darrera lectura (avui, 24 h). Normal: 45-75; més de 3 hores vol dir que el portal va endarrerit
+    lag: live && lastEnd ? Math.max(0, Math.round((now.getTime() - lastEnd.getTime()) / 60e3)) : null,
     period: { kind: period.kind, ...(period.date ? { date: period.date } : {}), start: start.toISOString(), end: (live ? lastEnd : end)?.toISOString() ?? null },
     source: 'Servei Meteorològic de Catalunya (XEMA) · Dades obertes de la Generalitat de Catalunya',
     stations,
   };
 }
+
+// Per a les altres funcions que llegeixen la XEMA (la neu mesurada de Meteocadí Neu, api/_neu-mesurada.js)
+export { get as socrata, meta as xemaMeta, cleanName, floating };

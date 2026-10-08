@@ -65,7 +65,7 @@ const CARDS = [
   import { loadAra } from '../scripts/live.js';
   import { STATIONS } from '../lib/stations.js';
   import { FB, computeField, outlineMask, toCanvas, fieldColor } from '../scripts/camp.js';
-  import { tempColorLight, num, hourMadrid } from '../lib/format.js';
+  import { tempColorLight, num, hourMadrid, todayMadrid } from '../lib/format.js';
 
   const HIDDEN = new Set(['IBAG65', 'IBAG72']);
   const cv = document.querySelector<HTMLCanvasElement>('[data-cat-map]');
@@ -168,6 +168,13 @@ const CARDS = [
   // Sense menú de "desa la imatge"
   cv?.addEventListener('contextmenu', (e) => e.preventDefault());
 
+  // "des de la 1:30", "des de les 23:30" o "des d'ahir"
+  function sinceOf(iso: string) {
+    const d = new Date(iso);
+    const tt = d.toLocaleTimeString('ca-ES', { timeZone: 'Europe/Madrid', hour: 'numeric', minute: '2-digit' });
+    if (todayMadrid(d) !== todayMadrid()) return "des d'ahir";
+    return tt.startsWith('1:') ? `des de la ${tt}` : `des de les ${tt}`;
+  }
   async function run() {
     if (!cv) return;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -183,7 +190,11 @@ const CARDS = [
       loadAra().catch(() => null),
       fetch('/api/dem').then((r) => (r.ok ? r.json() : null)).catch(() => null),
     ]);
-    const list: any[] = (x?.stations || []).map((s: any) => ({ ...s, mc: false }));
+    // Si el portal de dades obertes va endarrerit (més de 3 hores) o en surten poques amb temperatura, no hi ha prou
+    // estacions del Meteocat: ni mapa de color (sortiria de les nostres, totes al Cadí) ni extrems de Catalunya
+    const behind = x?.lag != null && x.lag > 180 && !!x.latest;
+    const list: any[] = (behind ? [] : x?.stations || []).map((s: any) => ({ ...s, mc: false }));
+    const xemaOk = list.filter((s) => s.t != null).length >= 20;
     const ara = (a as any)?.stations || {};
     for (const st of STATIONS as any[]) {
       const d = ara[st.id];
@@ -192,7 +203,7 @@ const CARDS = [
     }
     if (!list.length) return;
     const pts = list.filter((s) => s.t != null).map((s) => ({ lat: s.lat, lng: s.lng, alt: s.alt ?? 0, v: s.t }));
-    const f = computeField(pts, 't', { mask: outlineMask(), dem });
+    const f = xemaOk ? computeField(pts, 't', { mask: outlineMask(), dem }) : null;
     base(ctx);
     if (f) {
       const [ax, ay] = P(FB.lng0, FB.lat1);
@@ -218,6 +229,12 @@ const CARDS = [
       if (color) vb.style.color = color;
       (el.querySelector('.cat-ara__w') as HTMLElement).textContent = `${s.name}${s.com ? ` · ${s.com}` : ''}`;
     };
+    const t = document.querySelector('[data-cat-time]');
+    if (!xemaOk) {
+      if (t) t.textContent = behind ? `Meteocat sense dades ${sinceOf(x.latest)}` : 'Ara no arriben les dades del Meteocat';
+      if (cv) cv.dataset.labels = String(shown);
+      return;
+    }
     set('hot', hot, `${num(hot?.t)}°`, tempColorLight(hot?.t));
     set('cold', cold, `${num(cold?.t)}°`, tempColorLight(cold?.t));
     if (rain && rain.rain >= 0.1) set('rain', rain, `${num(rain.rain)} mm`, '#1d4ed8');
@@ -226,7 +243,6 @@ const CARDS = [
       if (el) { (el.querySelector('.cat-ara__v') as HTMLElement).textContent = '0 mm'; (el.querySelector('.cat-ara__w') as HTMLElement).textContent = 'No ha plogut enlloc'; }
     }
     if (gust) set('gust', gust, `${Math.round(gust.gust)} km/h`, gust.gust >= 70 ? '#c2410c' : undefined);
-    const t = document.querySelector('[data-cat-time]');
     if (t && x?.latest) t.textContent = `Dades de les ${hourMadrid(new Date(x.latest))} · ${withT.length} estacions`;
     if (cv) cv.dataset.labels = String(shown);
   }

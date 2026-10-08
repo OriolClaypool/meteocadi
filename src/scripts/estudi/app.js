@@ -192,6 +192,7 @@ export async function startEstudi() {
     const time = to === today && j.latest ? hourMadrid(new Date(j.latest)) : '';
     let note = `${spanDays(from, to)} dies: pluja total, la màxima més alta, la mínima més baixa i la ratxa més forta del període.${time ? ` Fins a les ${time}.` : ''} Les estacions amb massa lectures que falten no entren a la pluja ni a les temperatures.`;
     if (j.stale) note += " Ara el portal de Meteocat no respon: són les darreres dades bones.";
+    if (j.lag > 180) note += ` Atenció: el portal de dades obertes va endarrerit i avui només arriba fins a les ${time}.`;
     return { date: to, from, to, kind: 'range', time, rows, note, net: 'cat' };
   }
 
@@ -260,6 +261,7 @@ export async function startEstudi() {
         ? `Les 24 hores que acaben a les ${time}, la darrera lectura del Meteocat.`
         : `Dades del Meteocat fins a les ${time}. S'actualitzen cada mitja hora.`;
       if (j.stale) note += " Ara el portal de Meteocat no respon: són les darreres dades bones.";
+      if (j.lag > 180) note += ` Atenció: el portal de dades obertes va endarrerit (${Math.round(j.lag / 60)} hores sense dades noves).`;
     }
     return { date, kind, time, rows, note, net: 'cat' };
   }
