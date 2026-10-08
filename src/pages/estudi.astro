@@ -79,7 +79,8 @@ import EstudiTop from '../components/EstudiTop.astro';
           <div data-panel="ranquing" hidden>
             <div class="st-field">
               <label>Què vols classificar</label>
-              <div class="st-seg st-seg--4" id="rankVar"><button type="button" data-var="max" aria-pressed="true">Màximes</button><button type="button" data-var="min" aria-pressed="false">Mínimes</button><button type="button" data-var="pluja" aria-pressed="false">Pluja</button><button type="button" data-var="ratxa" aria-pressed="false">Ratxes</button></div>
+              <div class="st-seg st-seg--4" id="rankVar"><button type="button" data-var="ara" aria-pressed="false" title="Temperatura ara (la darrera lectura)">Temp. ara</button><button type="button" data-var="max" aria-pressed="true">Màximes</button><button type="button" data-var="min" aria-pressed="false">Mínimes</button><button type="button" data-var="pluja" aria-pressed="false">Pluja</button><button type="button" data-var="ratxa" aria-pressed="false">Ratxes</button></div>
+              <div class="st-seg" id="rankOrder" style="margin-top:8px;" hidden><button type="button" data-order="calor" aria-pressed="true">Més calor primer</button><button type="button" data-order="fred" aria-pressed="false">Més fred primer</button></div>
             </div>
             <div class="st-field">
               <label>Format</label>
@@ -135,6 +136,7 @@ import EstudiTop from '../components/EstudiTop.astro';
   .st textarea:focus { border-color: var(--acc); background: #fff; outline: none; }
   .st-headline { font-weight: 700; font-size: 19px !important; }
   .st-seg { display: flex; gap: 4px; padding: 4px; border-radius: 9px; background: #eef3f8; }
+  .st-seg[hidden] { display: none; }
   .st-seg button { flex: 1; border: 0; background: none; border-radius: 6px; padding: 8px 8px; color: var(--mut); font-size: 14px; cursor: pointer; }
   .st-seg button[aria-pressed='true'] { background: #fff; color: var(--ink); font-weight: 600; box-shadow: 0 1px 4px rgba(16, 35, 59, 0.1); }
   .st-slots { display: flex; gap: 16px; margin: 12px 0 0; }

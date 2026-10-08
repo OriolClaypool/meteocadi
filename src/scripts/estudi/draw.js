@@ -323,7 +323,14 @@ export const RANK_VARS = {
   min: { t1: 'Les mínimes', key: 'min', dir: -1, color: '#0369a1', unit: '°' },
   pluja: { t1: 'La pluja', key: 'rain', dir: 1, color: '#1d4ed8', unit: 'mm' },
   ratxa: { t1: 'Les ratxes', key: 'gust', dir: 1, color: '#b45309', unit: 'km/h' },
+  // Temperatura d'ara (la darrera lectura): de més calor a més fred o al revés
+  ara: { t1: 'La temperatura', key: 't', dir: 1, color: '#c2410c', unit: '°' },
+  arafred: { t1: 'La temperatura', key: 't', dir: -1, color: '#0369a1', unit: '°' },
 };
+// Variables de temperatura (xifra en graus i barres que comencen més avall de zero) i les que es dibuixen amb punts
+// sobre una escala (de més fred a més calor: una barra més llarga per a la temperatura més baixa confon)
+const isTemp = (v) => v === 'max' || v === 'min' || v === 'ara' || v === 'arafred';
+const isDots = (v) => v === 'min' || v === 'arafred';
 
 export function rankRows(rows, v) {
   const cfg = RANK_VARS[v];
@@ -335,8 +342,8 @@ export function rankRows(rows, v) {
 
 // Colors del rànquing: la mateixa escala que els mapes (src/lib/escales.js), perquè el color digui la magnitud
 // (pluja per classes del Meteocat, temperatura cada 5 °C, ratxes). La xifra, del mateix to però prou fosc per llegir-se.
-const SCALE_OF = { max: 'tmax', min: 'tmin', pluja: 'rain', ratxa: 'gust' };
-const UNIT_OF = { max: '°C', min: '°C', pluja: 'mm', ratxa: 'km/h' };
+const SCALE_OF = { max: 'tmax', min: 'tmin', pluja: 'rain', ratxa: 'gust', ara: 't', arafred: 't' };
+const UNIT_OF = { max: '°C', min: '°C', pluja: 'mm', ratxa: 'km/h', ara: '°C', arafred: '°C' };
 const DRY = '#c9d5e3';
 const barColor = (variable, v) => (variable === 'pluja' && v < 0.1 ? DRY : fieldColor(SCALE_OF[variable], v));
 const valueColor = (variable, v) => (variable === 'pluja' && v < 0.1 ? L.rank : readableOn(fieldColor(SCALE_OF[variable], v)));
@@ -465,6 +472,15 @@ function catSentence(rows, v) {
     return `La més baixa, ${num(first.v)} °C ${high(first)}; la més alta, ${num(last.v)} °C ${where(last)}.`
       + (frost >= 2 ? ` ${frost} estacions van baixar de 0 °C.` : warm >= 2 ? ` ${warm} estacions no van baixar dels 20 °C.` : '');
   }
+  if (v === 'ara') {
+    return `Ara mateix, la temperatura més alta és de ${num(first.v)} °C ${where(first)} i la més baixa, de ${num(last.v)} °C ${high(last)}.`
+      + above([40, 35, 30], (x, t) => x >= t, (c, t) => `${c} estacions passen dels ${t} °C.`);
+  }
+  if (v === 'arafred') {
+    const frost = count((r) => r.v < 0);
+    return `Ara mateix, la temperatura més baixa és de ${num(first.v)} °C ${high(first)} i la més alta, de ${num(last.v)} °C ${where(last)}.`
+      + (frost >= 2 ? ` ${frost} estacions estan per sota de 0 °C.` : '');
+  }
   if (v === 'pluja') {
     const wet = count((r) => r.v > 0);
     if (!wet) return 'Cap estació del Meteocat va recollir pluja.';
@@ -482,6 +498,16 @@ export function rankSentence(rows, v, net = 'mc') {
   if (!list.length) return '';
   const first = list[0];
   const last = list[list.length - 1];
+  if (v === 'ara' || v === 'arafred') {
+    // La més freda i la més calenta, sigui quin sigui l'ordre de la llista
+    const cold = v === 'ara' ? last : first, warm = v === 'ara' ? first : last;
+    const top = [...list].sort((a, b) => b.alt - a.alt)[0];
+    if (top !== cold && cold.v < top.v && top.alt - cold.alt >= 300) {
+      return `Inversió tèrmica: ara fa més fred a ${cold.name} (${altTxt(cold.alt)}) que a ${top.name}, ${(top.alt - cold.alt).toLocaleString('ca-ES')} metres més amunt.`;
+    }
+    if (list.length < 2) return `Ara, ${num(first.v)} °C a ${first.name}.`;
+    return `Ara mateix, ${num(Math.abs(warm.v - cold.v), 0)} °C de diferència entre ${warm.name} i ${cold.name}, amb ${Math.abs(warm.alt - cold.alt).toLocaleString('ca-ES')} metres de desnivell.`;
+  }
   if (v === 'max' || v === 'min') {
     const diff = Math.abs(first.v - last.v);
     const dalt = Math.abs(first.alt - last.alt);
@@ -543,11 +569,11 @@ export function drawRanking(ctx, d) {
   y += F.capGap;
   hline(ctx, X0, X1, y, L.ink, 2);
   const vals = list.map((r) => r.v);
-  const temp = d.variable === 'max' || d.variable === 'min';
+  const temp = isTemp(d.variable);
 
   // Mínimes: cada estació és un punt sobre una escala de temperatura (la més freda, més a l'esquerra),
   // perquè una barra més llarga per a la temperatura més baixa confon. La resta: barres (valor més alt, barra més llarga).
-  const dots = d.variable === 'min' && list.length > 0;
+  const dots = isDots(d.variable) && list.length > 0;
   let sc = null;
   if (dots) {
     let s0 = Math.floor(Math.min(...vals)) - 1;
@@ -713,8 +739,8 @@ export function drawRankingWide(ctx, d) {
 
   // Columna dreta: la llista
   const vals = list.map((r) => r.v);
-  const temp = d.variable === 'max' || d.variable === 'min';
-  const dots = d.variable === 'min' && list.length > 0;
+  const temp = isTemp(d.variable);
+  const dots = isDots(d.variable) && list.length > 0;
   // Títol de la llista a l'altura de la data de l'esquerra
   networkCaption(ctx, list.length, RX0, 92, 18, 2.2, 'left', cat ? all.length : null);
   let y = 118;

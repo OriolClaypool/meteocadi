@@ -147,6 +147,11 @@ export async function startEstudi() {
     cat: "Estacions automàtiques del Servei Meteorològic de Catalunya (XEMA), de les dades obertes de la Generalitat, amb uns 45-75 minuts de retard. Surten les 10 primeres; les que tenen més de 2 hores sense dades no entren al rànquing de temperatures.",
   };
   const catMode = () => tpl === 'ranquing' && rankNet === 'cat';
+  // Temperatura d'ara: només amb les dades d'avui (la darrera lectura)
+  const isAra = () => rankVar === 'ara' || rankVar === 'arafred';
+  // "20:30" → "a les 20:30"; "01:05" → "a la 1:05"
+  const aLaHora = (t) => { const h = t.replace(/^0(?=\d)/, ''); return h.startsWith('1:') ? `a la ${h}` : `a les ${h}`; };
+  let rankOrder = 'calor';
 
   // Arxiu de les estacions pròpies: els darrers dies i, si cal un dia més antic, el seu any (src/scripts/arxiu-dades.js)
   async function getArchive(date) {
@@ -248,8 +253,9 @@ export async function startEstudi() {
       [kind, url] = [date === yest ? 'ahir' : 'dia', `/api/xema/${date}`];
     }
     const j = await getXema(url, kind === 'avui' || kind === '24h');
+    // Temperatura d'ara: la darrera lectura de cada estació (amb el portal endarrerit no n'hi ha)
     const rows = (j.stations || []).map((s) => ({
-      id: s.id, name: s.name, alt: s.alt ?? 0, com: s.com, max: s.tmax, min: s.tmin, gust: s.gust, rain: s.rinc ? null : s.rain, susp: !!s.inc,
+      id: s.id, name: s.name, alt: s.alt ?? 0, com: s.com, t: kind === 'avui' && !(j.lag > 180) ? s.t ?? null : null, max: s.tmax, min: s.tmin, gust: s.gust, rain: s.rinc ? null : s.rain, susp: !!s.inc,
     }));
     let time = '', note = '';
     if (kind !== 'ahir' && kind !== 'dia' && j.latest) {
@@ -277,8 +283,8 @@ export async function startEstudi() {
       const rows = [];
       for (const s of STATIONS) {
         const v = j.stations?.[s.id];
-        if (!v || v.stale || (v.max == null && v.min == null)) continue;
-        rows.push({ id: s.id, name: shortName(s), alt: s.alt, max: v.max, min: v.min, gust: v.gustMax, rain: v.rain, susp: false });
+        if (!v || v.stale || (v.max == null && v.min == null && v.temp == null)) continue;
+        rows.push({ id: s.id, name: shortName(s), alt: s.alt, t: v.temp ?? null, max: v.max, min: v.min, gust: v.gustMax, rain: v.rain, susp: false });
       }
       const time = hourMadrid(new Date(j.updated));
       return { date: today, kind: 'avui', time, rows, note: `Dades en directe de les ${time}. S'actualitzen cada 15 minuts.` };
@@ -361,7 +367,7 @@ export async function startEstudi() {
       const key = `${d.kind === 'range' ? `${d.from}..${d.to}` : d.date}|${rankVar}|${d.kind}|${net}`;
       if (sentence.key !== key) sentence = { key, text: rankSentence(d.rows, rankVar, net), edited: false };
       if ($('sentence').value !== sentence.text) $('sentence').value = sentence.text;
-      const when = d.kind === 'ahir' ? "d'ahir" : d.kind === 'avui' ? "d'avui" : d.kind === '24h' ? 'de les darreres 24 h' : d.kind === 'range' ? delAl(d.from, d.to) : delDia(d.date);
+      const when = isAra() && d.time ? aLaHora(d.time) : d.kind === 'ahir' ? "d'ahir" : d.kind === 'avui' ? "d'avui" : d.kind === '24h' ? 'de les darreres 24 h' : d.kind === 'range' ? delAl(d.from, d.to) : delDia(d.date);
       (rankFmt === 'wide' ? drawRankingWide : drawRanking)(ctx, { date: d.date, from: d.from, to: d.to, days: d.kind === 'range' ? spanDays(d.from, d.to) : 1, when, variable: rankVar, rows: d.rows, sentence: sentence.text, net, kind: d.kind, time: d.time, fmt: rankFmt });
     }
     lastData = d;
@@ -607,6 +613,7 @@ export async function startEstudi() {
     b.addEventListener('click', () => {
       choice = b.dataset.choice;
       document.querySelectorAll('[data-choice]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      if (choice !== 'avui' && isAra()) { rankVar = 'max'; syncVar(); }
       $('otherDate').hidden = choice !== 'altre';
       if (choice === 'altre' && !$('otherDate').value) $('otherDate').value = addDays(todayMadrid(), -2);
       $('rangeBox').hidden = choice !== 'range';
@@ -651,10 +658,33 @@ export async function startEstudi() {
       draw();
     }),
   );
+  // Variable del rànquing. "Temp. ara" és la darrera lectura: passa el dia a "Avui" i hi surt l'ordre (de més calor a
+  // més fred o al revés); triar un altre dia torna a les màximes
+  function setChoice(c) {
+    choice = c;
+    document.querySelectorAll('[data-choice]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.choice === choice)));
+    $('otherDate').hidden = choice !== 'altre';
+    $('rangeBox').hidden = choice !== 'range';
+  }
+  function syncVar() {
+    const ara = rankVar === 'ara' || rankVar === 'arafred';
+    document.querySelectorAll('[data-var]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.var === (ara ? 'ara' : rankVar))));
+    $('rankOrder').hidden = !ara;
+    document.querySelectorAll('[data-order]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.order === rankOrder)));
+  }
   document.querySelectorAll('[data-var]').forEach((b) =>
     b.addEventListener('click', () => {
-      rankVar = b.dataset.var;
-      document.querySelectorAll('[data-var]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      rankVar = b.dataset.var === 'ara' ? (rankOrder === 'fred' ? 'arafred' : 'ara') : b.dataset.var;
+      if (isAra() && choice !== 'avui') setChoice('avui');
+      syncVar();
+      draw();
+    }),
+  );
+  document.querySelectorAll('[data-order]').forEach((b) =>
+    b.addEventListener('click', () => {
+      rankOrder = b.dataset.order;
+      rankVar = rankOrder === 'fred' ? 'arafred' : 'ara';
+      syncVar();
       draw();
     }),
   );
@@ -677,7 +707,7 @@ export async function startEstudi() {
     if (tpl === 'resum') return `meteocadi-resum-${n(date)}.png`;
     const cat = lastData?.net === 'cat';
     if (lastData?.kind === 'range') return `meteocadi-ranquing-${cat ? 'catalunya-' : ''}${rankVar}-${n(lastData.from)}-${n(lastData.to)}${lastData.time ? `-${lastData.time.replace(':', '')}` : ''}${rankFmt === 'wide' ? '-horitzontal' : rankFmt === 'post' ? '-4x5' : ''}.png`;
-    return `meteocadi-ranquing-${cat ? 'catalunya-' : ''}${rankVar}-${n(date)}${cat && lastData.kind === '24h' ? `-24h-${lastData.time.replace(':', '')}` : ''}${rankFmt === 'wide' ? '-horitzontal' : rankFmt === 'post' ? '-4x5' : ''}.png`;
+    return `meteocadi-ranquing-${cat ? 'catalunya-' : ''}${rankVar}-${n(date)}${cat && lastData.kind === '24h' ? `-24h-${lastData.time.replace(':', '')}` : isAra() && lastData.time ? `-${lastData.time.replace(':', '')}` : ''}${rankFmt === 'wide' ? '-horitzontal' : rankFmt === 'post' ? '-4x5' : ''}.png`;
   }
   async function blob() {
     await document.fonts.ready;
