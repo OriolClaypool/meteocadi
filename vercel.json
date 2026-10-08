@@ -408,6 +408,12 @@
     },
     "api/xema/[periode].js": {
       "maxDuration": 30
+    },
+    "api/neu.js": {
+      "maxDuration": 30
+    },
+    "api/neu/[estacio].js": {
+      "maxDuration": 30
     }
   }
 }

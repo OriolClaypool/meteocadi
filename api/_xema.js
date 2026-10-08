@@ -293,3 +293,6 @@ export async function xemaData(period, now = new Date()) {
     stations,
   };
 }
+
+// Per a les altres funcions que llegeixen la XEMA (la neu mesurada de Meteocadí Neu, api/_neu-mesurada.js)
+export { get as socrata, meta as xemaMeta, cleanName, floating };

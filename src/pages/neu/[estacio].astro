@@ -1,0 +1,325 @@
+---
+// Meteocadí Neu, fitxa d'una estació: el perfil amb la isoterma i la cota de neu, les xifres d'ara, el dia triat,
+// la neu caiguda i la prevista, hora a hora, 7 dies, la neu mesurada a prop, allaus i enllaços oficials.
+// Al build es pinta amb la previsió d'aquell moment; al navegador, amb /api/neu, /api/neu/<estació> (hora a hora)
+// i /api/neu/mesurada. Mai "no tenim estació": si no hi ha cap sensor a prop, la secció no surt.
+import NeuLayout from '../../layouts/NeuLayout.astro';
+import { NEU, NEU_BY_SLUG, lleugera, allausOf, properes } from '../../lib/neu/estacions.js';
+import { previsioBuild } from '../../lib/neu/build.js';
+import {
+  groupsOf, todayIdx, snowSum, dayLines, profileSVG, factsHTML, verdictHTML, weekStripHTML, LEVEL_LEGEND, trioHTML,
+  snowChartSVG, chartLegendHTML, snowTypeHTML, weekTableHTML, weekNote, pastSnow, icon, thousands,
+} from '../../lib/neu/neu.js';
+import { inSeason } from '../../lib/ski.js';
+import { todayMadrid, num } from '../../lib/format.js';
+
+export function getStaticPaths() {
+  return NEU.map((r) => ({ params: { estacio: r.slug } }));
+}
+
+const r = NEU_BY_SLUG[Astro.params.estacio as string];
+const lite = lleugera(r);
+const today = todayMadrid();
+const season = inSeason(today);
+const fc = await previsioBuild();
+const g = groupsOf([lite], fc)?.[0] ?? null;
+const i0 = g ? todayIdx(g.top.days, today) : 0;
+const ps = g ? pastSnow(g, null, today, 5) : null;
+const dl = g ? dayLines(g, i0) : { frz: null, line: null };
+// Fora de temporada i sense neu els darrers dies, la muntanya surt sense neu
+const cover = g && !season && snowSum(g.top.days, i0 - 5, 6) < 10 ? 'bare' : null;
+const fons = r.type === 'fons';
+const kind = fons ? 'esquí de fons' : 'esquí alpí';
+const cotes = `${thousands(r.base)}–${thousands(r.top)}`;
+const av = allausOf(r);
+const near = properes(r, 4);
+const km = r.km != null ? `${num(r.km, r.km % 1 ? 1 : 0)} km` : r.kmMin != null ? `més de ${r.kmMin} km` : null;
+
+const FACTS = [
+  ['Cotes (m)', cotes, true],
+  ['Desnivell', `${thousands(r.top - r.base)} m`, true],
+  [fons ? 'Circuits' : 'Pistes', km, true],
+  ['Esquí', fons ? 'De fons' : 'Alpí', false],
+  ['Oberta des de', r.opened ? String(r.opened) : null, true],
+  ['Zona', r.zone, false],
+].filter(([, v]) => v != null) as [string, string, boolean][];
+
+const title = `${r.name}: previsió de neu i esquí | Meteocadí Neu`;
+const description = `Previsió de neu ${r.a} (${cotes} m): neu nova, cota de neu, vent al cim, hora a hora i 7 dies, i el gruix de neu mesurat a prop.`;
+---
+<NeuLayout
+  title={title}
+  description={description}
+  path={`/neu/${r.slug}`}
+  current="estacions"
+  back={{ href: '/neu#estacions', label: 'Estacions' }}
+  share
+  card={{ title: r.name, sub: `Neu i esquí · ${cotes} m`, lat: r.lat, lng: r.lng, label: r.short }}
+>
+  <div slot="hero" data-neu-fitxa={JSON.stringify({ resort: lite, today })}>
+    <h1 class="nv-name">{r.name}</h1>
+    <p class="nv-meta">{r.zone} · {kind} · {cotes} m</p>
+    <div class="nv-chiprow">
+      <a class="nv-dchip" href={r.estat ?? r.web} rel="noopener">{r.estat ? 'Estat de pistes' : "Web de l'estació"}<Fragment set:html={icon('ext', 14)} /></a>
+      {r.cams && <a class="nv-dchip" href={r.cams} rel="noopener">Webcams<Fragment set:html={icon('ext', 14)} /></a>}
+    </div>
+    <div class="nv-fhero">
+      <div data-nv-prof set:html={profileSVG(lite, { frz: dl.frz, line: dl.line, cover, snowing: (g?.top.days[i0]?.snow ?? 0) >= 1 })} />
+      <div class="nv-facts" data-nv-facts set:html={factsHTML(g, { today })} />
+    </div>
+  </div>
+
+  <div class="nv-in">
+    <div class="nv-card nv-verd">
+      <div data-nv-verd set:html={g ? verdictHTML(g, today, 0, season) : '<p class="nv-load">Carregant la previsió…</p>'} />
+      <div data-nv-strip set:html={g ? weekStripHTML(g, today, 0, season) : ''} />
+      <div data-nv-lg hidden={!season} set:html={LEVEL_LEGEND} />
+    </div>
+  </div>
+
+  <nav class="nv-tabs" aria-label="Seccions de la fitxa" data-nv-tabs>
+    <a href="#neu" class="is-on">Neu</a>
+    <a href="#hores">Hora a hora</a>
+    <a href="#dies">7 dies</a>
+    <a href="#mesurada" hidden>Neu mesurada</a>
+    <a href="#allaus">Allaus</a>
+    {r.roadsKm && <a href="#arribar">Com arribar</a>}
+    <a href="#enllacos">Enllaços</a>
+  </nav>
+
+  <section class="nv-sec nv-anchor" id="neu">
+    <div class="nv-in">
+      <h2 class="nv-h2">Neu nova: la caiguda i la que vindrà</h2>
+      <div data-nv-trio set:html={g && ps ? trioHTML(g, today, ps) : ''} />
+      <div class="nv-card nv-chartbox">
+        <div data-nv-chart set:html={g && ps ? snowChartSVG(g, today, ps) : '<p class="nv-load">Carregant la previsió…</p>'} />
+        <div data-nv-chartlg set:html={g && ps ? chartLegendHTML(g, today, ps) : ''} />
+      </div>
+      <div data-nv-type set:html={g ? snowTypeHTML(g, today, null, season) : ''} />
+    </div>
+  </section>
+
+  <section class="nv-sec nv-anchor" id="hores">
+    <div class="nv-in">
+      <h2 class="nv-h2" data-nv-hhtitle>Avui, hora a hora</h2>
+      <div data-nv-hours><p class="nv-load">Carregant la previsió hora a hora…</p></div>
+    </div>
+  </section>
+
+  <section class="nv-sec nv-anchor" id="dies">
+    <div class="nv-in">
+      <h2 class="nv-h2">Pròxims 7 dies</h2>
+      <div data-nv-week set:html={g ? weekTableHTML(g, today, season) : '<p class="nv-load">Carregant la previsió…</p>'} />
+      <p class="nv-note-s" data-nv-wnote>{g ? weekNote(g, today) : ''}</p>
+    </div>
+  </section>
+
+  <section class="nv-sec nv-anchor" id="mesurada" hidden>
+    <div class="nv-in">
+      <h2 class="nv-h2">Neu mesurada a prop</h2>
+      <div data-nv-sens></div>
+      <p class="nv-note-s">Sensors automàtics de gruix de neu del Servei Meteorològic de Catalunya, a menys de 35 km.</p>
+    </div>
+  </section>
+
+  <section class="nv-sec nv-anchor" id="allaus">
+    <div class="nv-in">
+      <h2 class="nv-h2">Allaus, fora pistes</h2>
+      <ul class="nv-card nv-links">
+        <li>
+          <a href={av.url} rel="noopener">
+            <span class="nv-links__t"><span class="nv-links__k" set:html={icon('alert', 18)} /><span><b>Butlletí de perill d'allaus</b><small>{av.name}</small></span></span>
+            <Fragment set:html={icon('ext', 18)} />
+          </a>
+        </li>
+      </ul>
+      <p class="nv-note-s">Per a l'esquí de muntanya i el fora pista. Dins de les pistes obertes, l'estació en controla el risc.</p>
+    </div>
+  </section>
+
+  {r.roadsKm && (
+    <section class="nv-sec nv-anchor" id="arribar">
+      <div class="nv-in">
+        <h2 class="nv-h2">Com arribar</h2>
+        <div class="nv-card nv-roads" data-nv-roads={`${r.lat}:${r.lng}:${r.roadsKm}`} aria-live="polite">
+          <p class="nv-load">Carregant l'estat de les carreteres…</p>
+        </div>
+        <p class="nv-note-s">
+          Incidències del Servei Català de Trànsit a menys de {r.roadsKm} km, actualitzades cada hora. Abans de sortir, consulta
+          sempre l'<a href="https://transit.gencat.cat/ca/informacio-viaria/estat-transit/" rel="noopener">estat del trànsit</a>.
+        </p>
+      </div>
+    </section>
+  )}
+
+  <section class="nv-sec nv-anchor" id="enllacos">
+    <div class="nv-in">
+      <h2 class="nv-h2">Pistes i webcams</h2>
+      <ul class="nv-card nv-links">
+        {r.estat && (
+          <li><a href={r.estat} rel="noopener"><span><b>Estat de pistes oficial</b><small>Pistes i remuntadors oberts, gruix i qualitat de la neu</small></span><Fragment set:html={icon('ext', 18)} /></a></li>
+        )}
+        {r.cams && (
+          <li><a href={r.cams} rel="noopener"><span><b>Webcams</b><small>A la web de l'estació</small></span><Fragment set:html={icon('ext', 18)} /></a></li>
+        )}
+        <li><a href={r.web} rel="noopener"><span><b>Web de l'estació</b><small>Forfets, horaris i serveis</small></span><Fragment set:html={icon('ext', 18)} /></a></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="nv-sec nv-anchor" id="estacio">
+    <div class="nv-in">
+      <h2 class="nv-h2">L'estació</h2>
+      <dl class="nv-dl">
+        {FACTS.map(([k, v, mono]) => <div><dt>{k}</dt><dd class:list={[mono && 'nv-mono']}>{v}</dd></div>)}
+      </dl>
+      <p class="nv-note-s">Xifres de la web oficial de l'estació; poden canviar d'una temporada a l'altra.</p>
+      <h3 class="nv-h3 nv-near__t">Estacions a prop</h3>
+      <div class="nv-near">
+        {near.map((n) => <a href={`/neu/${n.r.slug}`}>{n.r.name} <small>{Math.round(n.km)} km</small></a>)}
+      </div>
+    </div>
+  </section>
+</NeuLayout>
+
+<script>
+  import {
+    groupsOf, todayIdx, snowSum, dayLines, profileSVG, factsHTML, verdictHTML, weekStripHTML, trioHTML, snowChartSVG,
+    chartLegendHTML, snowTypeHTML, weekTableHTML, weekNote, pastSnow, nearSensors, nowHour, hoursHTML, hoursDay, sensorsHTML,
+  } from '../../lib/neu/neu.js';
+  import { inSeason } from '../../lib/ski.js';
+  import { todayMadrid } from '../../lib/format.js';
+
+  const root = document.querySelector<HTMLElement>('[data-neu-fitxa]')!;
+  const { resort } = JSON.parse(root.dataset.neuFitxa || '{}');
+  const q = new URLSearchParams(location.search);
+  let today = todayMadrid();
+  const season = () => inSeason(today) || q.has('temporada');
+  const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector<T>(s);
+  const set = (s: string, html: string) => { const el = $(s); if (el) el.innerHTML = html; };
+
+  // fc: previsió diària (/api/neu); hr: hora a hora (/api/neu/<estació>); st: sensors (/api/neu/mesurada)
+  // undefined = encara no ha arribat; null = no ha arribat i no arribarà en aquesta càrrega
+  let fc: any = undefined;
+  let hr: any = undefined;
+  let st: any[] | null | undefined = undefined;
+  let sel = 0;
+
+  const group = () => groupsOf([resort], fc)?.[0] ?? null;
+
+  function paintTop(g: any, sensors: any[], now: any) {
+    if (!g) return;
+    const i0 = todayIdx(g.top.days, today);
+    const i = i0 + sel;
+    const dl = dayLines(g, i);
+    // Avui: la isoterma de l'hora actual i la cota de neu que en surt; els altres dies, la del dia
+    const frz = sel === 0 && now?.top?.frz != null ? now.top.frz : dl.frz;
+    const line = dl.line != null && frz != null ? Math.max(0, Math.round((frz - 300) / 100) * 100) : dl.line;
+    const s = sensors[0];
+    const cover = s?.now != null ? (s.now >= 5 ? 'snow' : s.now === 0 ? 'bare' : null) : !season() && snowSum(g.top.days, i0 - 5, 6) < 10 ? 'bare' : null;
+    const snowing = sel === 0 ? (now?.top?.snow ?? 0) > 0.05 || (now == null && (g.top.days[i]?.snow ?? 0) >= 1) : (g.top.days[i]?.snow ?? 0) >= 1;
+    set('[data-nv-prof]', profileSVG(resort, { frz, line, cover, snowing, now: sel === 0 ? now : null }));
+    set('[data-nv-verd]', verdictHTML(g, today, sel, season()));
+    set('[data-nv-strip]', weekStripHTML(g, today, sel, season()));
+    $('[data-nv-lg]')!.hidden = !season();
+  }
+
+  function paint() {
+    today = todayMadrid();
+    const g = group();
+    const sensors = nearSensors(resort, st, 3);
+    const now = nowHour(hr);
+    // Sense previsió al build ni ara: es diu a cada lloc on s'esperava (la del build, si n'hi ha, es queda)
+    const failed = !g && fc === null && !!$('[data-nv-verd] .nv-load');
+    if (failed) document.querySelectorAll('[data-nv-verd] .nv-load, [data-nv-chart] .nv-load, [data-nv-week] .nv-load').forEach((el) => (el.textContent = 'La previsió no arriba ara mateix. Ho tornem a provar d’aquí a uns minuts.'));
+    paintTop(g, sensors, now);
+    if (fc !== undefined && (g || !$('[data-nv-facts] .nv-fact__v small'))) set('[data-nv-facts]', factsHTML(g, { today, now, sensors, wait: hr === undefined || st === undefined }));
+    if (g) {
+      const ps = pastSnow(g, sensors, today, 5);
+      set('[data-nv-trio]', trioHTML(g, today, ps));
+      set('[data-nv-chart]', snowChartSVG(g, today, ps));
+      set('[data-nv-chartlg]', chartLegendHTML(g, today, ps));
+      set('[data-nv-type]', snowTypeHTML(g, today, sensors, season()));
+      set('[data-nv-week]', weekTableHTML(g, today, season()));
+      $('[data-nv-wnote]')!.textContent = weekNote(g, today);
+    }
+    // Hora a hora: avui o, a partir de les 17 h, demà. Si no arriba, la secció no surt
+    const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Madrid', hour: '2-digit', hourCycle: 'h23' }).format(new Date()));
+    const hh = hr ? hoursDay(hr, today, hour) : null;
+    const hhHTML = hh ? hoursHTML(hr, hh.date) : '';
+    if (hhHTML) { set('[data-nv-hours]', hhHTML); $('[data-nv-hhtitle]')!.textContent = `${hh!.word}, hora a hora`; }
+    const hideHours = hr === null || (hr !== undefined && !hhHTML);
+    $('#hores')!.hidden = hideHours;
+    $('[data-nv-tabs] a[href="#hores"]')!.hidden = hideHours;
+    // Neu mesurada: només si hi ha algun sensor a prop
+    const sens = sensorsHTML(sensors);
+    if (sens) set('[data-nv-sens]', sens);
+    $('#mesurada')!.hidden = !sens;
+    $('[data-nv-tabs] a[href="#mesurada"]')!.hidden = !sens;
+  }
+
+  // Dia triat a la tira dels 7 dies
+  document.addEventListener('click', (e) => {
+    const b = (e.target as HTMLElement).closest<HTMLElement>('[data-nv-strip] [data-k]');
+    if (!b) return;
+    sel = Number(b.dataset.k);
+    const g = group();
+    if (g) paintTop(g, nearSensors(resort, st, 3), nowHour(hr));
+  });
+
+  // Pestanyes: la secció que es veu queda marcada
+  const tabs = Array.from(document.querySelectorAll<HTMLAnchorElement>('[data-nv-tabs] a'));
+  if ('IntersectionObserver' in window) {
+    const vis = new Map<string, boolean>();
+    const io = new IntersectionObserver((es) => {
+      es.forEach((e) => vis.set(e.target.id, e.isIntersecting));
+      const on = tabs.find((a) => vis.get(a.hash.slice(1)) && !a.hidden);
+      if (on) tabs.forEach((a) => a.classList.toggle('is-on', a === on));
+    }, { rootMargin: '-60px 0px -55% 0px' });
+    tabs.forEach((a) => { const s = document.getElementById(a.hash.slice(1)); if (s) io.observe(s); });
+  }
+
+  const getJson = (u: string) => fetch(u).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`${u} ${r.status}`))));
+
+  // Com arribar: incidències del Servei Català de Trànsit a prop de l'estació
+  const roadsBox = $('[data-nv-roads]');
+  const escH = (s: string) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c] as string);
+  const SMALL = new Set(['de', 'del', 'dels', 'la', 'el', 'les', 'els', 'i', 'a']);
+  const capW = (s: string) => String(s || '').toLowerCase().replace(/[^\s\-'’]+/g, (w, i) => (i > 0 && SMALL.has(w) ? w : w[0].toUpperCase() + w.slice(1))).replace(/\b(D|L)'/g, (m, c, i) => (i > 0 ? c.toLowerCase() + "'" : m));
+  const pk = (v: number | null) => (v == null ? '' : String(v).replace('.', ','));
+  function loadRoads() {
+    if (!roadsBox) return;
+    getJson(`/api/transit?near=${roadsBox.dataset.nvRoads}`)
+      .then((j) => {
+        if (j.error) throw new Error('sct');
+        if (!j.items?.length) { roadsBox.innerHTML = '<p class="nv-road is-ok"><i></i><span><b>Cap incidència comunicada</b> a les carreteres properes.</span></p>'; return; }
+        roadsBox.innerHTML = j.items.map((it: any) => {
+          const t = `${it.type} ${it.text} ${it.cause}`.toLowerCase();
+          const cls = /tallad|tancad/.test(t) ? 'is-red' : /cadenes|neu|gel|glaç/.test(t) ? 'is-amber' : '';
+          const tram = it.pkFrom != null ? ` · km ${pk(it.pkFrom)}${it.pkTo != null && it.pkTo !== it.pkFrom ? `–${pk(it.pkTo)}` : ''}` : '';
+          const cap_a = it.towards ? ` · cap a ${escH(capW(it.towards))}` : '';
+          return `<p class="nv-road ${cls}"><i></i><span><b>${escH(it.road)}${tram}</b>${escH(it.text)}${it.cause ? ` (${escH(String(it.cause).toLowerCase())})` : ''}${cap_a}</span></p>`;
+        }).join('');
+      })
+      .catch(() => { roadsBox.innerHTML = '<p class="nv-load">Ara no arriben les dades del Servei Català de Trànsit.</p>'; });
+  }
+  loadRoads();
+  setInterval(loadRoads, 10 * 60 * 1000);
+
+  function load() {
+    getJson('/api/neu')
+      .then((j) => { fc = j?.resorts?.[resort.slug] ? j : (fc ?? null); })
+      .catch(() => { fc = fc ?? null; })
+      .finally(paint);
+    getJson(`/api/neu/${resort.slug}`)
+      .then((j) => { hr = j?.hours?.length ? j : (hr ?? null); })
+      .catch(() => { hr = hr ?? null; })
+      .finally(paint);
+    getJson('/api/neu/mesurada')
+      .then((j) => { st = j?.error ? (st ?? null) : (j?.stations ?? null); })
+      .catch(() => { st = st ?? null; })
+      .finally(paint);
+  }
+  load();
+  setInterval(load, 30 * 60 * 1000);
+</script>

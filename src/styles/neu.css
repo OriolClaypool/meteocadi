@@ -1,0 +1,357 @@
+/* Meteocadí Neu (/neu): aspecte propi de la secció d'esquí. Mòbil primer; a l'escriptori, una columna central
+   i el menú a dalt. Colors: nit (#0B1A2C) a la capçalera, blanc de neu (#F2F5F9) a la pàgina i l'escala de la neu
+   (la mateixa a les barres, les taules i el mapa: neu.js, SNOW). Res de cursives: el segon tros dels títols, en color. */
+
+body:has(.nv) { background: #f2f5f9; }
+body:has(.nv) .strip { display: none; }
+
+.nv {
+  --night: #0b1a2c; --night2: #132840; --nline: #22395a;
+  --page: #f2f5f9; --card: #fff; --line: #dce3ec; --line2: #eef2f6;
+  --ink: #0e1c2f; --ink2: #3e4f66; --muted: #56677d;
+  --ice: #8fd3ff; --ice2: #b7c6d8; --ice3: #8a9bb2;
+  --acc: #1d5fd1; --obs: #a3b1c2; --rain: #2e9e7a; --warn-bg: #fff1e3; --warn: #9a4a0a;
+  background: var(--page); color: var(--ink); font-family: var(--f-ui); font-size: 15px; line-height: 1.45;
+  padding-bottom: calc(64px + env(safe-area-inset-bottom));
+}
+.nv a { color: var(--acc); }
+.nv a:hover { color: #164aa6; }
+.nv h1, .nv h2, .nv h3 { font-family: var(--f-head); letter-spacing: -0.01em; line-height: 1.15; margin: 0; }
+.nv p { margin: 0; }
+.nv-in { width: 100%; max-width: 760px; margin: 0 auto; padding: 0 16px; }
+.nv [hidden] { display: none !important; }
+.nv-mono, .nv-num { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+
+/* ---------- capçalera (fosca) ---------- */
+.nv-hero { background: var(--night); color: #fff; }
+.nv-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; height: 60px; }
+.nv-brand { display: inline-flex; align-items: center; gap: 8px; color: #fff !important; text-decoration: none; }
+.nv-brand svg { color: var(--ice); }
+.nv-brand b { font-family: var(--f-head); font-size: 19px; font-weight: 800; letter-spacing: -0.01em; }
+.nv-brand b span { color: var(--ice); }
+.nv-top__r { display: flex; align-items: center; gap: 2px; }
+.nv-top__l { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; height: 44px; padding: 0 8px; border-radius: 10px; font-size: 14px; font-weight: 600; color: var(--ice2) !important; text-decoration: none; }
+.nv-top__l:hover { color: #fff !important; background: rgba(255, 255, 255, 0.06); }
+.nv-top__l[aria-current='page'] { color: #fff !important; box-shadow: inset 0 -2px 0 var(--ice); border-radius: 0; }
+.nv-top__nav { display: none; }
+.nv-top__lang { font-family: var(--f-mono); font-size: 12px; }
+/* Fitxa, al mòbil: la tornada ocupa el lloc de la marca */
+.nv-top--back .nv-brand { display: none; }
+.nv-top .nv-back { margin-left: -6px; }
+.nv-share { border: 0; background: transparent; cursor: pointer; position: relative; }
+.nv-share__ok { position: absolute; right: 0; top: 46px; padding: 4px 10px; border-radius: 8px; background: #fff; color: var(--ink); font-size: 12px; white-space: nowrap; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25); }
+.nv-hero__in { padding-top: 14px; }
+.nv-eyebrow { display: block; font-family: var(--f-mono); font-size: 11px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.nv-eyebrow--ice { color: var(--ice); }
+.nv-hero .nv-eyebrow { color: var(--ice3); }
+.nv-hero .nv-eyebrow--ice { color: var(--ice); }
+.nv-h1 { margin-top: 10px !important; font-size: 28px; font-weight: 800; line-height: 1.12 !important; letter-spacing: -0.015em !important; }
+.nv-h1 span { color: var(--ice); }
+.nv-lead { margin-top: 10px !important; font-size: 15px; color: var(--ice2); }
+.nv-ridge { display: block; width: 100%; height: 46px; margin-top: 22px; }
+
+/* Targetes de la capçalera */
+.nv-cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 20px; }
+.nv-cards__g { display: contents; }
+.nv-hcard { display: block; padding: 14px; border-radius: 16px; background: var(--night2); border: 1px solid var(--nline); color: #fff !important; text-decoration: none; min-width: 0; }
+a.nv-hcard:hover { border-color: #3a5a86; }
+.nv-hcard--wide { grid-column: span 2; padding: 16px; }
+.nv-hcard__row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 8px; }
+.nv-hcard__day { font-family: var(--f-head); font-size: 28px; font-weight: 800; line-height: 1.1; }
+.nv-hcard__name { display: block; margin-top: 4px; font-size: 16px; font-weight: 600; }
+.nv-hcard__name span { font-weight: 400; color: var(--ice2); }
+.nv-hcard__name--s { margin-top: 6px; font-size: 14px; }
+.nv-hcard__why { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 12px; font-size: 13px; color: #d5e0ec; }
+.nv-hcard__why > span { display: inline-flex; align-items: center; gap: 6px; }
+.nv-hcard__big { display: block; margin-top: 8px; font-family: var(--f-mono); font-size: 30px; font-weight: 700; line-height: 1; }
+.nv-hcard__big small { font-family: var(--f-ui); font-size: 15px; font-weight: 600; }
+.nv-hcard__sub { display: block; margin-top: 2px; font-size: 12px; color: var(--ice2); }
+.nv-hcard__sub.is-ice { color: var(--ice); }
+.nv-hcard.is-wait .nv-hcard__big { color: var(--ice3); }
+.nv-ic.is-sun { color: #ffd27a; }
+.nv-ic.is-ice { color: var(--ice); }
+.nv-ic.is-rain { color: var(--rain); }
+.nv .nv-card .nv-ic.is-sun, .nv-wk .nv-ic.is-sun, .nv-t7 .nv-ic.is-sun, .nv-hh .nv-ic.is-sun { color: #c77a00; }
+
+/* ---------- seccions ---------- */
+.nv-sec { padding-top: 32px; }
+.nv-h2 { margin-top: 4px !important; font-size: 24px; font-weight: 800; }
+.nv-h3 { font-size: 18px; font-weight: 800; }
+.nv-intro { margin-top: 6px !important; font-size: 14px; color: var(--ink2); }
+.nv-small { font-size: 12px; color: var(--muted); }
+.nv-card { background: var(--card); border-radius: 16px; box-shadow: 0 0 0 1px var(--line); }
+.nv-empty { padding: 16px; border-radius: 12px; background: #fff; box-shadow: 0 0 0 1px var(--line); color: var(--ink2); font-size: 14px; }
+.nv-load { padding: 18px; border-radius: 16px; background: #fff; box-shadow: 0 0 0 1px var(--line); color: var(--muted); font-size: 14px; }
+.nv-card .nv-load { padding: 4px 0; border-radius: 0; background: none; box-shadow: none; }
+
+/* Píndoles del dia d'esquí */
+.nv-pill { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px; font-size: 13px; font-weight: 700; white-space: nowrap; }
+.nv-pill i { width: 8px; height: 8px; border-radius: 50%; }
+.nv-pill--mb { background: #dcf5e7; color: #0b6b3e; } .nv-pill--mb i { background: #12a15c; }
+.nv-pill--b { background: #eaf6d9; color: #3f6a0c; } .nv-pill--b i { background: #6fb52c; }
+.nv-pill--r { background: #fff3d6; color: #8a5a00; } .nv-pill--r i { background: #e3a21a; }
+.nv-pill--d { background: #fde2de; color: #a3281a; } .nv-pill--d i { background: #e04a33; }
+.nv-lv { display: block; width: 26px; height: 6px; border-radius: 3px; }
+.nv-lv--mb { background: #12a15c; } .nv-lv--b { background: #6fb52c; } .nv-lv--r { background: #e3a21a; } .nv-lv--d { background: #e04a33; }
+.nv-lv.is-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+/* Botons de tria (dia, període, capa) */
+.nv-chips { display: flex; gap: 8px; margin-top: 12px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
+.nv-chips::-webkit-scrollbar { display: none; }
+.nv-chip { flex: none; height: 44px; padding: 0 14px; border-radius: 999px; border: 1px solid #c9d3df; background: #fff; color: var(--ink2); font: 600 14px/1 var(--f-ui); cursor: pointer; }
+.nv-chip[aria-pressed='true'] { background: var(--ink); border-color: var(--ink); color: #fff; }
+.nv-seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 12px; padding: 3px; border-radius: 12px; background: #e3e9f0; }
+.nv-seg button { height: 40px; border: 0; border-radius: 9px; background: transparent; font: 600 14px/1 var(--f-ui); color: var(--ink2); cursor: pointer; }
+.nv-seg button[aria-pressed='true'] { background: #fff; box-shadow: 0 1px 2px rgba(14, 28, 47, 0.12); color: var(--ink); font-weight: 700; }
+.nv-sel { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+.nv-sel label { font-size: 14px; font-weight: 600; color: var(--ink2); }
+.nv-sel select { flex: 1; height: 44px; padding: 0 12px; border-radius: 12px; border: 1px solid #c9d3df; background: #fff; font: 600 14px var(--f-ui); color: var(--ink); }
+
+/* ---------- llista d'estacions ---------- */
+.nv-list { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.nv-row { position: relative; padding: 14px; }
+.nv-row:hover { box-shadow: 0 0 0 1px #b9c6d6, 0 2px 8px rgba(14, 28, 47, 0.06); }
+.nv-row__top { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.nv-row__id { min-width: 0; }
+.nv-row__name { font-family: var(--f-head); font-size: 18px; font-weight: 700; color: var(--ink) !important; text-decoration: none; }
+/* Tota la targeta és l'enllaç */
+.nv-row__name::after { content: ''; position: absolute; inset: 0; border-radius: 16px; }
+.nv-row__name:focus-visible { outline: none; }
+.nv-row__name:focus-visible::after { outline: 2px solid var(--acc); outline-offset: 2px; }
+.nv-row__meta { margin-top: 1px !important; font-size: 13px; color: var(--muted); }
+.nv-badge { display: inline-flex; align-items: center; gap: 4px; height: 24px; margin-top: 8px !important; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.nv-badge--wind { background: var(--warn-bg); color: var(--warn); }
+.nv-row__bot { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; margin-top: 10px; }
+.nv-row__tot { text-align: right; line-height: 1.1; font-size: 13px; font-weight: 600; }
+.nv-row__tot b { font-family: var(--f-mono); font-size: 22px; font-weight: 700; }
+.nv-row__tot small { display: block; font-size: 12px; font-weight: 400; color: var(--muted); }
+.nv-spark__bars { display: flex; align-items: flex-end; gap: 3px; height: 30px; }
+.nv-spark__b { width: 12px; border-radius: 2px 2px 0 0; background: var(--obs); }
+.nv-spark__b.is-zero { background: #e3e9f0; border-radius: 2px; }
+.nv-spark__days { display: flex; gap: 3px; margin-top: 4px; font-family: var(--f-mono); font-size: 9px; line-height: 1; color: var(--muted); }
+.nv-spark__days span { width: 12px; text-align: center; }
+.nv-spark__days .is-fut { color: var(--ink); }
+.nv-spark__days .is-sel { font-weight: 700; text-decoration: underline; }
+.nv-legend-s { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin-top: 10px; font-size: 12px; color: var(--muted); }
+.nv-legend-s span { display: inline-flex; align-items: center; gap: 6px; }
+.nv-legend-s i { display: inline-block; width: 12px; height: 10px; border-radius: 2px; }
+.nv-legend-s i.is-dot { width: 8px; height: 8px; border-radius: 50%; }
+.nv-more { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; height: 50px; margin-top: 12px; border: 0; border-radius: 16px; background: #fff; box-shadow: 0 0 0 1px var(--line); font: 700 15px var(--f-ui); color: var(--ink); cursor: pointer; }
+.nv-more:hover { box-shadow: 0 0 0 1px #b9c6d6; }
+.nv-list.is-short > li:nth-child(n + 7) { display: none; }
+
+/* ---------- mapa ---------- */
+.nv-map { position: relative; height: 270px; margin-top: 12px; border-radius: 16px; overflow: hidden; background: #e9eef4; box-shadow: 0 0 0 1px var(--line); }
+.nv-map .leaflet-tile-pane { filter: saturate(0.3) contrast(0.92) brightness(1.08); opacity: 0.7; }
+.nv-map.leaflet-container { font-family: var(--f-ui); }
+.nv-map .leaflet-control-attribution { font-size: 10px; line-height: 1.4; }
+.nv .nv-legend-s + .nv-more { margin-top: 16px; }
+.nv-pin-w { width: 0 !important; height: 0 !important; }
+/* Punt a la posició de l'estació i etiqueta al costat (a la dreta o, si no hi cap, a l'esquerra) */
+.nv-pin { position: absolute; left: 0; top: 0; width: 0; height: 0; }
+.nv-pin__dot { position: absolute; left: -6px; top: -6px; width: 12px; height: 12px; border-radius: 50%; box-shadow: 0 0 0 2px #fff, 0 1px 4px rgba(14, 28, 47, 0.4); }
+.nv-pin.is-sensor .nv-pin__dot { border-radius: 3px; }
+.nv-pin__lab { position: absolute; top: 0; left: 10px; transform: translateY(-50%); display: inline-flex; align-items: center; gap: 5px; padding: 2px 8px 2px 2px; border-radius: 999px; background: #fff; box-shadow: 0 1px 6px rgba(14, 28, 47, 0.25); white-space: nowrap; color: var(--ink) !important; text-decoration: none; }
+.nv-pin.is-l .nv-pin__lab { left: auto; right: 10px; }
+.nv-pin.is-t .nv-pin__lab { left: 0; top: -9px; transform: translate(-50%, -100%); }
+.nv-pin.is-b .nv-pin__lab { left: 0; top: 9px; transform: translate(-50%, 0); }
+.nv-pin__lab b { display: inline-flex; align-items: center; justify-content: center; min-width: 28px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--bg, #eef3f8); color: var(--fg, var(--ink)); font: 700 12px var(--f-mono); box-shadow: inset 0 0 0 1px rgba(14, 28, 47, 0.12); }
+.nv-pin__lab span { font-size: 12px; font-weight: 600; }
+.nv-pin.is-short .nv-pin__lab { padding-right: 2px; } .nv-pin.is-short .nv-pin__lab span { display: none; }
+.nv-pin.is-dot .nv-pin__lab { display: none; }
+/* Sense xifra (la previsió no ha arribat): només el nom, o res */
+.nv-pin__lab:not(:has(b)) { padding: 3px 8px; }
+.nv-pin.is-short .nv-pin__lab:not(:has(b)) { display: none; }
+.nv-pin.is-sensor .nv-pin__lab, .nv-pin.is-sensor .nv-pin__lab b { border-radius: 6px; }
+a.nv-pin__lab:hover { box-shadow: 0 0 0 2px var(--acc), 0 1px 6px rgba(14, 28, 47, 0.25); }
+.nv-map__note { margin-top: 10px !important; font-size: 13px; color: var(--ink2); }
+.nv-map__wrap { margin-top: 12px; padding: 0 0 14px; overflow: hidden; }
+.nv-map__wrap .nv-map { margin-top: 0; border-radius: 16px 16px 0 0; box-shadow: none; }
+.nv-map__wrap .nv-scale, .nv-map__wrap .nv-map__note { margin-left: 14px; margin-right: 14px; }
+.nv-scale { display: flex; align-items: flex-end; gap: 3px; margin-top: 12px; }
+.nv-scale > b { flex: none; margin-right: 4px; font-size: 12px; font-weight: 600; color: var(--ink2); }
+.nv-scale > span { flex: 1; display: flex; flex-direction: column; gap: 4px; font: 11px var(--f-mono); color: var(--ink2); }
+.nv-scale > span i { height: 10px; border-radius: 3px; }
+
+/* ---------- capçalera de la fitxa ---------- */
+.nv-back { display: inline-flex; align-items: center; gap: 2px; height: 44px; padding: 0 10px 0 0; font-size: 15px; font-weight: 600; color: #fff !important; text-decoration: none; }
+.nv-name { font-size: 34px; font-weight: 800; letter-spacing: -0.02em !important; line-height: 1.05 !important; }
+.nv-chiprow { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.nv-dchip { display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border-radius: 999px; background: var(--night2); border: 1px solid var(--nline); font-size: 13px; font-weight: 600; color: #fff !important; text-decoration: none; }
+a.nv-dchip:hover { border-color: #3a5a86; }
+.nv-dchip svg { margin-left: 6px; }
+.nv-prof { display: block; width: 100%; height: auto; margin-top: 14px; font-family: var(--f-ui); }
+.nv-prof__pill { font-size: 11px; font-weight: 600; }
+.nv-prof__lab { font-size: 12px; font-weight: 700; fill: #fff; }
+.nv-prof__sub { font-size: 11px; fill: var(--ice2); }
+.nv-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
+.nv-fact { padding: 12px; border-radius: 14px; background: var(--night2); border: 1px solid var(--nline); min-width: 0; }
+.nv-fact__k { font-size: 12px; color: var(--ice2); }
+.nv-fact__v { display: flex; align-items: center; gap: 10px; margin-top: 4px !important; font-family: var(--f-mono); font-size: 24px; font-weight: 700; line-height: 1.1; }
+.nv-fact__v small { font-family: var(--f-ui); font-size: 14px; font-weight: 600; }
+.nv-fact__v svg { color: var(--ice); }
+.nv-fact__v .nv-ic.is-sun { color: #ffd27a; }
+.nv-fact__v .nv-ic.is-rain { color: #6fd3ae; }
+.nv-fact__s { margin-top: 2px !important; font-size: 11px; color: var(--ice3); }
+.nv-fact.is-warn .nv-fact__v { color: #ffb65c; }
+.nv-meta { margin-top: 6px !important; font-size: 15px; color: var(--ice2); }
+.nv-dchip svg { color: var(--ice); }
+
+/* Veredicte i setmana */
+.nv-verd { margin-top: 10px; padding: 16px; }
+.nv-verd__h { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.nv-verd__t { margin-top: 8px !important; font-size: 22px; font-weight: 800; }
+.nv-verd__p { margin-top: 6px !important; font-size: 14px; color: var(--ink2); }
+.nv-wk { list-style: none; margin: 14px 0 0; padding: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 5px; }
+.nv-wk > li { min-width: 0; }
+.nv-wk__d { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; min-height: 64px; padding: 8px 0 6px; border: 0; border-radius: 10px; background: var(--page); font: 600 12px var(--f-ui); color: var(--ink2); cursor: pointer; }
+.nv-wk__d:hover { background: #e7ecf2; }
+.nv-wk__d.is-sel { box-shadow: inset 0 0 0 2px var(--ink); color: var(--ink); font-weight: 700; }
+.nv-wk__d .nv-ic { color: var(--ink2); }
+.nv-wk__lg { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 10px !important; font-size: 12px; color: var(--muted); }
+.nv-wk__lg span { display: inline-flex; align-items: center; gap: 5px; }
+.nv-wk__lg .nv-lv { width: 14px; }
+
+/* Pestanyes (àncores) */
+.nv-tabs { position: sticky; top: 0; z-index: 5; display: flex; gap: 4px; margin-top: 16px; padding: 0 16px; overflow-x: auto; scrollbar-width: none; background: var(--page); border-bottom: 1px solid var(--line); }
+.nv-tabs::-webkit-scrollbar { display: none; }
+.nv-tabs a { flex: none; display: inline-flex; align-items: center; height: 44px; padding: 0 12px; font-size: 14px; font-weight: 600; color: var(--muted) !important; text-decoration: none; }
+.nv-tabs a.is-on { color: var(--ink) !important; font-weight: 700; box-shadow: inset 0 -3px 0 var(--acc); }
+.nv-anchor { scroll-margin-top: 56px; }
+
+/* Neu nova */
+.nv-trio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.nv-trio > div { padding: 10px; border-radius: 12px; background: #fff; box-shadow: 0 0 0 1px var(--line); min-width: 0; }
+.nv-trio p:first-child { font-size: 12px; color: var(--muted); }
+.nv-trio b { display: block; margin-top: 2px; font: 700 20px var(--f-mono); }
+.nv-trio b small { font: 400 13px var(--f-ui); }
+.nv-trio b.is-fut { color: var(--acc); }
+.nv-trio p:last-child { font-size: 11px; color: var(--muted); }
+.nv-chartbox { margin-top: 10px; padding: 12px 16px 10px; }
+.nv-chart { display: block; width: 100%; height: auto; font-family: var(--f-mono); }
+.nv-chart__v { font-size: 11px; font-weight: 700; fill: var(--ink); }
+.nv-chart__v.is-fut { fill: var(--acc); }
+.nv-chart__d { font-size: 10px; fill: var(--muted); }
+.nv-chart__d.is-fut { fill: var(--ink); }
+.nv-chart__d.is-today { font-weight: 700; }
+.nv-chart__now { font-size: 10px; font-weight: 700; fill: var(--ink); }
+.nv-chart__na { font-size: 14px; fill: var(--muted); }
+.nv-type { display: flex; gap: 12px; align-items: flex-start; margin-top: 10px; padding: 14px 16px; }
+.nv-type__ic { flex: none; width: 40px; height: 40px; border-radius: 12px; background: #eaf2fb; display: flex; align-items: center; justify-content: center; color: var(--acc); }
+.nv-type__t { margin-top: 4px !important; font-size: 17px; font-weight: 700; }
+.nv-type__s { margin-top: 4px !important; font-size: 14px; color: var(--ink2); }
+
+/* Hora a hora */
+.nv-hh { margin-top: 12px; padding: 12px 12px 10px; }
+.nv-hh__g { display: grid; grid-template-columns: 74px repeat(6, minmax(0, 1fr)); align-items: center; row-gap: 2px; font-size: 13px; }
+.nv-hh__l { font-size: 12px; color: var(--muted); }
+.nv-hh__c { display: flex; align-items: center; justify-content: center; min-height: 26px; font-family: var(--f-mono); text-align: center; }
+.nv-hh__c.is-h { font-size: 12px; font-weight: 600; color: var(--ink2); }
+.nv-hh__c.is-ic { min-height: 32px; color: var(--ink2); }
+.nv-hh__c.is-snow { font-weight: 600; color: var(--acc); }
+.nv-hh__c.is-dim { color: #9aa8ba; }
+.nv-hh__c.nv-hi { margin: 0 2px; border-radius: 6px; background: var(--warn-bg); font-weight: 700; color: var(--warn); }
+.nv-fog { display: block; width: calc(100% - 4px); height: 8px; border-radius: 4px; background: #8a9bb2; }
+.nv-fog.is-light { background: #c9d3df; }
+.nv-notes { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+.nv-note { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; background: var(--page); font-size: 13px; color: var(--ink2); }
+.nv-note svg { flex: none; }
+.nv-note--wind { background: var(--warn-bg); color: var(--warn); }
+
+/* 7 dies */
+.nv-t7 { margin-top: 10px; padding: 4px 14px; font-size: 13px; }
+.nv-t7__r { display: grid; grid-template-columns: 62px 52px 68px 40px minmax(0, 1fr); align-items: center; gap: 5px; min-height: 46px; border-top: 1px solid var(--line2); }
+.nv-t7.is-ns .nv-t7__r { grid-template-columns: 80px 70px minmax(0, 1fr) 60px; }
+.nv-t7__h { min-height: 34px; border-top: 0; font-size: 11px; color: var(--muted); }
+.nv-t7__day { display: flex; align-items: center; gap: 6px; font-weight: 700; }
+.nv-t7__day .nv-ic { color: var(--ink2); }
+.nv-t7__lv { justify-self: end; text-align: right; }
+.nv-tdlv { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; white-space: nowrap; }
+.nv-tdlv i { flex: none; }
+.nv-t7__h span { white-space: nowrap; }
+.nv-cm { justify-self: start; display: inline-block; padding: 2px 7px; border-radius: 6px; font: 700 13px var(--f-mono); }
+.nv-dash { color: #8a9bb2; }
+.nv-mono.is-rain { color: #1e7a5c; font-weight: 700; }
+.nv-mono.nv-hi { justify-self: start; padding: 2px 6px; border-radius: 6px; background: var(--warn-bg); color: var(--warn); font-weight: 700; }
+
+/* Neu mesurada */
+.nv-sens { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 12px; }
+.nv-sen { padding: 12px; }
+.nv-sen__n { font-size: 13px; font-weight: 700; }
+.nv-sen__m { font-size: 12px; color: var(--muted); }
+.nv-sen__v { margin-top: 8px !important; font-size: 14px; font-weight: 600; }
+.nv-sen__v b { font: 700 26px var(--f-mono); }
+.nv-sen__d { margin-top: 4px !important; font-size: 12px; font-weight: 600; color: var(--muted); }
+.nv-sen__d.is-up { color: var(--acc); }
+
+/* Enllaços, allaus, fitxa tècnica */
+.nv-links { list-style: none; margin: 12px 0 0; padding: 0; overflow: hidden; }
+.nv-links li + li { border-top: 1px solid var(--line2); }
+.nv-links a { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 50px; padding: 0 14px; font-size: 15px; font-weight: 600; color: var(--ink) !important; text-decoration: none; }
+.nv-links a:hover { background: #f7f9fb; }
+.nv-links small { display: block; font-size: 12px; font-weight: 400; color: var(--muted); }
+.nv-links svg { flex: none; color: var(--muted); }
+.nv-dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 12px 0 0; }
+.nv-dl > div { padding: 10px; border-radius: 12px; background: #fff; box-shadow: 0 0 0 1px var(--line); min-width: 0; }
+.nv-dl dt { font-size: 12px; color: var(--muted); }
+.nv-dl dd { margin: 2px 0 0; font-size: 13px; font-weight: 700; }
+.nv-dl dd.nv-mono { font-size: 14px; }
+.nv-note-s { margin-top: 8px !important; font-size: 13px; color: var(--ink2); }
+.nv-links b { display: block; }
+.nv-links .nv-links__k { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 34px; height: 34px; margin-right: 12px; border-radius: 10px; background: #eaf2fb; color: var(--acc); }
+.nv-links .nv-links__k svg { color: var(--acc); }
+.nv-links a > span:first-child { min-width: 0; padding: 10px 0; }
+.nv-links .nv-links__t { display: flex; align-items: center; }
+.nv-near__t { margin-top: 28px !important; }
+.nv-near { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.nv-near a { display: inline-flex; align-items: center; gap: 6px; height: 40px; padding: 0 14px; border-radius: 999px; background: #fff; box-shadow: 0 0 0 1px var(--line); font-size: 14px; font-weight: 600; color: var(--ink) !important; text-decoration: none; }
+.nv-near a:hover { box-shadow: 0 0 0 1px #b9c6d6; }
+.nv-near small { font: 12px var(--f-mono); color: var(--muted); }
+.nv-stale { margin-top: 8px !important; font-size: 12px; color: var(--warn); }
+.nv-hide { display: none !important; }
+
+/* Com arribar (incidències de trànsit) */
+.nv-roads { margin-top: 12px; padding: 4px 14px; }
+.nv-road { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; font-size: 14px; color: var(--ink2); }
+.nv-road + .nv-road { border-top: 1px solid var(--line2); }
+.nv-road i { flex: none; width: 10px; height: 10px; margin-top: 5px; border-radius: 50%; background: #8a9bb2; }
+.nv-road.is-ok i { background: #12a15c; }
+.nv-road.is-amber i { background: #e3a21a; }
+.nv-road.is-red i { background: #e04a33; }
+.nv-road b { display: block; color: var(--ink); }
+.nv-roads .nv-load { padding: 12px 0; }
+
+/* ---------- peu i menú inferior ---------- */
+.nv-foot { margin-top: 40px; padding: 24px 0 20px; background: #e7ecf2; color: var(--ink2); font-size: 12px; line-height: 1.5; }
+.nv-foot p + p { margin-top: 10px !important; }
+.nv-foot__b { font-family: var(--f-head); font-size: 16px; font-weight: 800; color: var(--ink); }
+.nv-foot__b span { color: var(--acc); }
+.nv-foot__l { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.nv-foot__l a { font-weight: 600; }
+.nv-tab { position: fixed; z-index: 30; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); height: calc(64px + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom); background: #fff; border-top: 1px solid var(--line); }
+.nv-tab a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 11px; font-weight: 600; color: var(--muted) !important; text-decoration: none; }
+.nv-tab a[aria-current='page'] { font-weight: 700; color: var(--acc) !important; }
+
+/* ---------- escriptori ---------- */
+@media (min-width: 900px) {
+  .nv { padding-bottom: 0; }
+  .nv-tab { display: none; }
+  .nv-top { height: 68px; }
+  .nv-top__nav { display: flex; align-items: center; gap: 4px; margin-right: 8px; }
+  .nv-top--back .nv-brand { display: inline-flex; }
+  .nv-top--back .nv-back { display: none; }
+  .nv-h1 { font-size: 40px; max-width: 680px; }
+  .nv-lead { font-size: 17px; }
+  .nv-cards { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .nv-cards .nv-hcard--wide { grid-column: span 2; }
+  .nv-cards:not(:has(.nv-hcard--wide)) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .nv-tabs { padding: 0 max(16px, calc((100% - 728px) / 2)); }
+  .nv-map { height: 440px; }
+  .nv-name { font-size: 44px; }
+  /* Fitxa: el perfil i les xifres, un al costat de l'altre */
+  .nv-fhero { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; align-items: center; }
+  .nv-fhero .nv-facts { margin-top: 14px; }
+  .nv-sens { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .nv-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .nv-chart { max-width: 560px; margin: 0 auto; }
+}

@@ -3,7 +3,8 @@ import sitemap from '@astrojs/sitemap';
 import ogCards from './integrations/og-cards.mjs';
 import { episodes } from './src/lib/episodes.js';
 
-const HIDDEN = /\/(estudi(\/.*)?|404|webcams)(\.html)?$/;
+// Meteocadí Neu (/neu) queda fora del mapa del web fins que es publiqui
+const HIDDEN = /\/(estudi(\/.*)?|neu(\/.*)?|404|webcams)(\.html)?$/;
 // La llista d'episodis és noindex mentre no n'hi ha cap
 const NO_EPISODES = episodes().length === 0;
 

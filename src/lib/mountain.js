@@ -129,7 +129,12 @@ export function mountainText(data, place, lang = 'ca') {
         : `${when}, a ${where}: mínima de ${num(d.min, 0)} °C i màxima de ${num(d.max, 0)} °C`,
     ];
     if (d.feels != null && d.feels < d.min - 2) parts.push(es ? `con una sensación térmica de hasta ${num(d.feels, 0)} °C` : `amb una sensació tèrmica de fins a ${num(d.feels, 0)} °C`);
-    if (d.gust != null) parts.push(`${es ? 'rachas' : 'ratxes'} de ${r0(d.gust)} km/h${dir8(d.dir) ? ` ${es ? 'del' : 'de'} ${DN[dir8(d.dir)]}` : ''}`);
+    if (d.gust != null) {
+      // "de nord", però "d'est" i "d'oest"
+      const dn = DN[dir8(d.dir)];
+      const de = es ? 'del ' : /^[aeiou]/.test(dn ?? '') ? "d'" : 'de ';
+      parts.push(`${es ? 'rachas' : 'ratxes'} de ${r0(d.gust)} km/h${dn ? ` ${de}${dn}` : ''}`);
+    }
     let s = parts.join(', ') + '.';
     if (d.snow != null && d.snow >= 1) s += es ? ` Puede nevar: hasta ${num(d.snow, 0)} cm.` : ` Pot nevar: fins a ${num(d.snow, 0)} cm.`;
     else if (d.precip != null && d.precip >= 0.5) s += es ? ` Precipitación prevista: ${num(d.precip)} mm.` : ` Precipitació prevista: ${num(d.precip)} mm.`;

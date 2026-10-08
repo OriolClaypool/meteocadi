@@ -2,6 +2,7 @@ User-agent: *
 Allow: /
 
 Disallow: /estudi
+Disallow: /neu
 Disallow: /api/
 
 Sitemap: https://www.meteocadi.cat/sitemap-index.xml
