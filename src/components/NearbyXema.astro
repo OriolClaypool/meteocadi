@@ -42,6 +42,17 @@ const es = lang === 'es';
     const o = JSON.parse(box.dataset.nx || '{}');
     const es = o.lang === 'es';
     const j = await load();
+    // El portal de dades obertes de vegades s'atura hores: amb més de 3 hores de retard, les dades no són d'ara
+    if (j?.lag != null && j.lag > 180 && j.latest) {
+      const d = new Date(j.latest);
+      const t = d.toLocaleTimeString(es ? 'es-ES' : 'ca-ES', { timeZone: 'Europe/Madrid', hour: 'numeric', minute: '2-digit' });
+      const old = todayMadrid(d) !== todayMadrid();
+      const since = es ? (old ? 'desde ayer' : `desde ${t.startsWith('1:') ? 'la' : 'las'} ${t}`) : old ? "des d'ahir" : `des de ${t.startsWith('1:') ? 'la' : 'les'} ${t}`;
+      box.innerHTML = `<p class="nx__none">${es
+        ? `Los datos del Meteocat no se actualizan ${since}: el portal de datos abiertos de la Generalitat va con retraso.`
+        : `Les dades del Meteocat no s'actualitzen ${since}: el portal de dades obertes de la Generalitat va endarrerit.`}</p>`;
+      return;
+    }
     const list = (j?.stations || [])
       .filter((s: any) => s.t != null || s.rain != null)
       .map((s: any) => ({ ...s, d: km(o.lat, o.lng, s.lat, s.lng) }))

@@ -141,7 +141,7 @@ const { internal = false } = Astro.props;
   let rainScale = rainClasses(0);
   // Etiquetes i llegenda amb la mateixa escala que el mapa de color
   const fc = (key: string) => (v: number) => fieldColor(key, v);
-  import { tempColorLight, num, dirLabel, hourMadrid, todayMadrid, dayName, dayMonth, longDate } from '../lib/format.js';
+  import { tempColorLight, num, dirLabel, hourMadrid, todayMadrid, dayName, dayMonth, longDate, desDe } from '../lib/format.js';
 
   type St = { id: string; name: string; lat: number; lng: number; alt: number | null; com?: string; mun?: string; mc?: boolean; slug?: string;
     t: number | null; tmax: number | null; tmin: number | null; rain: number | null; wind: number | null; dir: number | null; gust: number | null; hr: number | null; snow: number | null; inc?: boolean; rinc?: boolean };
@@ -307,13 +307,15 @@ const { internal = false } = Astro.props;
   const fieldOpacity = () => Math.min(1, ((FIELD as any)[cur.key]?.alpha ?? 0.6) * intensity);
   map.createPane('field').style.zIndex = '350';
 
-  // Sense les dades de Meteocat (el portal no respon), el mapa de color sortiria de les poques estacions de la xarxa
-  // pròpia i pintaria tot Catalunya amb els seus valors: no es dibuixa
+  // Sense les dades de Meteocat (el portal no respon o va endarrerit), el mapa de color sortiria de les poques
+  // estacions de la xarxa pròpia i pintaria tot Catalunya amb els seus valors: no es dibuixa. Tampoc si de la variable
+  // triada n'hi ha menys de 20 del Meteocat amb valor (per exemple, totes amb dades incompletes)
   let xemaDown = false;
+  const xemaFew = () => stations.filter((s) => !s.mc && val(s) != null).length < 20;
   function field() {
     const cmapEl = document.getElementById('cmap');
     const cfg = (FIELD as any)[cur.key];
-    const can = fieldOn && !!cfg && !xemaDown;
+    const can = fieldOn && !!cfg && !xemaDown && !xemaFew();
     comLayer?.setStyle({ fillOpacity: can ? 0 : 0.35 });
     if (!can) { fieldLayer?.remove(); fieldLayer = null; cmapEl?.classList.remove('has-field'); fieldNote(); return; }
     if (cfg.dem && demState === 'idle') {
@@ -347,7 +349,7 @@ const { internal = false } = Astro.props;
     if (btn) { btn.disabled = !can; btn.setAttribute('aria-pressed', String(fieldOn && can)); }
     const op = document.getElementById('cmOp') as HTMLInputElement | null;
     if (op) op.disabled = !(fieldOn && can);
-    const t = !can ? 'no disponible per al gruix de neu' : !fieldOn ? '' : xemaDown ? 'sense dades de Meteocat' : plain ? 'interpolada entre estacions' : noteFor(cur.key);
+    const t = !can ? 'no disponible per al gruix de neu' : !fieldOn ? '' : xemaDown || xemaFew() ? 'sense dades de Meteocat' : plain ? 'interpolada entre estacions' : noteFor(cur.key);
     el.textContent = t ? t[0].toUpperCase() + t.slice(1) : '';
   }
 
@@ -754,6 +756,15 @@ const { internal = false } = Astro.props;
     }
     return { tmax: tOk ? tmax : null, tmin: tOk ? tmin : null, gust: gOk ? gust : null, rain: rOk ? Math.round(rain * 10) / 10 : null };
   }
+  // "des de la 1:30", "des de les 23:30", "des d'ahir a les 22:30" o "des del 6 d'octubre"
+  function sinceOf(iso: string) {
+    const d = new Date(iso);
+    const t = d.toLocaleTimeString('ca-ES', { timeZone: 'Europe/Madrid', hour: 'numeric', minute: '2-digit' });
+    const day = todayMadrid(d), today = todayMadrid();
+    if (day === today) return t.startsWith('1:') ? `des de la ${t}` : `des de les ${t}`;
+    if (day === todayMadrid(new Date(Date.now() - 864e5))) return `des d'ahir ${t.startsWith('1:') ? 'a la' : 'a les'} ${t}`;
+    return desDe(day);
+  }
   let loadSeq = 0;
   let retry: number | null = null;
   async function load(force = false) {
@@ -770,10 +781,16 @@ const { internal = false } = Astro.props;
       p.kind === 'day' ? archiveFor(p.date) : p.kind === 'range' ? archiveFor(p.from, p.to) : null,
     ]);
     if (seq !== loadSeq) return; // mentrestant s'ha triat un altre període
-    const list: St[] = (x?.stations || []).map((s: any) => ({ ...s, mc: false }));
+    // El portal de dades obertes de vegades s'atura hores (8/10/2026: cap lectura des de la 1:00). Amb més de 3 hores
+    // de retard, el que hi ha del Meteocat no és d'ara ni de tot el dia: avui i les 24 hores no en mostren res (el
+    // mapa ho diu i hi deixa les estacions de la xarxa Meteocadí); un període de dies diu fins on arriba
+    const live = p.kind === 'today' || p.kind === '24h';
+    const behind = x?.lag != null && x.lag > 180 && !!x.latest;
+    const list: St[] = (live && behind ? [] : x?.stations || []).map((s: any) => ({ ...s, mc: false }));
     xemaDown = !list.length;
-    // Si el portal no respon (o només en tenim les darreres dades bones), es torna a provar al cap d'un minut
-    if (xemaDown || x?.stale) retry = window.setTimeout(() => load(true), 60e3);
+    // Si el portal no respon (o només en tenim les darreres dades bones), es torna a provar al cap d'un minut; si va
+    // endarrerit, cada 5 minuts (la resposta és a la memòria cau 15 minuts)
+    if (xemaDown || x?.stale) retry = window.setTimeout(() => load(true), behind ? 5 * 60e3 : 60e3);
     const ara = (a as any)?.stations || {};
     const start24 = x?.period?.start ? Date.parse(x.period.start) : Date.now() - 24 * 3600e3;
     const arxDay = p.kind === 'day' ? (arx?.days || []).find((d: any) => d.date === p.date) : null;
@@ -809,7 +826,7 @@ const { internal = false } = Astro.props;
     stations = list;
     latest = p.kind === 'day' || (p.kind === 'range' && !rangeToday())
       ? new Date(Date.parse(x?.period?.end || `${p.kind === 'day' ? p.date : p.to}T22:00:00Z`) - 60e3)
-      : x?.latest ? new Date(x.latest) : (a as any)?.updated ? new Date((a as any).updated) : null;
+      : x?.latest && !(live && behind) ? new Date(x.latest) : (a as any)?.updated ? new Date((a as any).updated) : null;
     if (when) {
       const parts = [];
       if (p.kind === 'day') {
@@ -818,15 +835,17 @@ const { internal = false } = Astro.props;
       } else if (p.kind === 'range') {
         const txt = delAl(p.from, p.to);
         parts.push(txt[0].toUpperCase() + txt.slice(1) + (p.to === todayMadrid() && x?.latest ? `, fins a les ${hourMadrid(new Date(x.latest))}` : ''));
+        if (behind) parts.push(`Les dades del Meteocat no s'actualitzen ${sinceOf(x.latest)}`);
         if (!ours) parts.push('sense dades de la xarxa Meteocadí');
       } else {
-        if (x?.latest) parts.push(`${p.kind === '24h' ? 'Darreres 24 h fins a les' : 'Meteocat fins a les'} ${hourMadrid(new Date(x.latest))}${x.stale ? " (el portal de Meteocat no respon: són les darreres dades bones)" : ''}`);
+        if (behind) parts.push(`Les dades del Meteocat no s'actualitzen ${sinceOf(x.latest)}: el portal de dades obertes de la Generalitat va endarrerit. Mentrestant només hi surten les estacions de la xarxa Meteocadí`);
+        else if (x?.latest) parts.push(`${p.kind === '24h' ? 'Darreres 24 h fins a les' : 'Meteocat fins a les'} ${hourMadrid(new Date(x.latest))}${x.stale ? " (el portal de Meteocat no respon: són les darreres dades bones)" : ''}`);
         if ((a as any)?.updated) parts.push(`Meteocadí a les ${hourMadrid(new Date((a as any).updated))}`);
         // Les nostres estacions només hi surten si la sèrie de WU arriba a cobrir les 24 hores senceres
         if (p.kind === '24h' && ours && !ours24) parts.push('xarxa Meteocadí: només el valor actual');
       }
-      if (xemaDown && list.length) parts.unshift("Les dades de Meteocat no responen ara mateix (ho tornem a provar d'aquí a un minut)");
-      when.classList.toggle('is-warn', xemaDown || !!x?.stale);
+      if (xemaDown && list.length && !behind) parts.unshift("Les dades de Meteocat no responen ara mateix (ho tornem a provar d'aquí a un minut)");
+      when.classList.toggle('is-warn', xemaDown || behind || !!x?.stale);
       when.textContent = !list.length ? "Ara no s'han pogut carregar les dades. Ho tornem a provar d'aquí a un minut." : parts.join(' · ') || '';
     }
     draw();
