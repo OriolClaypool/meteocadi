@@ -124,6 +124,24 @@ export function rainFromCounter(values) {
   return out;
 }
 
+// Pluja d'avui a cada lectura, comptant només els increments del comptador de la consola (lectures d'avui, en ordre).
+// La primera lectura del dia pot portar encara el total d'ahir: hi ha consoles que el posen a zero uns minuts després
+// de mitjanit (la de les 00:00 encara és la d'ahir, com a Bagà Sud) i d'altres a mitjanit UTC (rainUtc a stations.js).
+// Si el comptador baixa en algun moment del dia (s'ha posat a zero) o encara no s'hi ha posat (beforeReset), la
+// primera lectura és només el punt de partida; si no baixa mai, ja era a zero i la primera lectura ja és pluja d'avui.
+// (Bagà Sud, 18-10-2026: la lectura de les 00:00 portava els 13 mm d'ahir i la pluja d'avui en sortia 13 mm de més.)
+export function rainToday(values, beforeReset = false) {
+  const acc = rainFromCounter(values);
+  let prev = null, drop = false;
+  for (const v of values) {
+    if (v == null || !Number.isFinite(v) || v < 0) continue;
+    if (prev != null && v < prev) { drop = true; break; }
+    prev = v;
+  }
+  const first = drop || beforeReset ? 0 : (values.find((v) => v != null && Number.isFinite(v) && v >= 0) ?? 0);
+  return acc.map((a) => (a == null ? null : Math.round((a + first) * 100) / 100));
+}
+
 // Temperatura incoherent: a més de maxDiff graus de la mediana de les estacions d'altitud semblant (±300 m, com a
 // mínim 2). Amb inversió tèrmica hi pot haver diferències grans entre fons de vall i cims, per això només es
 // compara amb estacions de la mateixa franja i el marge és ample: només salten els errors grossos.

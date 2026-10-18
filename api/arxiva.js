@@ -4,7 +4,8 @@
 //
 // També desa les dades hora a hora de cada estació (dades/AAAA/hores/AAAA-MM-DD.json, a partir de les lectures de
 // 5 minuts de history/all de WU): el dia més recent que falti dels darrers 7, un per nit (12 crides). Amb les mateixes
-// lectures es corregeix la pluja del dia (vegeu dayRain): precipTotal és la corregida i precipTotalWU, la del resum de WU.
+// lectures es corregeix la pluja del dia (vegeu dayRain, i rainTail per als darrers minuts, que algunes consoles
+// només donen a la lectura de les 00:00 de l'endemà): precipTotal és la corregida i precipTotalWU, la del resum de WU.
 // Tot el que es desa en una execució va en un sol commit (API de dades de Git), perquè cada commit fa un build.
 //
 // Required env vars in Vercel:
@@ -118,7 +119,44 @@ async function fetchAll(stationId, date, apiKey) {
   if (!res.ok) throw new Error(`WU all ${res.status} for ${stationId}`);
   const obs = ((await res.json())?.observations || []).filter((o) => String(o.obsTimeLocal || '').startsWith(date)).sort((a, b) => a.epoch - b.epoch);
   if (!obs.length) return null;
-  return { hours: hourly(obs), rain: dayRain(obs.map((o) => num(at(o, 'metric.precipTotal')))), n: obs.length };
+  const rain = obs.map((o) => num(at(o, 'metric.precipTotal')));
+  const last = [...rain].reverse().find((v) => v != null && v >= 0) ?? null;
+  return { hours: hourly(obs), rain: dayRain(rain), last, n: obs.length };
+}
+
+// Primera lectura d'avui de cada estació (sèrie de /api/ara: sense cap crida de més a WU). Algunes consoles no posen el
+// comptador de pluja a zero fins després de la lectura de mitjanit: la de les 00:00 encara porta el total d'ahir, amb
+// la pluja dels darrers minuts del dia, que la lectura de les 23:55 no tenia (Bagà Sud, 17-10-2026: 11,94 mm a les
+// 23:55 i 13,0 a les 00:00, el total que dona la consola). Aquest darrer tros es suma al dia que s'arxiva.
+async function firstOfToday() {
+  try {
+    const r = await fetch('https://www.meteocadi.cat/api/ara', { signal: AbortSignal.timeout(20000) });
+    if (!r.ok) return {};
+    const out = {};
+    for (const [id, s] of Object.entries((await r.json())?.stations || {})) {
+      const t = s?.series?.t?.[0], v = s?.series?.rain?.[0];
+      if (Number.isFinite(t) && Number.isFinite(v)) out[id] = { t, v };
+    }
+    return out;
+  } catch (e) {
+    console.warn('[arxiva] /api/ara:', e?.message ?? e);
+    return {};
+  }
+}
+const madridParts = (epoch) => {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Madrid', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+    .formatToParts(new Date(epoch * 1000)).map((x) => [x.type, x.value]));
+  return { date: `${p.year}-${p.month}-${p.day}`, hm: `${p.hour}:${p.minute}` };
+};
+// La pluja dels darrers minuts del dia (date), si la primera lectura de l'endemà (fins a les 00:05) encara continua el
+// comptador del dia: la diferència amb la darrera lectura del dia. Si ja s'havia posat a zero, no se'n sap res.
+export function rainTail(date, last, first) {
+  if (last == null || !first) return 0;
+  const p = madridParts(first.t);
+  const next = new Date(Date.parse(`${date}T12:00:00Z`) + 864e5).toISOString().slice(0, 10);
+  if (p.date !== next || p.hm > '00:05' || first.v < last) return 0;
+  const inc = round(first.v - last, 2);
+  return inc > 0 && inc < 30 ? inc : 0;
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -323,9 +361,18 @@ export default async function handler(req, res) {
   for (const info of hoursMissing.slice(0, 1)) {
     const stations = {};
     let ok = 0;
+    // Si el dia és ahir, la primera lectura d'avui en dona els darrers minuts (rainTail)
+    const firsts = info.date === dateNDaysAgo(1) ? await firstOfToday() : {};
     for (const id of stationIds) {
       try {
         const all = await fetchAll(id, info.date, apiKey);
+        const tail = all ? rainTail(info.date, all.last, firsts[id]) : 0;
+        if (tail && all.rain != null) {
+          all.rain = round(all.rain + tail, 2);
+          const k = all.hours.rain.length - 1;
+          if (k >= 0) all.hours.rain[k] = round((all.hours.rain[k] ?? 0) + tail, 2);
+          console.log(`[arxiva] ${id}: +${tail} mm dels darrers minuts del ${info.date}`);
+        }
         stations[id] = all ? all.hours : null;
         if (all) ok++;
         const day = dailyDocs[info.date]?.stations?.[id];

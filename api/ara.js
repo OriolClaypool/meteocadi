@@ -8,8 +8,8 @@
 // Control de qualitat (src/lib/qc.js): els valors impossibles o incoherents amb les veïnes surten a null, i
 // l'estació porta bad: ['rain', 'wind', 'temp'] amb el que s'ha descartat. Si els sensors exteriors no donen
 // res (temperatura, humitat i vent buits), l'estació surt com a down (fora de servei) i també stale.
-import { STATIONS } from '../src/lib/stations.js';
-import { LIMITS, clean, despike, rainSuspects, windSuspects, tempSuspects, rainSpikes, gustSpikes, rainFromCounter } from '../src/lib/qc.js';
+import { STATIONS, BY_ID } from '../src/lib/stations.js';
+import { LIMITS, clean, despike, rainSuspects, windSuspects, tempSuspects, rainSpikes, gustSpikes, rainToday } from '../src/lib/qc.js';
 import { onlyCleanUrl } from './_net.js';
 
 const KEY = () => process.env.WU_API_KEY || 'b146442062ee4f8a86442062ee4f8acd';
@@ -56,17 +56,15 @@ async function fromAllDay(id) {
   // Vent mitjà d'avui (per al control de ratxes impossibles, gustSpikes)
   const winds = pool.map((i) => clean(obs[i].metric.windspeedAvg, LIMITS.wind)).filter((v) => v != null);
   const windAvg = winds.length ? winds.reduce((a, b) => a + b, 0) / winds.length : null;
-  // Pluja des de mitjanit comptant només els increments del comptador de la consola: algunes el posen a zero una
-  // o dues hores tard i, fins aleshores, la lectura dona el total d'ahir (vegeu rainFromCounter). El punt de partida
-  // és la darrera lectura d'ahir.
+  // Pluja des de mitjanit comptant només els increments del comptador de la consola (rainToday): all/1day només porta
+  // les lectures d'avui, i la primera pot dur encara el total d'ahir. Les consoles que es posen a zero a mitjanit UTC
+  // (rainUtc) porten la pluja d'ahir fins a les 2 (la 1 a l'hivern).
   const rainDay = new Array(obs.length).fill(null);
   if (todays.length) {
-    const from = Math.max(0, todays[0] - 1);
-    const idx = obs.map((o, i) => i).slice(from);
-    const acc = rainFromCounter(idx.map((i) => clean(obs[i].metric.precipTotal, LIMITS.rain)));
-    // Si no hi ha cap lectura d'ahir, la primera d'avui ja és pluja des de mitjanit (comptador posat a zero)
-    const first = from === todays[0] ? clean(obs[from].metric.precipTotal, LIMITS.rain) ?? 0 : 0;
-    idx.forEach((i, k) => { if (i >= todays[0] && acc[k] != null) rainDay[i] = r1(acc[k] + first); });
+    const [y, mo, d] = today.split('-').map(Number);
+    const beforeReset = !!BY_ID[id]?.rainUtc && obs[todays[0]].epoch < Date.UTC(y, mo - 1, d) / 1000;
+    const acc = rainToday(todays.map((i) => clean(obs[i].metric.precipTotal, LIMITS.rain)), beforeReset);
+    todays.forEach((i, k) => { if (acc[k] != null) rainDay[i] = r1(acc[k]); });
   }
 
   // Sèrie cada 15 minuts (per a minigràfics i gràfics de la pàgina de l'estació)
