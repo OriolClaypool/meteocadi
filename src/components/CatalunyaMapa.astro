@@ -730,6 +730,43 @@ const { internal = false } = Astro.props;
     const fin = (v: number) => (Number.isFinite(v) ? Math.round(v * 10) / 10 : null);
     return { tmax: fin(tmax), tmin: fin(tmin), gust: fin(gust), rain: Math.round(rain * 10) / 10 };
   }
+  // Darreres 24 hores d'una estació nostra amb l'arxiu hora a hora: les hores d'ahir des de l'inici de la finestra
+  // (/estudi-hores.json, el darrer dia arxivat; l'hora on comença la finestra compta la part que hi entra) i el que porta
+  // d'avui de /api/ara (màxima, mínima, ratxa i pluja des de mitjanit). Si ahir encara no és a l'arxiu (abans de les 6
+  // del matí) o hi falta l'estació, no es dona cap valor. Una variable descartada avui o ahir es queda sense valor.
+  let hoursCache: any = null;
+  async function loadHours() {
+    if (hoursCache && hoursCache.at > Date.now() - 30 * 60e3) return hoursCache.j;
+    const j = await fetch('/estudi-hores.json').then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    if (j) hoursCache = { j, at: Date.now() };
+    return j;
+  }
+  function from24(id: string, d: any, hrs: any, startMs: number) {
+    const v = hrs?.s?.[id];
+    const start = new Date(startMs);
+    if (!v || !hrs.date || hrs.date !== todayMadrid(start) || hrs.date === todayMadrid()) return null;
+    const hm = start.toLocaleTimeString('en-GB', { timeZone: 'Europe/Madrid', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+    const hs = Number(hm.slice(0, 2)), part = 1 - Number(hm.slice(3, 5)) / 60;
+    let tmax: number | null = d.max ?? null, tmin: number | null = d.min ?? null, gust: number | null = d.gustMax ?? d.gust ?? null;
+    let rain: number | null = d.rain ?? null;
+    if (!v.th) tmax = null;
+    if (!v.tl) tmin = null;
+    if (!v.g) gust = null;
+    if (!v.r) rain = null;
+    let n = 0;
+    v.h.forEach((h: number, k: number) => {
+      if (h < hs) return;
+      n++;
+      if (tmax != null && v.th[k] != null) tmax = Math.max(tmax, v.th[k]);
+      if (tmin != null && v.tl[k] != null) tmin = Math.min(tmin, v.tl[k]);
+      if (gust != null && v.g[k] != null) gust = Math.max(gust, v.g[k]);
+      if (rain != null) rain += (v.r[k] ?? 0) * (h === hs ? part : 1);
+    });
+    // Han de ser-hi gairebé totes les hores d'ahir que entren a la finestra
+    if (n < 24 - hs - 1) return null;
+    const r1 = (x: number | null) => (x == null ? null : Math.round(x * 10) / 10);
+    return { tmax: r1(tmax), tmin: r1(tmin), gust: r1(gust), rain: r1(rain) };
+  }
   // Diversos dies d'una estació nostra: els dies de l'arxiu i, si el període arriba a avui, el d'avui de /api/ara.
   // Si en falta algun dia, l'estació no hi surt; si un dia té la temperatura o la pluja descartades (dia incomplet o
   // control de qualitat), aquella variable no es dona per a tot el període.
@@ -775,10 +812,11 @@ const { internal = false } = Astro.props;
     if (when) when.textContent = 'Carregant les dades…';
     const xurl = p.kind === 'today' ? '/api/xema' : `/api/xema/${p.kind === '24h' ? '24h' : p.kind === 'day' ? p.date : `${p.from}..${p.to}`}`;
     const needsAra = p.kind === 'today' || p.kind === '24h' || (p.kind === 'range' && p.to === todayMadrid());
-    const [x, a, arx] = await Promise.all([
+    const [x, a, arx, hrs] = await Promise.all([
       fetch(xurl).then((r) => (r.ok ? r.json() : null)).catch(() => null),
       needsAra ? loadAra(force).catch(() => null) : null,
       p.kind === 'day' ? archiveFor(p.date) : p.kind === 'range' ? archiveFor(p.from, p.to) : null,
+      p.kind === '24h' ? loadHours() : null,
     ]);
     if (seq !== loadSeq) return; // mentrestant s'ha triat un altre període
     // El portal de dades obertes de vegades s'atura hores (8/10/2026: cap lectura des de la 1:00). Amb més de 3 hores
@@ -815,7 +853,7 @@ const { internal = false } = Astro.props;
       const d = ara[st.id];
       if (!d || d.stale) continue;
       const now = { t: d.temp ?? null, wind: d.wind ?? null, dir: d.dir ?? null, hr: d.hum ?? null };
-      const l24 = p.kind === '24h' ? last24(d, start24) : null;
+      const l24 = p.kind === '24h' ? from24(st.id, d, hrs, start24) ?? last24(d, start24) : null;
       if (l24) ours24++;
       const day = p.kind === '24h'
         ? l24 || { tmax: null, tmin: null, gust: null, rain: null }
