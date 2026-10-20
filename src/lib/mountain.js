@@ -12,13 +12,14 @@ const r0 = (v) => (v == null || isNaN(v) ? null : Math.round(v));
 const thousands = (v) => String(v).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 
 // past: dies anteriors (per saber la neu caiguda abans d'avui)
-export function mountainUrl(points, days = 3, past = 0) {
+// depth: també el gruix de neu del model (Meteocadí Neu, quan no hi ha cap sensor a prop d'una estació)
+export function mountainUrl(points, days = 3, past = 0, { depth = false } = {}) {
   const p = new URLSearchParams({
     latitude: points.map((x) => x.lat).join(','),
     longitude: points.map((x) => x.lng).join(','),
     elevation: points.map((x) => x.alt).join(','),
     daily: 'weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_min,wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant,precipitation_sum,snowfall_sum,sunshine_duration',
-    hourly: 'freezing_level_height',
+    hourly: depth ? 'freezing_level_height,snow_depth' : 'freezing_level_height',
     timezone: 'Europe/Madrid',
     forecast_days: String(days),
   });
@@ -36,6 +37,14 @@ function freezing(h, date) {
   if (!v.length) return null;
   const round = (x) => Math.max(0, Math.round(x / 100) * 100);
   return { min: round(Math.min(...v)), max: round(Math.max(...v)) };
+}
+
+// Gruix de neu del model a les 9 del matí del dia, en cm (undefined si no s'ha demanat)
+function depthAt9(h, date) {
+  if (!h?.time || !h.snow_depth) return undefined;
+  const i = h.time.indexOf(`${date}T09:00`);
+  const v = i < 0 ? null : h.snow_depth[i];
+  return v == null || isNaN(v) ? null : Math.max(0, Math.round(v * 100));
 }
 
 export function parseMountain(json, points) {
@@ -59,6 +68,7 @@ export function parseMountain(json, points) {
         snow: d.snowfall_sum?.[i] ?? null,
         sun: d.sunshine_duration?.[i] != null ? d.sunshine_duration[i] / 3600 : null, // hores de sol
         frz: freezing(j.hourly, date),
+        ...(j.hourly?.snow_depth ? { depth: depthAt9(j.hourly, date) } : {}),
       })),
     };
   });

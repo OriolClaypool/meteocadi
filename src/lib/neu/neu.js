@@ -4,9 +4,12 @@
 // Els grups tenen el format de ski.js ({ resort, top: { days }, base: { days } }) per reaprofitar-ne la valoració
 // del dia (rateDay) i el tipus de dia (dayVerdict).
 // season: fora de temporada (inSeason de ski.js) no es valora el dia d'esquí: les estacions són tancades.
-import { rateDay, dayVerdict } from '../ski.js';
+// En temporada, cada estació i dia té una nota de 0 a 10 (nota.js: neu, temps per esquiar, accés i, quan n'hi hagi
+// dades, pistes obertes), que ordena el rànquing, pinta el mapa i tria el millor dia.
+import { rateDay, dayVerdict as skiVerdict } from '../ski.js';
 import { num, dayName, dayShort, parseDay, cap } from '../format.js';
 import { wmoText } from '../wmo.js';
+import { notesOf, notaFmt, partLevel, NOTA_LABEL, partTxt, depthSource, depthTxt } from './nota.js';
 
 export const thousands = (v) => String(v).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -79,12 +82,67 @@ export const icon = (name, size = 20, cls = '') =>
 const KIND_ICON = { snow: ['snow', ''], snowtop: ['snow', ''], rain: ['rain', 'is-rain'], wind: ['wind', ''], sun: ['sun', 'is-sun'], part: ['part', ''], cloud: ['cloud', ''], fog: ['fog', ''] };
 export const kindIcon = (kind, size = 20) => (KIND_ICON[kind] ? icon(KIND_ICON[kind][0], size, KIND_ICON[kind][1]) : '');
 const KIND_TEXT = { snow: 'Neu', snowtop: 'Neu a dalt i pluja a baix', rain: 'Pluja', wind: 'Vent fort a dalt', sun: 'Sol', part: 'Sol i núvols', cloud: 'Núvols', fog: 'Boira' };
+// Tipus de dia de ski.js, però amb precipitació feble (menys de 3 cm de neu a dalt i 3 mm) mana el cel: un dia de sol
+// amb 2 cm de neu a primera hora no és un "dia de nevada" (el 18 de gener de 2026 a Baqueira deia "neu a dalt i pluja
+// a baix" per 2 cm i 1 mm, en un dia de sol). light: hi ha alguna precipitació feble.
+export function dayVerdict(g, i) {
+  const v = skiVerdict(g, i);
+  if (!v) return v;
+  const p = Math.max(v.T.precip ?? 0, v.B.precip ?? 0);
+  if ((v.kind === 'snow' || v.kind === 'snowtop' || v.kind === 'rain') && v.cm < 3 && p < 3) {
+    const T = v.T;
+    const kind = v.windy ? 'wind' : T.code === 45 || T.code === 48 ? 'fog' : (T.sun ?? 0) >= 6 ? 'sun' : (T.sun ?? 0) >= 3 ? 'part' : 'cloud';
+    return { ...v, kind, light: p >= 0.5 };
+  }
+  return v;
+}
 // Codi WMO de l'hora → icona
 export function codeIcon(code, size = 24) {
   if (code == null) return '';
   const k = code <= 1 ? 'sun' : code === 2 ? 'part' : code === 3 ? 'cloud' : code === 45 || code === 48 ? 'fog'
     : (code >= 71 && code <= 77) || code === 85 || code === 86 ? 'snow' : 'rain';
   return kindIcon(k, size);
+}
+
+// ------------------------------------------------------------------ nota (0 a 10)
+
+// Notes dels 7 dies de cada estació: { slug: [nota de k = 0 … 6] }
+// stations: sensors (/api/neu/mesurada); transit: incidències de /api/transit?neu (cada una amb les estacions afectades)
+// Sense cap nota (sense gruix enlloc: ni sensors ni el del model, p. ex. una resposta antiga de /api/neu), null: les
+// llistes tornen a la valoració del temps
+export function allNotes(groups, today, { stations = null, transit = null, pistes = null } = {}) {
+  const out = {};
+  let any = false;
+  for (const g of groups ?? []) {
+    const slug = g.resort.slug;
+    const tr = transit ? transit.filter((it) => it.resorts?.includes(slug)) : null;
+    out[slug] = notesOf(g, today, { stations, transit: tr, pistes: pistes?.[slug] ?? null });
+    any ||= out[slug].some((n) => n?.v != null);
+  }
+  return any ? out : null;
+}
+
+// Insígnia de la nota: la xifra sobre el color del nivell (4 molt bo … 1 dolent, 0 sense neu o tancada)
+export function notaBadge(n, { big = false, label = true } = {}) {
+  if (!n || n.v == null) return '';
+  return `<span class="nv-nota nv-nota--${n.level}${big ? ' is-big' : ''}" title="${esc(`Nota ${notaFmt(n.v)} de 10: ${n.label}`)}"><b>${notaFmt(n.v)}</b>${label ? `<small>${esc(n.label)}</small>` : ''}</span>`;
+}
+
+// Llegenda de la nota (mapa i fitxa)
+export const NOTA_LEGEND = `<p class="nv-nlg" aria-label="Escala de la nota">${[[4, '7,5 a 10'], [3, '6 a 7,4'], [2, '4 a 5,9'], [1, 'menys de 4']].map(([l, t]) => `<span><i class="nv-nota--${l}"></i><b>${NOTA_LABEL[l]}</b> ${t}</span>`).join('')}</p>`;
+
+// Les parts de la nota en barres (sense xifres: la nota no és la mitjana, és el producte; el color diu quant en treu)
+const PARTS = [['neu', 'Neu'], ['temps', 'Temps'], ['acces', 'Accés'], ['pistes', 'Pistes']];
+export function partsHTML(n, { text = false } = {}) {
+  if (!n || n.v == null) return '';
+  return `<div class="nv-parts${text ? ' has-text' : ''}">${PARTS.filter(([k]) => n.f[k] != null)
+    .map(([k, t]) => {
+      const v = n.f[k];
+      const lv = partLevel(v);
+      const tx = text ? partTxt(n, k) : '';
+      return `<div class="nv-part"><span class="nv-part__k">${t}</span><span class="nv-part__bar" role="img" aria-label="${esc(`${t}: ${partTxt(n, k)}`)}"><i class="nv-nota--${lv}" style="width:${Math.max(4, Math.round(v * 100))}%"></i></span>${tx ? `<span class="nv-part__t">${esc(tx)}</span>` : ''}</div>`;
+    })
+    .join('')}</div>`;
 }
 
 // ------------------------------------------------------------------ dades
@@ -128,6 +186,27 @@ export function bestDay(groups, today) {
     if (!best || score > best.score) best = { k, i, date: days0[i].date, g: top.g, r: top.r, same: rs.filter((x) => x.r.level === top.r.level).length, score };
   }
   return best && best.r.level >= 3 ? best : null;
+}
+
+// Millor dia per esquiar segons la nota: el dia amb la millor estació (i, si s'empaten, amb més estacions
+// bones); filter: quines estacions compten (p. ex. només les d'esquí alpí)
+export function bestDayNota(groups, notes, today, filter = () => true) {
+  if (!groups?.length || !notes) return null;
+  const gs = groups.filter((g) => filter(g.resort));
+  if (!gs.length) return null;
+  const days0 = groups[0].top.days;
+  const i0 = todayIdx(days0, today);
+  let best = null;
+  for (let k = 0; k < 7; k++) {
+    const rs = gs.map((g) => ({ g, n: notes[g.resort.slug]?.[k] })).filter((x) => x.n?.v != null);
+    if (!rs.length) continue;
+    rs.sort((a, b) => b.n.v - a.n.v || (b.n.cm ?? 0) - (a.n.cm ?? 0));
+    const top = rs[0];
+    const good = rs.filter((x) => x.n.level >= 3).length;
+    const score = top.n.v + 0.05 * good;
+    if (!best || score > best.score) best = { k, i: i0 + k, date: days0[i0 + k]?.date, g: top.g, n: top.n, same: rs.filter((x) => x.n.level === top.n.level).length, score };
+  }
+  return best && best.n.level >= 3 ? best : null;
 }
 
 // On nevarà més en n dies (a partir d'avui, al cim)
@@ -246,8 +325,23 @@ export function mapItems(groups, today, n) {
 export const sensorItems = (stations) =>
   (stations ?? []).filter((s) => s.now != null && s.alt >= 1500).map((s) => ({ id: s.id, name: s.name, lat: s.lat, lng: s.lng, alt: s.alt, cm: s.now }));
 
+// Nota de cada estació el dia k (capa "Nota" del mapa)
+export function notaItems(groups, notes, k, filter = () => true) {
+  return (groups ?? []).filter((g) => filter(g.resort)).map((g) => {
+    const n = notes?.[g.resort.slug]?.[k];
+    return { slug: g.resort.slug, name: g.resort.short ?? g.resort.name, lat: g.resort.lat, lng: g.resort.lng, nota: n?.v ?? null, level: n?.level ?? null, label: n?.label ?? '' };
+  });
+}
+
 // Punt a la posició exacta i, al costat, l'etiqueta (xifra i nom); el mapa decideix el costat i què hi cap
+// Capes: neu prevista (cm), gruix (depth) o nota (it.nota, el color del nivell)
 export function pinHTML(it, { base = '/neu/', depth = false } = {}) {
+  if (it.nota !== undefined) {
+    const has = it.nota != null;
+    const v = has ? notaFmt(it.nota) : '…';
+    const inner = `${has ? `<b class="nv-nota--${it.level}">${v}</b>` : ''}<span>${esc(it.name)}</span>`;
+    return `<span class="nv-pin"><i class="nv-pin__dot nv-nota--${has ? it.level : 'x'}"></i><a class="nv-pin__lab" href="${base}${it.slug}" aria-label="${esc(`${it.name}: nota ${v}${it.label ? `, ${it.label.toLowerCase()}` : ''}`)}">${inner}</a></span>`;
+  }
   const fill = (depth ? depthFill : snowFill)(it.cm) ?? '#FFFFFF';
   const ink = (depth ? depthInk : snowInk)(it.cm);
   const v = it.cm == null ? '…' : String(it.cm);
@@ -271,14 +365,39 @@ function sparkHTML(past, fut, selDate) {
   return `<div class="nv-spark" role="img" aria-label="Neu nova: ${esc(desc)}"><div class="nv-spark__bars">${past.map((x) => bar(x.cm, true)).join('')}${fut.map((x) => bar(x.cm, false)).join('')}</div><div class="nv-spark__days" aria-hidden="true">${past.map((x) => lab(x.date, true)).join('')}${fut.map((x) => lab(x.date, false)).join('')}</div></div>`;
 }
 
-// Llista d'estacions per al dia k (0 avui … 6): en temporada, de millor a pitjor; fora, per la neu prevista
-export function listHTML(groups, { today, k = 0, zone = 'totes', stations = null, base = '/neu/', season = true }) {
+// Filtre de la llista i el mapa: zona (totes, cat, and) i tipus d'esquí (alpi, fons o totes)
+export const resortFilter = (zone = 'totes', type = 'totes') => (r) => (zone === 'totes' || r.country === zone) && (type === 'totes' || r.type === type);
+
+// Rànquing del dia k (0 avui … 6) per la nota, de millor a pitjor: posició, nota, el perquè i les parts
+export function rankHTML(groups, notes, { k = 0, zone = 'totes', type = 'totes', base = '/neu/' }) {
+  if (!groups?.length || !notes) return '';
+  const rows = groups
+    .filter((g) => resortFilter(zone, type)(g.resort))
+    .map((g) => ({ g, n: notes[g.resort.slug]?.[k] ?? null }))
+    .sort((a, b) => (b.n?.v ?? -1) - (a.n?.v ?? -1) || (b.n?.cm ?? 0) - (a.n?.cm ?? 0) || a.g.resort.name.localeCompare(b.g.resort.name, 'ca'));
+  if (!rows.length) return '<p class="nv-empty">No hi ha cap estació en aquesta zona.</p>';
+  return `<ol class="nv-list nv-rank">${rows
+    .map(({ g, n }, j) => {
+      const res = g.resort;
+      return `<li class="nv-card nv-row nv-rk">
+<div class="nv-row__top"><span class="nv-rk__pos" aria-hidden="true">${j + 1}</span><div class="nv-row__id"><a class="nv-row__name" href="${base}${res.slug}">${esc(res.name)}</a><p class="nv-row__meta">${esc(res.zone)} · ${res.type === 'fons' ? 'esquí de fons' : 'esquí alpí'}</p></div>${n?.v != null ? notaBadge(n) : '<span class="nv-nota nv-nota--x"><b>—</b></span>'}</div>
+${n?.why ? `<p class="nv-rk__why">${esc(n.why)}</p>` : ''}
+${partsHTML(n)}
+</li>`;
+    })
+    .join('')}</ol>`;
+}
+
+// Llista d'estacions per al dia k (0 avui … 6): en temporada, el rànquing per la nota (si n'hi ha) o pel temps per
+// esquiar; fora, per la neu prevista
+export function listHTML(groups, { today, k = 0, zone = 'totes', type = 'totes', stations = null, base = '/neu/', season = true, notes = null }) {
   if (!groups?.length) return '';
+  if (season && notes) return rankHTML(groups, notes, { k, zone, type, base });
   const i0 = todayIdx(groups[0].top.days, today);
   const i = i0 + k;
   const selDate = groups[0].top.days[i]?.date;
   const rows = groups
-    .filter((g) => zone === 'totes' || g.resort.country === zone)
+    .filter((g) => resortFilter(zone, type)(g.resort))
     .map((g) => ({ g, r: season ? rateDay(g.top, g.base, i) : null, tot: snowSum(g.top.days, i0, 3) }))
     .sort((a, b) => (b.r?.score ?? -1) - (a.r?.score ?? -1) || b.tot - a.tot || a.g.resort.name.localeCompare(b.g.resort.name, 'ca'));
   if (!rows.length) return '<p class="nv-empty">No hi ha cap estació en aquesta zona.</p>';
@@ -299,13 +418,34 @@ ${wind}
     .join('')}</ol>`;
 }
 
+// Targeta del millor dia segons la nota: el dia, la nota, l'estació i per què (gruix, neu nova, sol)
+function bestNotaCard(b, base, type) {
+  const n = b.n;
+  const why = [];
+  if (n.cm != null && n.cm >= 25) why.push([icon('flake', 16, 'is-ice'), `${cap(depthTxt(n))} de neu`]);
+  if (n.fresh >= 5) why.push([icon('snow', 16, 'is-ice'), `${Math.round(n.fresh)} cm de ${n.q === 'pols' ? 'pols' : 'nova'}`]);
+  if (n.rate.good.includes('sun')) why.push([icon('sun', 16, 'is-sun'), 'Sol']);
+  else if (n.rate.good.includes('calm')) why.push([icon('wind', 16), 'Poc vent']);
+  const more = b.same - 1;
+  const what = type === 'fons' ? ' per a l’esquí de fons' : '';
+  return `<a class="nv-hcard nv-hcard--wide" href="${base}${b.g.resort.slug}">
+<span class="nv-eyebrow nv-eyebrow--ice">Millor dia per esquiar${what}</span>
+<span class="nv-hcard__row"><span class="nv-hcard__day">${dayLabel(b.date, b.k)}</span>${notaBadge(n)}</span>
+<span class="nv-hcard__name">${esc(b.g.resort.name)}${more > 0 ? ` <span>i ${more === 1 ? 'una estació més' : `${more} estacions més`}</span>` : ''}</span>
+${why.length ? `<span class="nv-hcard__why">${why.slice(0, 3).map(([ic, t]) => `<span>${ic}${esc(t)}</span>`).join('')}</span>` : ''}
+</a>`;
+}
+
 // Targetes de dalt de la portada: millor dia (en temporada) i on nevarà més
 // wait: la previsió encara es carrega (si no n'hi ha i no s'espera, no surt cap targeta)
-export function forecastCardsHTML(groups, { today, base = '/neu/', season = true, wait = true }) {
-  const b = groups && season ? bestDay(groups, today) : null;
+// notes (allNotes): el millor dia surt de la nota; type: el tipus d'esquí triat a la llista
+export function forecastCardsHTML(groups, { today, base = '/neu/', season = true, wait = true, notes = null, type = 'totes' }) {
+  const bn = groups && season && notes ? bestDayNota(groups, notes, today, resortFilter('totes', type)) : null;
+  const b = groups && season && !notes ? bestDay(groups, today) : null;
   const m = groups ? mostSnow(groups, today, 3) : null;
   const out = [];
-  if (b) {
+  if (bn) out.push(bestNotaCard(bn, base, type));
+  else if (b) {
     const prev = snowSum(b.g.top.days, b.i - 2, 2);
     const T = b.g.top.days[b.i];
     const why = [];
@@ -320,7 +460,7 @@ export function forecastCardsHTML(groups, { today, base = '/neu/', season = true
 ${why.length ? `<span class="nv-hcard__why">${why.map(([ic, t]) => `<span>${ic}${t}</span>`).join('')}</span>` : ''}
 </a>`);
   } else if (groups && season) {
-    out.push(`<div class="nv-hcard nv-hcard--wide"><span class="nv-eyebrow nv-eyebrow--ice">Millor dia per esquiar</span><span class="nv-hcard__name">Cap dia bo per esquiar aquesta setmana</span></div>`);
+    out.push(`<div class="nv-hcard nv-hcard--wide"><span class="nv-eyebrow nv-eyebrow--ice">Millor dia per esquiar</span><span class="nv-hcard__name">Cap dia bo per esquiar aquesta setmana</span>${notes ? '<span class="nv-hcard__sub">Cap estació arriba a un 6 de nota en els pròxims 7 dies.</span>' : ''}</div>`);
   }
   if (m && m.top.cm >= 1) {
     out.push(`<a class="nv-hcard" href="${base}${m.top.g.resort.slug}"><span class="nv-eyebrow nv-eyebrow--ice">On nevarà més</span><span class="nv-hcard__big">${num(m.top.cm, 0)}<small> cm</small></span><span class="nv-hcard__name nv-hcard__name--s">${esc(m.top.g.resort.name)}</span><span class="nv-hcard__sub">d'avui a ${m.end ? dayName(m.end) : 'demà passat'}</span></a>`);
@@ -440,27 +580,33 @@ export function dayText(g, i) {
     const prev = snowSum(g.top.days, i - 2, 2);
     parts.push(`${(v.T.sun ?? 0) >= 8 ? 'Sol tot el dia' : 'Sol'}${prev >= 5 ? `, amb ${u(num(prev, 0), 'cm')} de neu nova dels dies anteriors` : ''}.`);
   } else if (v.kind === 'fog') parts.push('Boira: poca visibilitat a les pistes, sobretot a dalt.');
-  else if (v.kind === 'cloud') parts.push('Cel ennuvolat, sense precipitació.');
+  else if (v.kind === 'cloud') parts.push(v.light ? 'Cel ennuvolat.' : 'Cel ennuvolat, sense precipitació.');
   else parts.push(`${KIND_TEXT[v.kind]}.`);
+  if (v.light) parts.push(v.cm >= 0.5 ? `Pot caure alguna nevada feble (menys ${de(3)}${u(3, 'cm')}).` : 'Pot caure algun ruixat feble.');
   if (v.windy && v.kind !== 'wind') parts.push(`Ratxes ${de(gu)}${u(gu, 'km/h')} a dalt: poden tancar els remuntadors més alts.`);
   const t = (x) => Math.round(x ?? 0);
   parts.push(`Al cim, ${de(t(v.T.min))}${num(v.T.min, 0)} a ${u(num(v.T.max, 0), '°C')}; a la base, ${de(t(v.B.min))}${num(v.B.min, 0)} a ${u(num(v.B.max, 0), '°C')}.`);
   return parts.join(' ');
 }
 
-// Capçalera del dia triat: quin dia, valoració, títol i text
-export function verdictHTML(g, today, k = 0, season = true) {
+// Capçalera del dia triat: quin dia, la nota (o la valoració del temps), títol i text i, amb nota, les seves parts
+// notes: les 7 notes de l'estació (nota.js, notesOf)
+export function verdictHTML(g, today, k = 0, season = true, notes = null) {
   const i0 = todayIdx(g.top.days, today);
   const i = i0 + k;
   const d = g.top.days[i];
   if (!d) return '';
-  const r = season ? rateDay(g.top, g.base, i) : null;
+  const n = season && notes?.[k]?.v != null ? notes[k] : null;
+  const r = season && !n ? rateDay(g.top, g.base, i) : null;
   const eb = k === 0 ? `Avui, ${dayName(d.date)}` : k === 1 ? `Demà, ${dayName(d.date)}` : `${cap(dayName(d.date))} ${parseDay(d.date).getUTCDate()}`;
-  return `<div class="nv-verd__h"><span class="nv-eyebrow">${eb}</span>${r ? pill(r.level) : ''}</div><h2 class="nv-verd__t">${esc(dayTitle(g, i))}</h2><p class="nv-verd__p">${esc(dayText(g, i))}</p>`;
+  const parts = n?.v != null
+    ? `<div class="nv-verd__nota"><p class="nv-verd__why">${esc(n.why)}</p>${partsHTML(n, { text: true })}${n.depth ? `<p class="nv-verd__src">Gruix: ${esc(depthSource(n).replace(/^./, (c) => c.toLowerCase()))}.</p>` : ''}</div>`
+    : '';
+  return `<div class="nv-verd__h"><span class="nv-eyebrow">${eb}</span>${n?.v != null ? notaBadge(n, { big: true }) : r ? pill(r.level) : ''}</div><h2 class="nv-verd__t">${esc(dayTitle(g, i))}</h2><p class="nv-verd__p">${esc(dayText(g, i))}</p>${parts}`;
 }
 
-// Els 7 dies en petit: tipus de dia i, en temporada, el dia d'esquí. Cada dia és un botó (data-k)
-export function weekStripHTML(g, today, sel = 0, season = true) {
+// Els 7 dies en petit: tipus de dia i, en temporada, la nota (o el dia d'esquí). Cada dia és un botó (data-k)
+export function weekStripHTML(g, today, sel = 0, season = true, notes = null) {
   const i0 = todayIdx(g.top.days, today);
   const cells = [];
   for (let k = 0; k < 7; k++) {
@@ -468,9 +614,11 @@ export function weekStripHTML(g, today, sel = 0, season = true) {
     const d = g.top.days[i];
     if (!d) break;
     const v = dayVerdict(g, i);
-    const r = season ? rateDay(g.top, g.base, i) : null;
-    const lab = `${dayLabel(d.date, k)}: ${v ? KIND_TEXT[v.kind].toLowerCase() : ''}${r ? `, dia d'esquí ${LEVEL[r.level][0].toLowerCase()}` : ''}`;
-    cells.push(`<li><button type="button" class="nv-wk__d${k === sel ? ' is-sel' : ''}" data-k="${k}" aria-pressed="${k === sel}" aria-label="${esc(lab)}"><span>${dayShort(d.date)}</span>${v ? kindIcon(v.kind) : ''}${r ? `<i class="nv-lv nv-lv--${LEVEL[r.level][1]}"></i>` : ''}</button></li>`);
+    const n = season && notes?.[k]?.v != null ? notes[k] : null;
+    const r = season && !n ? rateDay(g.top, g.base, i) : null;
+    const lab = `${dayLabel(d.date, k)}: ${v ? KIND_TEXT[v.kind].toLowerCase() : ''}${n?.v != null ? `, nota ${notaFmt(n.v)}` : r ? `, dia d'esquí ${LEVEL[r.level][0].toLowerCase()}` : ''}`;
+    const mark = n?.v != null ? `<b class="nv-wk__n nv-nota--${n.level}">${notaFmt(n.v)}</b>` : r ? `<i class="nv-lv nv-lv--${LEVEL[r.level][1]}"></i>` : '';
+    cells.push(`<li><button type="button" class="nv-wk__d${k === sel ? ' is-sel' : ''}" data-k="${k}" aria-pressed="${k === sel}" aria-label="${esc(lab)}"><span>${dayShort(d.date)}</span>${v ? kindIcon(v.kind) : ''}${mark}</button></li>`);
   }
   return `<ul class="nv-wk">${cells.join('')}</ul>`;
 }
@@ -572,8 +720,8 @@ export function snowTypeHTML(g, today, sensors, season = true) {
   return `<div class="nv-card nv-type"><span class="nv-type__ic">${icon('flake', 22)}</span><div><span class="nv-eyebrow">Tipus de neu, ${dayWord(g.top.days[i0 + k].date, k)}</span><p class="nv-type__t">${esc(t.t)}</p><p class="nv-type__s">${esc(t.s)}</p></div></div>`;
 }
 
-// Taula dels 7 dies
-export function weekTableHTML(g, today, season = true) {
+// Taula dels 7 dies (en temporada, l'última columna és la nota o, sense nota, el dia d'esquí)
+export function weekTableHTML(g, today, season = true, notes = null) {
   const i0 = todayIdx(g.top.days, today);
   const rows = [];
   for (let k = 0; k < 7; k++) {
@@ -581,17 +729,20 @@ export function weekTableHTML(g, today, season = true) {
     const d = g.top.days[i];
     if (!d) break;
     const v = dayVerdict(g, i);
-    const r = season ? rateDay(g.top, g.base, i) : null;
+    const n = season && notes?.[k]?.v != null ? notes[k] : null;
+    const r = season && !n ? rateDay(g.top, g.base, i) : null;
     const cm = Math.max(0, d.snow ?? 0);
     const snow = cm >= 0.5 ? `<span class="nv-cm" style="background:${snowFill(Math.max(1, cm))};color:${snowInk(Math.max(1, cm))}">${num(cm, 0)} cm</span>` : '<span class="nv-dash">—</span>';
     const p = Math.max(d.precip ?? 0, g.base?.days?.[i]?.precip ?? 0);
     const line = p >= 1 ? lineOf(d) : null;
     const cota = line != null ? `<span class="nv-mono${v && (v.kind === 'snowtop' || v.kind === 'rain') ? ' is-rain' : ''}">${thousands(line)} m</span>` : '<span class="nv-dash">—</span>';
     const gust = d.gust != null ? `<span class="nv-mono${d.gust >= 60 ? ' nv-hi' : ''}">${Math.round(d.gust)}</span>` : '<span class="nv-dash">—</span>';
-    const lv = r ? `<span role="cell" class="nv-t7__lv"><span class="nv-tdlv"><i class="nv-lv nv-lv--${LEVEL[r.level][1]} is-dot"></i>${LEVEL[r.level][0]}</span></span>` : '';
+    const lv = n?.v != null
+      ? `<span role="cell" class="nv-t7__lv"><b class="nv-t7__n nv-nota--${n.level}" title="${esc(n.label)}">${notaFmt(n.v)}</b></span>`
+      : r ? `<span role="cell" class="nv-t7__lv"><span class="nv-tdlv"><i class="nv-lv nv-lv--${LEVEL[r.level][1]} is-dot"></i>${LEVEL[r.level][0]}</span></span>` : '';
     rows.push(`<div class="nv-t7__r" role="row"><span role="cell" class="nv-t7__day">${v ? kindIcon(v.kind, 18) : ''}${dayShort(d.date)} ${parseDay(d.date).getUTCDate()}</span><span role="cell">${snow}</span><span role="cell">${cota}</span><span role="cell">${gust}</span>${lv}</div>`);
   }
-  const head = `<div class="nv-t7__r nv-t7__h" role="row"><span role="columnheader">Dia</span><span role="columnheader">Neu</span><span role="columnheader">Cota de neu</span><span role="columnheader">Ratxes</span>${season ? '<span role="columnheader" class="nv-t7__lv">Dia d\'esquí</span>' : ''}</div>`;
+  const head = `<div class="nv-t7__r nv-t7__h" role="row"><span role="columnheader">Dia</span><span role="columnheader">Neu</span><span role="columnheader">Cota de neu</span><span role="columnheader">Ratxes</span>${season ? `<span role="columnheader" class="nv-t7__lv">${notes?.some((n) => n?.v != null) ? 'Nota' : 'Dia d\'esquí'}</span>` : ''}</div>`;
   return `<div class="nv-card nv-t7${season ? '' : ' is-ns'}" role="table" aria-label="Previsió dels pròxims 7 dies">${head}${rows.join('')}</div>`;
 }
 
@@ -688,7 +839,9 @@ export function nowHour(hourly) {
 
 // Les quatre xifres de la capçalera de la fitxa
 // Neu: del sensor més proper si n'hi ha; si no, la prevista (mai "no hi ha dades"). wait: encara es carrega (…)
-export function factsHTML(g, { today, now = null, sensors = null, wait = true }) {
+// depth (nota.js, depthToday): el gruix de l'estació, el mateix que fa servir la nota (el del sensor del costat o
+// l'estimat amb els sensors de la zona i el model)
+export function factsHTML(g, { today, now = null, sensors = null, wait = true, depth = null }) {
   const na = wait ? '…' : '—';
   const i0 = g ? todayIdx(g.top.days, today) : 0;
   const s = sensors?.[0];
@@ -698,7 +851,9 @@ export function factsHTML(g, { today, now = null, sensors = null, wait = true })
   if (s?.d24 != null) out.push(box('Neu nova en 24 h', cm(Math.max(0, s.d24)), `mesurada a ${esc(s.name)}`));
   else if (g) out.push(box('Neu prevista avui', cm(cm0(g.top.days[i0]?.snow)), 'al cim'));
   else out.push(box('Neu prevista avui', na, ''));
-  if (s) out.push(box('Gruix de neu', cm(s.now), `${esc(s.name)}, ${thousands(s.alt)}\u00A0m`));
+  if (depth?.src === 'sensor') out.push(box('Gruix de neu', cm(depth.cm), `${esc(depth.where[0])}, ${thousands(depth.sensor.alt)}\u00A0m`));
+  else if (depth) out.push(box('Gruix de neu', cm(depth.src === 'model' ? depth.cm : Math.round(depth.cm / 5) * 5), depth.src === 'estimat' ? `estimat amb ${esc(list([...depth.where, ...(depth.model ? ['el model'] : [])]))}` : 'estimat pel model'));
+  else if (s) out.push(box('Gruix de neu', cm(s.now), `${esc(s.name)}, ${thousands(s.alt)}\u00A0m`));
   else if (g) out.push(box('Neu en 7 dies', cm(snowSum(g.top.days, i0, 7)), 'prevista al cim'));
   else out.push(box('Neu en 7 dies', na, ''));
   const T = now?.top;

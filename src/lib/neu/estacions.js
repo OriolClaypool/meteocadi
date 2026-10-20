@@ -20,6 +20,10 @@ const ESTAT = {
 // Ordre de les zones a les llistes (d'est a oest i Andorra al final, com a la secció d'esquí anterior)
 const ORDRE = ['cerdanya', 'bergueda', 'solsones', 'alt-urgell', 'ripolles', 'pallars-sobira', 'alta-ribagorca', 'vall-d-aran', 'andorra'];
 
+// Estacions on només s'arriba amb tren: la Vall de Núria, amb el cremallera des de Ribes de Freser i Queralbs
+// (la nota no hi compta la neu a la carretera)
+const TREN = new Set(['vall-de-nuria']);
+
 // Nom curt per a les etiquetes del mapa
 const CURT = {
   'estacio-d-aransa': 'Aransa', 'estacio-de-lles': 'Lles', 'guils-fontanera': 'Guils', 'tuixent-la-vansa': 'Tuixent',
@@ -53,6 +57,7 @@ export const NEU = PLACES.filter((p) => p.ski && !FORA.has(p.slug))
       lng: p.lng,
       // Incidències de trànsit (Servei Català de Trànsit) a menys d'aquests km: només a Catalunya
       roadsKm: p.region === 'andorra' ? null : p.near ?? 14,
+      tren: TREN.has(p.slug),
       // Punts de la previsió: el cim (primer) i la base (darrer)
       points: [pts[0], pts[pts.length - 1]].filter(Boolean).map(({ label, lat, lng, alt }) => ({ label, lat, lng, alt })),
     };
@@ -65,7 +70,7 @@ export const NEU_BY_SLUG = Object.fromEntries(NEU.map((r) => [r.slug, r]));
 // El que necessita el navegador per pintar les llistes, el mapa i les fitxes
 export const lleugera = (r) => ({
   slug: r.slug, name: r.name, short: r.short, zone: r.zone, zoneA: r.zoneA, country: r.country, type: r.type,
-  base: r.base, top: r.top, lat: r.lat, lng: r.lng, points: r.points,
+  base: r.base, top: r.top, lat: r.lat, lng: r.lng, points: r.points, ...(r.tren ? { tren: true } : {}),
 });
 
 // Butlletí de perill d'allaus de la zona de cada estació
