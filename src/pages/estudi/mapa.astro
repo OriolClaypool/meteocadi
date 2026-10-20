@@ -19,6 +19,10 @@ import CatalunyaMapa from '../../components/CatalunyaMapa.astro';
       <CatalunyaMapa internal>
         <div class="cm-dl" role="group" aria-label="Descarrega el mapa com a imatge" slot="after-map">
           <span>Descarrega el mapa com a imatge</span>
+          <div class="cm-sty" role="group" aria-label="Estil de la imatge">
+            <button type="button" data-sty="net" aria-pressed="true">Neta</button>
+            <button type="button" data-sty="complet" aria-pressed="false">Completa</button>
+          </div>
           <button type="button" data-f="post">Publicació 4:5</button>
           <button type="button" data-f="story">Història 9:16</button>
           <button type="button" data-f="wide">Horitzontal 16:9</button>
@@ -44,6 +48,11 @@ import CatalunyaMapa from '../../components/CatalunyaMapa.astro';
   .cm-dl button { height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: #fff; color: var(--ink); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; }
   .cm-dl button::before { content: ''; width: 14px; height: 14px; background: currentColor; -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3v12m0 0-5-5m5 5 5-5M4 20h16'/%3E%3C/svg%3E") center / contain no-repeat; mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3v12m0 0-5-5m5 5 5-5M4 20h16'/%3E%3C/svg%3E") center / contain no-repeat; }
   .cm-dl button:hover { border-color: var(--ink); }
+  /* Estil de la imatge: neta (una línia de títol, sense llegenda al radar) o completa */
+  .cm-sty { display: inline-flex; gap: 2px; padding: 3px; margin-right: 6px; border-radius: 999px; background: #e3e9f0; }
+  .cm-dl .cm-sty button { height: 30px; padding: 0 12px; border: 0; background: transparent; font-size: 13px; color: var(--ink2); }
+  .cm-dl .cm-sty button::before { content: none; }
+  .cm-dl .cm-sty button[aria-pressed='true'] { background: #fff; color: var(--ink); box-shadow: 0 1px 2px rgba(16, 35, 59, 0.15); }
   .cm-dl button[aria-busy='true'] { opacity: 0.6; cursor: progress; }
   .cm-dlg { border: 0; border-radius: 16px; padding: 16px; max-width: min(92vw, 960px); background: #fff; box-shadow: 0 20px 60px rgba(16, 35, 59, 0.35); }
   .cm-dlg::backdrop { background: rgba(16, 35, 59, 0.6); }
@@ -75,14 +84,26 @@ import CatalunyaMapa from '../../components/CatalunyaMapa.astro';
     try { await navigator.share({ files: [dlgFile] }); } catch {}
   });
 
-  document.querySelectorAll<HTMLButtonElement>('.cm-dl button').forEach((b) =>
+  // Estil de la imatge: neta (per defecte) o completa, recordat en aquest navegador
+  let estil = 'net';
+  try { estil = localStorage.getItem('mc-img-estil') === 'complet' ? 'complet' : 'net'; } catch {}
+  const styBtns = document.querySelectorAll<HTMLButtonElement>('.cm-sty [data-sty]');
+  const paintSty = () => styBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.sty === estil)));
+  styBtns.forEach((b) => b.addEventListener('click', () => {
+    estil = b.dataset.sty === 'complet' ? 'complet' : 'net';
+    try { localStorage.setItem('mc-img-estil', estil); } catch {}
+    paintSty();
+  }));
+  paintSty();
+
+  document.querySelectorAll<HTMLButtonElement>('.cm-dl button[data-f]').forEach((b) =>
     b.addEventListener('click', async () => {
       const snap = (window as any).__cmap?.snapshot();
       if (!snap || b.getAttribute('aria-busy') === 'true') return;
       b.setAttribute('aria-busy', 'true');
       try {
         const { renderMapImage } = await import('../../scripts/mapa-imatge.js');
-        const canvas = await renderMapImage({ ...snap, format: b.dataset.f });
+        const canvas = await renderMapImage({ ...snap, format: b.dataset.f, net: estil === 'net' });
         const blob: Blob | null = await new Promise((r) => canvas.toBlob(r, 'image/png'));
         if (!blob) return;
         const day = todayMadrid(snap.when);

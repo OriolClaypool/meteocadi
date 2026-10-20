@@ -1,7 +1,7 @@
 // Capa de color interpolada entre estacions (mapa de Catalunya i portada).
 // Graella de 340 × 290 punts en Web Mercator sobre Catalunya. Temperatura: s'interpola la temperatura "reduïda"
 // (sense l'efecte de l'altitud, amb el gradient calculat amb les mateixes estacions) i es torna a sumar l'altitud
-// del terreny de cada punt (graella de /api/dem).
+// del terreny de cada punt (graella fixa de public/dem-catalunya.json).
 // Interpolació local (vegeu interpolate): cada punt surt de les estacions més properes, amb un pes que baixa amb la
 // distància prou de pressa perquè cada estació no pinti fins a mig camí de les veïnes, però sense fer una "diana" de
 // color al seu voltant. La pluja s'interpola en escala logarítmica, com l'escala de colors: així un valor molt alt
