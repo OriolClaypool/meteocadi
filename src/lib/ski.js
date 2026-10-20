@@ -87,12 +87,14 @@ export function rateDay(top, base, i) {
   else if (T.feels != null && T.feels <= -14) { s -= 8; bad.push('cold1'); }
   if ((B.max ?? 0) >= 16) { s -= 30; bad.push('hot'); }
   else if ((B.max ?? 0) >= 12) { s -= 10; bad.push('warm'); }
+  // Només el temps, sense el plus de la neu nova (la nota de Neu, src/lib/neu/nota.js, ja la compta a part)
+  const weather = Math.max(0, Math.min(100, s));
   const prev = (top.days[i - 1]?.snow ?? 0) + (top.days[i - 2]?.snow ?? 0);
   if (p < 2 && prev >= 25) { s += 15; good.unshift('fresh2'); }
   else if (p < 2 && prev >= 10) { s += 10; good.unshift('fresh1'); }
   s = Math.max(0, Math.min(100, s));
   const level = s >= 75 ? 4 : s >= 55 ? 3 : s >= 35 ? 2 : 1;
-  return { score: s, level, why: level >= 3 ? good.slice(0, 2) : bad.slice(0, 2) };
+  return { score: s, level, why: level >= 3 ? good.slice(0, 2) : bad.slice(0, 2), weather, good, bad };
 }
 
 // Agrupa les dades per estació: cada estació té dos punts (part alta i base), en aquest ordre

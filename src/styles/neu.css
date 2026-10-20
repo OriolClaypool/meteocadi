@@ -95,6 +95,38 @@ a.nv-hcard:hover { border-color: #3a5a86; }
 .nv-lv--mb { background: #12a15c; } .nv-lv--b { background: #6fb52c; } .nv-lv--r { background: #e3a21a; } .nv-lv--d { background: #e04a33; }
 .nv-lv.is-dot { width: 8px; height: 8px; border-radius: 50%; }
 
+/* Nota de 0 a 10 (nota.js): color del nivell, 4 molt bo … 1 dolent, 0 sense neu o tancada, x sense dada.
+   Amb .nv davant perquè guanyi a les etiquetes del mapa (que pinten la xifra amb --bg). */
+.nv .nv-nota--4 { background: #0c8049; color: #fff; }
+.nv .nv-nota--3 { background: #7dbb3c; color: #0e1c2f; }
+.nv .nv-nota--2 { background: #f0b429; color: #0e1c2f; }
+.nv .nv-nota--1 { background: #cc3d27; color: #fff; }
+.nv .nv-nota--0 { background: #c9d3df; color: #3e4f66; }
+.nv .nv-nota--x { background: #e3e9f0; color: #56677d; }
+.nv-nota { flex: none; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; min-width: 56px; padding: 6px 8px 5px; border-radius: 12px; line-height: 1; text-align: center; }
+.nv-nota b { font: 700 20px var(--f-mono); letter-spacing: -0.02em; }
+.nv-nota small { margin-top: 3px; font: 700 10px var(--f-ui); letter-spacing: 0.02em; white-space: nowrap; }
+.nv-nota.is-big { min-width: 68px; padding: 8px 10px 6px; border-radius: 14px; }
+.nv-nota.is-big b { font-size: 26px; }
+.nv-hcard .nv-nota { box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.12); }
+/* Les parts de la nota, en barres */
+.nv-parts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 12px; margin-top: 10px; }
+.nv-part { min-width: 0; }
+.nv-part__k { display: block; font-size: 11px; font-weight: 600; color: var(--muted); }
+.nv-part__bar { display: block; height: 6px; margin-top: 4px; border-radius: 3px; background: #e3e9f0; overflow: hidden; }
+.nv-part__bar i { display: block; height: 100%; border-radius: 3px; }
+.nv-parts.has-text { grid-template-columns: minmax(0, 1fr); gap: 10px; margin-top: 12px; }
+.nv-parts.has-text .nv-part { display: grid; grid-template-columns: 58px minmax(0, 1fr); column-gap: 10px; align-items: center; }
+.nv-parts.has-text .nv-part__k { font-size: 13px; color: var(--ink2); }
+.nv-parts.has-text .nv-part__bar { height: 8px; margin-top: 0; border-radius: 4px; }
+.nv-parts.has-text .nv-part__t { grid-column: 2; margin-top: 3px; font-size: 13px; color: var(--ink2); }
+/* Llegenda de la nota */
+.nv-nlg { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 10px !important; font-size: 12px; color: var(--muted); }
+.nv-nlg span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.nv-nlg i { display: inline-block; width: 12px; height: 10px; border-radius: 3px; }
+.nv-nlg b { font-weight: 600; color: var(--ink2); }
+.nv-map__wrap .nv-nlg { margin-left: 14px; margin-right: 14px; }
+
 /* Botons de tria (dia, període, capa) */
 .nv-chips { display: flex; gap: 8px; margin-top: 12px; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
 .nv-chips::-webkit-scrollbar { display: none; }
@@ -103,6 +135,12 @@ a.nv-hcard:hover { border-color: #3a5a86; }
 .nv-seg { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 12px; padding: 3px; border-radius: 12px; background: #e3e9f0; }
 .nv-seg button { height: 40px; border: 0; border-radius: 9px; background: transparent; font: 600 14px/1 var(--f-ui); color: var(--ink2); cursor: pointer; }
 .nv-seg button[aria-pressed='true'] { background: #fff; box-shadow: 0 1px 2px rgba(14, 28, 47, 0.12); color: var(--ink); font-weight: 700; }
+/* Tantes columnes com botons visibles; la petita, per sobre del mapa */
+.nv-seg--auto { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); }
+.nv-seg--sm { margin-top: 0; }
+.nv-seg--sm button { height: 36px; font-size: 13px; }
+.nv-ctl .nv-seg { margin-top: 10px; }
+.nv-mapbar { display: flex; flex-direction: column; gap: 8px; padding: 10px; }
 .nv-sel { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
 .nv-sel label { font-size: 14px; font-weight: 600; color: var(--ink2); }
 .nv-sel select { flex: 1; height: 44px; padding: 0 12px; border-radius: 12px; border: 1px solid #c9d3df; background: #fff; font: 600 14px var(--f-ui); color: var(--ink); }
@@ -139,6 +177,19 @@ a.nv-hcard:hover { border-color: #3a5a86; }
 .nv-more { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; height: 50px; margin-top: 12px; border: 0; border-radius: 16px; background: #fff; box-shadow: 0 0 0 1px var(--line); font: 700 15px var(--f-ui); color: var(--ink); cursor: pointer; }
 .nv-more:hover { box-shadow: 0 0 0 1px #b9c6d6; }
 .nv-list.is-short > li:nth-child(n + 7) { display: none; }
+/* Rànquing per la nota */
+.nv-rk .nv-row__top { align-items: center; }
+.nv-rk__pos { flex: none; align-self: flex-start; width: 22px; margin-right: -4px; padding-top: 3px; font: 700 15px var(--f-mono); color: var(--muted); }
+.nv-rk .nv-row__id { flex: 1; }
+.nv-rk .nv-parts { margin-left: 30px; }
+.nv .nv-rk__why { margin: 8px 0 0 30px; font-size: 14px; color: var(--ink2); }
+.nv-rank > li:first-child .nv-rk__pos { color: var(--ink); }
+/* Com es calcula la nota */
+.nv-how { margin-top: 14px; padding: 0 16px; }
+.nv-how summary { display: flex; align-items: center; min-height: 50px; font-size: 15px; font-weight: 700; cursor: pointer; }
+.nv-how__b { padding: 0 0 14px; font-size: 14px; color: var(--ink2); }
+.nv-how__b ul { margin: 10px 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+.nv-how__b b { color: var(--ink); }
 
 /* ---------- mapa ---------- */
 .nv-map { position: relative; height: 270px; margin-top: 12px; border-radius: 16px; overflow: hidden; background: #e9eef4; box-shadow: 0 0 0 1px var(--line); }
@@ -167,6 +218,7 @@ a.nv-pin__lab:hover { box-shadow: 0 0 0 2px var(--acc), 0 1px 6px rgba(14, 28, 4
 .nv-map__note { margin-top: 10px !important; font-size: 13px; color: var(--ink2); }
 .nv-map__wrap { margin-top: 12px; padding: 0 0 14px; overflow: hidden; }
 .nv-map__wrap .nv-map { margin-top: 0; border-radius: 16px 16px 0 0; box-shadow: none; }
+.nv-mapbar + .nv-map { border-radius: 0; }
 .nv-map__wrap .nv-scale, .nv-map__wrap .nv-map__note { margin-left: 14px; margin-right: 14px; }
 .nv-scale { display: flex; align-items: flex-end; gap: 3px; margin-top: 12px; }
 .nv-scale > b { flex: none; margin-right: 4px; font-size: 12px; font-weight: 600; color: var(--ink2); }
@@ -211,6 +263,12 @@ a.nv-dchip:hover { border-color: #3a5a86; }
 .nv-wk__lg { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 10px !important; font-size: 12px; color: var(--muted); }
 .nv-wk__lg span { display: inline-flex; align-items: center; gap: 5px; }
 .nv-wk__lg .nv-lv { width: 14px; }
+.nv-wk__n { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; height: 18px; padding: 0 4px; border-radius: 6px; font: 700 11px var(--f-mono); }
+/* La nota del dia triat i les seves parts */
+.nv-verd__nota { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line2); }
+.nv-verd__why { font-size: 15px; font-weight: 600; color: var(--ink); }
+.nv-verd__src { margin-top: 10px !important; font-size: 12px; color: var(--muted); }
+.nv-verd .nv-nlg { margin-top: 12px !important; }
 
 /* Pestanyes (àncores) */
 .nv-tabs { position: sticky; top: 0; z-index: 5; display: flex; gap: 4px; margin-top: 16px; padding: 0 16px; overflow-x: auto; scrollbar-width: none; background: var(--page); border-bottom: 1px solid var(--line); }
@@ -268,6 +326,7 @@ a.nv-dchip:hover { border-color: #3a5a86; }
 .nv-t7__lv { justify-self: end; text-align: right; }
 .nv-tdlv { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; white-space: nowrap; }
 .nv-tdlv i { flex: none; }
+.nv-t7__n { display: inline-flex; align-items: center; justify-content: center; min-width: 38px; height: 24px; padding: 0 6px; border-radius: 7px; font: 700 13px var(--f-mono); }
 .nv-t7__h span { white-space: nowrap; }
 .nv-cm { justify-self: start; display: inline-block; padding: 2px 7px; border-radius: 6px; font: 700 13px var(--f-mono); }
 .nv-dash { color: #8a9bb2; }

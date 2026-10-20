@@ -188,7 +188,7 @@ const CARDS = [
     const [x, a, dem] = await Promise.all([
       fetch('/api/xema').then((r) => (r.ok ? r.json() : null)).catch(() => null),
       loadAra().catch(() => null),
-      fetch('/api/dem').then((r) => (r.ok ? r.json() : null)).catch(() => null),
+      fetch('/dem-catalunya.json').then((r) => (r.ok ? r.json() : null)).catch(() => null),
     ]);
     // Si el portal de dades obertes va endarrerit (més de 3 hores) o en surten poques amb temperatura, no hi ha prou
     // estacions del Meteocat: ni mapa de color (sortiria de les nostres, totes al Cadí) ni extrems de Catalunya

@@ -3,13 +3,16 @@
 // la neu caiguda i la prevista, hora a hora, 7 dies, la neu mesurada a prop, allaus i enllaços oficials.
 // Al build es pinta amb la previsió d'aquell moment; al navegador, amb /api/neu, /api/neu/<estació> (hora a hora)
 // i /api/neu/mesurada. Mai "no tenim estació": si no hi ha cap sensor a prop, la secció no surt.
+// En temporada, el dia triat porta la nota de 0 a 10 (src/lib/neu/nota.js) i les seves parts, i la tira i la taula
+// dels 7 dies, la nota de cada dia.
 import NeuLayout from '../../layouts/NeuLayout.astro';
 import { NEU, NEU_BY_SLUG, lleugera, allausOf, properes } from '../../lib/neu/estacions.js';
 import { previsioBuild } from '../../lib/neu/build.js';
 import {
-  groupsOf, todayIdx, snowSum, dayLines, profileSVG, factsHTML, verdictHTML, weekStripHTML, LEVEL_LEGEND, trioHTML,
+  groupsOf, todayIdx, snowSum, dayLines, profileSVG, factsHTML, verdictHTML, weekStripHTML, NOTA_LEGEND, LEVEL_LEGEND, trioHTML,
   snowChartSVG, chartLegendHTML, snowTypeHTML, weekTableHTML, weekNote, pastSnow, icon, thousands,
 } from '../../lib/neu/neu.js';
+import { notesOf, depthToday } from '../../lib/neu/nota.js';
 import { inSeason } from '../../lib/ski.js';
 import { todayMadrid, num } from '../../lib/format.js';
 
@@ -24,6 +27,9 @@ const season = inSeason(today);
 const fc = await previsioBuild();
 const g = groupsOf([lite], fc)?.[0] ?? null;
 const i0 = g ? todayIdx(g.top.days, today) : 0;
+// Al build, la nota amb el gruix del model (el navegador la refà amb els sensors i el trànsit)
+const notes = g && season ? notesOf(g, today) : null;
+const depth = g ? depthToday(g, i0, []) : null;
 const ps = g ? pastSnow(g, null, today, 5) : null;
 const dl = g ? dayLines(g, i0) : { frz: null, line: null };
 // Fora de temporada i sense neu els darrers dies, la muntanya surt sense neu
@@ -65,15 +71,15 @@ const description = `Previsió de neu ${r.a} (${cotes} m): neu nova, cota de neu
     </div>
     <div class="nv-fhero">
       <div data-nv-prof set:html={profileSVG(lite, { frz: dl.frz, line: dl.line, cover, snowing: (g?.top.days[i0]?.snow ?? 0) >= 1 })} />
-      <div class="nv-facts" data-nv-facts set:html={factsHTML(g, { today })} />
+      <div class="nv-facts" data-nv-facts set:html={factsHTML(g, { today, depth })} />
     </div>
   </div>
 
   <div class="nv-in">
     <div class="nv-card nv-verd">
-      <div data-nv-verd set:html={g ? verdictHTML(g, today, 0, season) : '<p class="nv-load">Carregant la previsió…</p>'} />
-      <div data-nv-strip set:html={g ? weekStripHTML(g, today, 0, season) : ''} />
-      <div data-nv-lg hidden={!season} set:html={LEVEL_LEGEND} />
+      <div data-nv-verd set:html={g ? verdictHTML(g, today, 0, season, notes) : '<p class="nv-load">Carregant la previsió…</p>'} />
+      <div data-nv-strip set:html={g ? weekStripHTML(g, today, 0, season, notes) : ''} />
+      <div data-nv-lg hidden={!season} set:html={notes?.some((n) => n?.v != null) ? NOTA_LEGEND : LEVEL_LEGEND} />
     </div>
   </div>
 
@@ -109,7 +115,7 @@ const description = `Previsió de neu ${r.a} (${cotes} m): neu nova, cota de neu
   <section class="nv-sec nv-anchor" id="dies">
     <div class="nv-in">
       <h2 class="nv-h2">Pròxims 7 dies</h2>
-      <div data-nv-week set:html={g ? weekTableHTML(g, today, season) : '<p class="nv-load">Carregant la previsió…</p>'} />
+      <div data-nv-week set:html={g ? weekTableHTML(g, today, season, notes) : '<p class="nv-load">Carregant la previsió…</p>'} />
       <p class="nv-note-s" data-nv-wnote>{g ? weekNote(g, today) : ''}</p>
     </div>
   </section>
@@ -186,7 +192,9 @@ const description = `Previsió de neu ${r.a} (${cotes} m): neu nova, cota de neu
   import {
     groupsOf, todayIdx, snowSum, dayLines, profileSVG, factsHTML, verdictHTML, weekStripHTML, trioHTML, snowChartSVG,
     chartLegendHTML, snowTypeHTML, weekTableHTML, weekNote, pastSnow, nearSensors, nowHour, hoursHTML, hoursDay, sensorsHTML,
+    NOTA_LEGEND, LEVEL_LEGEND,
   } from '../../lib/neu/neu.js';
+  import { notesOf, depthToday, sensorsFor } from '../../lib/neu/nota.js';
   import { inSeason } from '../../lib/ski.js';
   import { todayMadrid } from '../../lib/format.js';
 
@@ -203,9 +211,13 @@ const description = `Previsió de neu ${r.a} (${cotes} m): neu nova, cota de neu
   let fc: any = undefined;
   let hr: any = undefined;
   let st: any[] | null | undefined = undefined;
+  // tr: incidències de l'SCT a prop (les de "Com arribar"; compten per a la nota d'avui)
+  let tr: any[] | null = null;
   let sel = 0;
 
   const group = () => groupsOf([resort], fc)?.[0] ?? null;
+  // Les 7 notes de l'estació (en temporada)
+  const notesNow = (g: any) => (g && season() ? notesOf(g, today, { stations: st ?? null, transit: tr }) : null);
 
   function paintTop(g: any, sensors: any[], now: any) {
     if (!g) return;
@@ -219,8 +231,10 @@ const description = `Previsió de neu ${r.a} (${cotes} m): neu nova, cota de neu
     const cover = s?.now != null ? (s.now >= 5 ? 'snow' : s.now === 0 ? 'bare' : null) : !season() && snowSum(g.top.days, i0 - 5, 6) < 10 ? 'bare' : null;
     const snowing = sel === 0 ? (now?.top?.snow ?? 0) > 0.05 || (now == null && (g.top.days[i]?.snow ?? 0) >= 1) : (g.top.days[i]?.snow ?? 0) >= 1;
     set('[data-nv-prof]', profileSVG(resort, { frz, line, cover, snowing, now: sel === 0 ? now : null }));
-    set('[data-nv-verd]', verdictHTML(g, today, sel, season()));
-    set('[data-nv-strip]', weekStripHTML(g, today, sel, season()));
+    const notes = notesNow(g);
+    set('[data-nv-verd]', verdictHTML(g, today, sel, season(), notes));
+    set('[data-nv-strip]', weekStripHTML(g, today, sel, season(), notes));
+    set('[data-nv-lg]', notes?.some((n: any) => n?.v != null) ? NOTA_LEGEND : LEVEL_LEGEND);
     $('[data-nv-lg]')!.hidden = !season();
   }
 
@@ -233,14 +247,16 @@ const description = `Previsió de neu ${r.a} (${cotes} m): neu nova, cota de neu
     const failed = !g && fc === null && !!$('[data-nv-verd] .nv-load');
     if (failed) document.querySelectorAll('[data-nv-verd] .nv-load, [data-nv-chart] .nv-load, [data-nv-week] .nv-load').forEach((el) => (el.textContent = 'La previsió no arriba ara mateix. Ho tornem a provar d’aquí a uns minuts.'));
     paintTop(g, sensors, now);
-    if (fc !== undefined && (g || !$('[data-nv-facts] .nv-fact__v small'))) set('[data-nv-facts]', factsHTML(g, { today, now, sensors, wait: hr === undefined || st === undefined }));
+    // El gruix de l'estació, el mateix de la nota (amb els sensors quan arriben)
+    const depth = g ? depthToday(g, todayIdx(g.top.days, today), sensorsFor(resort, st ?? null)) : null;
+    if (fc !== undefined && (g || !$('[data-nv-facts] .nv-fact__v small'))) set('[data-nv-facts]', factsHTML(g, { today, now, sensors, wait: hr === undefined || st === undefined, depth }));
     if (g) {
       const ps = pastSnow(g, sensors, today, 5);
       set('[data-nv-trio]', trioHTML(g, today, ps));
       set('[data-nv-chart]', snowChartSVG(g, today, ps));
       set('[data-nv-chartlg]', chartLegendHTML(g, today, ps));
       set('[data-nv-type]', snowTypeHTML(g, today, sensors, season()));
-      set('[data-nv-week]', weekTableHTML(g, today, season()));
+      set('[data-nv-week]', weekTableHTML(g, today, season(), notesNow(g)));
       $('[data-nv-wnote]')!.textContent = weekNote(g, today);
     }
     // Hora a hora: avui o, a partir de les 17 h, demà. Si no arriba, la secció no surt
@@ -256,6 +272,14 @@ const description = `Previsió de neu ${r.a} (${cotes} m): neu nova, cota de neu
     if (sens) set('[data-nv-sens]', sens);
     $('#mesurada')!.hidden = !sens;
     $('[data-nv-tabs] a[href="#mesurada"]')!.hidden = !sens;
+  }
+
+  // Per provar fora de temporada: ?temporada passa als enllaços de Neu
+  if (q.has('temporada')) {
+    document.querySelectorAll<HTMLAnchorElement>('a[href^="/neu"]').forEach((a) => {
+      const u = new URL(a.href, location.href);
+      if (!u.searchParams.has('temporada')) a.href = `${u.pathname}?temporada${u.hash}`;
+    });
   }
 
   // Dia triat a la tira dels 7 dies
@@ -292,6 +316,9 @@ const description = `Previsió de neu ${r.a} (${cotes} m): neu nova, cota de neu
     getJson(`/api/transit?near=${roadsBox.dataset.nvRoads}`)
       .then((j) => {
         if (j.error) throw new Error('sct');
+        // Per a la nota d'avui (neu o gel a les carreteres)
+        tr = j.items ?? [];
+        paint();
         if (!j.items?.length) { roadsBox.innerHTML = '<p class="nv-road is-ok"><i></i><span><b>Cap incidència comunicada</b> a les carreteres properes.</span></p>'; return; }
         roadsBox.innerHTML = j.items.map((it: any) => {
           const t = `${it.type} ${it.text} ${it.cause}`.toLowerCase();

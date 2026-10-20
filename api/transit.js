@@ -1,7 +1,10 @@
 // Incidències de trànsit del Servei Català de Trànsit (dades obertes, s'actualitzen cada hora),
 // filtrades per carretera i tram, o per distància a uns punts.
 // Ús: /api/transit?roads=C-16:110-135,BV-4024  ·  /api/transit?near=42.335:1.9:12,42.19:1.56:12 (lat:lng:km)
+//     /api/transit?neu: les de prop de cada estació de Meteocadí Neu (el radi de cada una, roadsKm), cada incidència
+//     amb la llista de les estacions afectades (resorts); la fa servir la nota de /neu (src/lib/neu/nota.js).
 // Memòria cau a la CDN de 10 minuts: el servidor de l'SCT rep com a molt una crida cada 10 minuts per tram.
+import { NEU } from '../src/lib/neu/estacions.js';
 
 const FEED = 'https://www.gencat.cat/transit/opendata/incidenciesGML.xml';
 
@@ -43,9 +46,13 @@ function distanceKm(a, b) {
   return 2 * 6371 * Math.asin(Math.sqrt(h));
 }
 
+// Estacions de Neu amb incidències de l'SCT (les d'Andorra no en tenen)
+const NEU_NEAR = NEU.filter((r) => r.roadsKm).map((r) => ({ lat: r.lat, lng: r.lng, km: r.roadsKm, slug: r.slug }));
+
 export default async function handler(req, res) {
-  const wanted = parseRoads(req.query?.roads);
-  const near = parseNear(req.query?.near);
+  const neu = req.query?.neu !== undefined;
+  const wanted = neu ? [] : parseRoads(req.query?.roads);
+  const near = neu ? NEU_NEAR : parseNear(req.query?.near);
   if (!wanted.length && !near.length) {
     res.status(400).json({ error: 'roads' });
     return;
@@ -65,9 +72,11 @@ export default async function handler(req, res) {
       const pos = c ? { lng: Number(c[1]), lat: Number(c[2]) } : null;
       const w = wanted.find((x) => x.road === road);
       const byRoad = w && !(w.from != null && !isNaN(lo) && (hi < w.from || lo > w.to));
-      const byNear = pos && near.some((z) => distanceKm(z, pos) <= z.km);
+      const zones = pos ? near.filter((z) => distanceKm(z, pos) <= z.km) : [];
+      const byNear = zones.length > 0;
       if (!byRoad && !byNear) continue;
       items.push({
+        ...(neu ? { resorts: zones.map((z) => z.slug) } : {}),
         lat: pos?.lat ?? null,
         lng: pos?.lng ?? null,
         road,

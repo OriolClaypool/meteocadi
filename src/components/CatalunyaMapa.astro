@@ -29,7 +29,7 @@ const { internal = false } = Astro.props;
 <div class="cm-out" id="cmBottom"></div>
 <slot name="after-map" />
 <p class="cm-note">
-  Dades: <a href="https://www.meteo.cat/" rel="noopener" target="_blank">Servei Meteorològic de Catalunya</a> (Xarxa d'Estacions Meteorològiques Automàtiques, a través de les <a href="https://analisi.transparenciacatalunya.cat/Medi-Ambient/Dades-meteorol-giques-de-la-XEMA/nzvn-apee" rel="noopener" target="_blank">dades obertes de la Generalitat</a>) i xarxa Meteocadí (voltades en negre). Límits comarcals: ICGC. El mapa de color és una estimació entre estacions (a la temperatura, tenint en compte l'altitud del terreny, Copernicus DEM): serveix per veure com es reparteix, no el valor exacte d'un punt, i al vent és només orientatiu, perquè canvia molt d'un lloc a l'altre. Amb el selector d'estacions pots veure-les totes, deixar-ne només una per capital de comarca o amagar-les; per defecte hi surten les que hi caben, i en apropar-te al mapa en van apareixent més. Són dades automàtiques sense validar: una lectura estranya pot ser un error del sensor. Quan les etiquetes no hi caben, algunes estacions es mostren com un punt: toca-les o apropa't per veure'n el valor.
+  Dades: <a href="https://www.meteo.cat/" rel="noopener" target="_blank">Servei Meteorològic de Catalunya</a> (Xarxa d'Estacions Meteorològiques Automàtiques, a través de les <a href="https://analisi.transparenciacatalunya.cat/Medi-Ambient/Dades-meteorol-giques-de-la-XEMA/nzvn-apee" rel="noopener" target="_blank">dades obertes de la Generalitat</a>) i xarxa Meteocadí (voltades en negre). Límits comarcals: ICGC. Altitud del terreny: Mapzen Terrain Tiles (EU-DEM, fet amb dades de Copernicus finançades per la Unió Europea, i SRTM, de l'USGS). El mapa de color és una estimació entre estacions (a la temperatura, tenint en compte l'altitud del terreny): serveix per veure com es reparteix, no el valor exacte d'un punt, i al vent és només orientatiu, perquè canvia molt d'un lloc a l'altre. Amb el selector d'estacions pots veure-les totes, deixar-ne només una per capital de comarca o amagar-les; per defecte hi surten les que hi caben, i en apropar-te al mapa en van apareixent més. Són dades automàtiques sense validar: una lectura estranya pot ser un error del sensor. Quan les etiquetes no hi caben, algunes estacions es mostren com un punt: toca-les o apropa't per veure'n el valor.
 </p>
 <div class="cm-ext" id="cmExt" aria-live="polite"></div>
 
@@ -189,6 +189,19 @@ const { internal = false } = Astro.props;
   // humitat, neu) són sempre les darreres i no n'hi ha per als dies anteriors
   const legendOf = (v: any) => (v.today ? `${v.noun} ${per().leg} (${v.u})` : v.legend);
   const titleOf = (v: any) => (period.kind === 'today' || !v.today ? v.title : [`${v.t1} ${per().title}`, 'a Catalunya']);
+  // Títol curt de la imatge neta (una línia, el quan en color) i la seva icona: "Temperatura a les 15:30",
+  // "Pluja d'avui fins a les 15:30", "Pluja del 18 d'octubre"
+  const SHORT_NOW: Record<string, string> = { t: 'Temperatura', wind: 'Vent', hr: 'Humitat', snow: 'Gruix de neu' };
+  const SHORT_ICON: Record<string, string> = { t: 'temp', tmax: 'temp', tmin: 'temp', rain: 'rain', gust: 'wind', wind: 'wind', hr: 'hum', snow: 'snow' };
+  const shortOf = (v: any, when: Date) => {
+    const h = hourMadrid(when);
+    const title = !v.today ? [SHORT_NOW[v.key] ?? v.label, ` a les ${h}`]
+      : period.kind === 'today' ? [`${v.noun} d'avui`, ` fins a les ${h}`]
+      : period.kind === '24h' ? [`${v.noun} de les darreres 24 h`, ` fins a les ${h}`]
+      : period.kind === 'day' ? [v.noun, ` ${delAl(period.date, period.date)}`]
+      : [v.noun, ` ${delAl(period.from, period.to)}${rangeToday() ? ` fins a les ${h}` : ''}`];
+    return { title, icon: SHORT_ICON[v.key] ?? 'temp' };
+  };
   const allowed = (v: any) => !past() || !!v.today;
   // Estacions de la xarxa que no es mostren en aquest mapa: a Bagà n'hi ha tres molt juntes i només hi deixem la del centre
   const HIDDEN_HERE = new Set(['IBAG65', 'IBAG72']);
@@ -320,7 +333,7 @@ const { internal = false } = Astro.props;
     if (!can) { fieldLayer?.remove(); fieldLayer = null; cmapEl?.classList.remove('has-field'); fieldNote(); return; }
     if (cfg.dem && demState === 'idle') {
       demState = 'loading';
-      fetch('/api/dem').then((r) => (r.ok ? r.json() : Promise.reject())).then((j) => { dem = j; demState = 'ok'; field(); }).catch(() => { demState = 'error'; field(); });
+      fetch('/dem-catalunya.json').then((r) => (r.ok ? r.json() : Promise.reject())).then((j) => { dem = j; demState = 'ok'; field(); }).catch(() => { demState = 'error'; field(); });
     }
     if (!comarques) return;
     if (!mask) mask = comarquesMask(comarques);
@@ -693,6 +706,7 @@ const { internal = false } = Astro.props;
           // La zona que es veu: si s'hi ha fet zoom, la imatge mostra aquesta zona
           view: { lat0: vb.getSouth(), lat1: vb.getNorth(), lng0: vb.getWest(), lng1: vb.getEast() },
           title: titleOf(cur),
+          short: shortOf(cur, when),
           accent: cur.accent,
           today: !!(cur as any).today,
           stations: list,
