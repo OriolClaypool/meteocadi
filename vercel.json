@@ -9,6 +9,10 @@
     {
       "path": "/api/arxiva",
       "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/capes/arxiva-pluja",
+      "schedule": "0 23 * * *"
     }
   ],
   "redirects": [

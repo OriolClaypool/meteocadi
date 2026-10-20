@@ -5,7 +5,7 @@
 //
 // Mateixa projecció i convenció que la reflectivitat (api/_opera.js); la mida del píxel surt de l'amplada del fitxer
 // (1900 × 2200 per a 2 km). NaN: el radar hi veu i no hi ha pluja (0 mm); -9999000: fora de l'abast (sense dades).
-// NO PROVAT encara amb els fitxers ACRR de debò (20/10/2026): /api/capes/pluja-… diu la mida i el màxim que llegeix.
+// Comprovat amb els fitxers ACRR de debò el 20/10/2026 (1900 × 2200, 2 km).
 import { deflateRawSync } from 'node:zlib';
 import { fromUrl } from 'geotiff';
 import { laea, fileUrl } from './_opera.js';
@@ -62,9 +62,9 @@ let reader = readAcc;
 export const _setAccReader = (fn) => { reader = fn || readAcc; };
 export const _accGeom = (px) => geom(px);
 
-// Una hora ('AAAAMMDDHHMM', l'hora del final, en punt) → { w, h, data (base64 de deflate-raw, Uint16 en dècimes de mm,
-// 65535 = sense dades), cover, max, grid } o null si el fitxer no hi és
-export async function accHour(t) {
+// Una hora ('AAAAMMDDHHMM', l'hora del final, en punt) → { grid (Float32Array, FW × FH, mm; NaN sense dades), src }
+// o null si el fitxer no hi és
+export async function accGrid(t) {
   const got = await reader(t);
   if (!got) return null;
   const { data, g } = got;
@@ -73,20 +73,35 @@ export async function accHour(t) {
     const v = data[r * g.ww + c];
     return Number.isNaN(v) ? 0 : v <= NODATA || v < 0 ? NaN : v;
   };
-  const out = new Uint16Array(FW * FH);
-  let seen = 0, max = 0;
-  for (let p = 0; p < out.length; p++) {
+  const grid = new Float32Array(FW * FH);
+  for (let p = 0; p < grid.length; p++) {
     const x = g.fx[p], y = g.fy[p];
     const c = Math.floor(x), r = Math.floor(y), tx = x - c, ty = y - r;
     const a = val(c, r), b = val(c + 1, r), d = val(c, r + 1), e = val(c + 1, r + 1);
-    let v;
-    if (Number.isNaN(a) || Number.isNaN(b) || Number.isNaN(d) || Number.isNaN(e)) v = val(Math.round(x), Math.round(y));
-    else v = (a * (1 - tx) + b * tx) * (1 - ty) + (d * (1 - tx) + e * tx) * ty;
+    if (Number.isNaN(a) || Number.isNaN(b) || Number.isNaN(d) || Number.isNaN(e)) grid[p] = val(Math.round(x), Math.round(y));
+    else grid[p] = (a * (1 - tx) + b * tx) * (1 - ty) + (d * (1 - tx) + e * tx) * ty;
+  }
+  return { grid, src: [got.w, got.h] };
+}
+
+// Una graella → { w, h, cover, max, data (base64 de deflate-raw, Uint16 en dècimes de mm, 65535 = sense dades) }: el
+// format de les hores (/api/capes/pluja-…) i dels dies desats (dades/radar, api/_pluja-dia.js)
+export function encodeGrid(grid) {
+  const out = new Uint16Array(FW * FH);
+  let seen = 0, max = 0;
+  for (let p = 0; p < out.length; p++) {
+    const v = grid[p];
     if (Number.isNaN(v)) { out[p] = 65535; continue; }
     seen++;
     if (v > max) max = v;
     out[p] = Math.min(65534, Math.round(v * 10));
   }
   const bytes = Buffer.from(out.buffer, out.byteOffset, out.byteLength);
-  return { w: FW, h: FH, cover: Math.round((seen / out.length) * 1000) / 1000, max: Math.round(max * 10) / 10, src: [got.w, got.h], data: deflateRawSync(bytes, { level: 9 }).toString('base64') };
+  return { w: FW, h: FH, cover: Math.round((seen / out.length) * 1000) / 1000, max: Math.round(max * 10) / 10, data: deflateRawSync(bytes, { level: 9 }).toString('base64') };
+}
+
+// Una hora → { w, h, data, cover, max, src } o null si el fitxer no hi és
+export async function accHour(t) {
+  const g = await accGrid(t);
+  return g ? { ...encodeGrid(g.grid), src: g.src } : null;
 }

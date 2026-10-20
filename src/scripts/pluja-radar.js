@@ -1,9 +1,10 @@
 // La pluja segons el radar (OPERA, /api/capes/pluja): la suma de les hores d'un període fins a l'hora de les dades de
 // les estacions, a la graella del mapa de color (camp.js: FW × FH). El mapa la fa servir per ajustar la pluja entre
 // estacions (computeField, radar): "Avui" (des de la mitjanit, hora local) i, des del 20/10/2026, "Darreres 24 h"
-// (Oriol: amb el radar a "Avui" i sense a les 24 hores, la pluja es veia diferent). Els dies anteriors no poden: el
-// dipòsit obert de l'OPERA només guarda les darreres 24 hores. Retorna { grid (Float32Array, mm; NaN sense dades),
-// hours, to } o null si falten hores o no n'hi ha.
+// (Oriol: amb el radar a "Avui" i sense a les 24 hores, la pluja es veia diferent). El dipòsit obert de l'OPERA només
+// guarda les darreres 24 hores: per als dies anteriors, la pluja de cada dia es desa cada nit (api/_pluja-dia.js) i es
+// publica a /radar-pluja/AAAA-MM-DD.json (radarDays). Retorna { grid (Float32Array, mm; NaN sense dades), … } o null
+// si falten hores o dies.
 import { hourMadrid, todayMadrid } from '../lib/format.js';
 import { FW, FH } from './camp.js';
 
@@ -15,6 +16,7 @@ async function inflate(b64) {
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
+// Una hora (/api/capes/pluja-…) o un dia desat (/radar-pluja/…): el mateix format
 function hour(url) {
   if (!cache.has(url)) {
     cache.set(
@@ -64,12 +66,24 @@ async function radarSum(from, until) {
   const grids = await Promise.all(hs.map((h) => hour(h.url)));
   const ok = grids.filter(Boolean);
   if (ok.length < want - 2 || !ok.length) return null;
+  return { grid: sumGrids(ok), hours: ok.length, to: new Date(Date.parse(hs[hs.length - 1].end)) };
+}
+
+// Suma de graelles; on més d'una quarta part no en tenen dades, no se'n sap prou (NaN)
+export function sumGrids(list) {
   const sum = new Float32Array(FW * FH);
   for (let p = 0; p < sum.length; p++) {
     let s = 0, n = 0;
-    for (const g of ok) if (g[p] === g[p]) { s += g[p]; n++; }
-    // Sense dades en més d'una quarta part de les hores: no se'n sap prou
-    sum[p] = n >= ok.length * 0.75 ? (s * ok.length) / n : NaN;
+    for (const g of list) if (g[p] === g[p]) { s += g[p]; n++; }
+    sum[p] = n >= list.length * 0.75 ? (s * list.length) / n : NaN;
   }
-  return { grid: sum, hours: ok.length, to: new Date(Date.parse(hs[hs.length - 1].end)) };
+  return sum;
+}
+
+// Dies desats ('AAAA-MM-DD', dies locals sencers): la suma, o null si en falta algun
+export async function radarDays(days) {
+  if (typeof DecompressionStream === 'undefined' || !days.length) return null;
+  const grids = await Promise.all(days.map((d) => hour(`/radar-pluja/${d}.json`)));
+  if (grids.some((g) => !g)) return null;
+  return { grid: sumGrids(grids), days: days.length };
 }

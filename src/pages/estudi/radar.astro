@@ -1,5 +1,5 @@
 ---
-// Estudi · radar (intern, no indexat): el radar (OPERA per publicar; el del Meteocat, només per mirar) amb les estacions
+// Estudi · radar (intern, no indexat): el radar (el del Meteocat, per defecte, o l'OPERA) amb les estacions
 // i la imatge per a xarxes. La lògica és a src/scripts/radar.js.
 import Base from '../../layouts/Base.astro';
 import EstudiTop from '../../components/EstudiTop.astro';
@@ -22,11 +22,11 @@ const WIND = false;
         <div class="rad-grp">
           <span class="rad-lab">Font</span>
           <div class="rad-seg" role="group" aria-label="Font del radar">
-            <button type="button" data-src="opera" aria-pressed="true" title="Composició europea d'EUMETNET (CC BY 4.0): es pot publicar">OPERA</button>
-            <button type="button" data-src="meteocat" aria-pressed="false" title="Només per mirar: sense permís del Meteocat no se'n poden publicar imatges">Meteocat · només mirar</button>
+            <button type="button" data-src="meteocat" aria-pressed="true" title="Servei Meteorològic de Catalunya: una imatge cada 6 minuts">Meteocat</button>
+            <button type="button" data-src="opera" aria-pressed="false" title="Composició europea d'EUMETNET (CC BY 4.0): una imatge cada 10 minuts">OPERA</button>
           </div>
         </div>
-        <div class="rad-grp" id="rProdRow" hidden>
+        <div class="rad-grp" id="rProdRow">
           <span class="rad-lab">Radar</span>
           <div class="rad-seg" role="group" aria-label="Producte del radar">
             <button type="button" data-prod="radar" aria-pressed="true">Intensitat</button>
@@ -120,7 +120,7 @@ const WIND = false;
         <button type="button" data-f="wide">Horitzontal 16:9</button>
       </div>
       <p class="rad-credit">
-        Radar: composició europea <a href="https://www.eumetnet.eu/observations/weather-radar-network/" target="_blank" rel="noopener">OPERA d'EUMETNET</a> (CC BY 4.0, una imatge cada 10 minuts; és la que es descarrega) o, només per mirar, el del <a href="https://www.meteo.cat/" target="_blank" rel="noopener">Servei Meteorològic de Catalunya</a> (imatges del seu web, una cada 6 minuts: per publicar-les caldria el seu permís).{WIND && <> Vent: models AROME-PI i AROME de <a href="https://portail-api.meteofrance.fr/" target="_blank" rel="noopener">Météo-France</a> (Licence Ouverte 2.0).</>} Estacions: XEMA del Meteocat (dades obertes de la Generalitat) i xarxa Meteocadí. Ús intern: la intensitat del radar és orientativa.{WIND && ' El vent del model és una previsió, no una mesura.'}
+        Radar: <a href="https://www.meteo.cat/" target="_blank" rel="noopener">Servei Meteorològic de Catalunya</a> (imatges del seu web, una cada 6 minuts) o la composició europea <a href="https://www.eumetnet.eu/observations/weather-radar-network/" target="_blank" rel="noopener">OPERA d'EUMETNET</a> (CC BY 4.0, una cada 10 minuts). La imatge descarregada porta el crèdit de la font triada.{WIND && <> Vent: models AROME-PI i AROME de <a href="https://portail-api.meteofrance.fr/" target="_blank" rel="noopener">Météo-France</a> (Licence Ouverte 2.0).</>} Estacions: XEMA del Meteocat (dades obertes de la Generalitat) i xarxa Meteocadí. Ús intern: la intensitat del radar és orientativa.{WIND && ' El vent del model és una previsió, no una mesura.'}
       </p>
     </div>
   </div>
@@ -195,7 +195,6 @@ const WIND = false;
   .cm-dl .cm-sty button[aria-pressed='true'] { background: #fff; color: var(--ink); box-shadow: 0 1px 2px rgba(16, 35, 59, 0.15); }
   .cm-dl button[aria-busy='true'] { opacity: 0.6; cursor: progress; }
   /* Amb el radar del Meteocat no es pot descarregar */
-  .cm-dl.is-off { opacity: 0.45; pointer-events: none; }
   .cm-dlg { border: 0; border-radius: 16px; padding: 16px; max-width: min(92vw, 960px); background: #fff; box-shadow: 0 20px 60px rgba(16, 35, 59, 0.35); }
   .cm-dlg::backdrop { background: rgba(16, 35, 59, 0.6); }
   .cm-dlg img { display: block; max-width: 100%; max-height: 72vh; width: auto; height: auto; margin: 0 auto; border-radius: 8px; border: 1px solid var(--line); }
@@ -251,7 +250,7 @@ const WIND = false;
       const snap = radar.snapshot();
       if (!snap || b.getAttribute('aria-busy') === 'true') return;
       if (!snap.raster) {
-        document.getElementById('rNote')!.textContent = snap.source === 'meteocat' ? "Radar del Meteocat: només per mirar. Per descarregar la imatge, tria l'OPERA." : "Encara no s'ha carregat cap imatge del radar.";
+        document.getElementById('rNote')!.textContent = snap.source === 'meteocat' ? "No es pot fer la imatge: el servidor del Meteocat no deixa llegir els píxels del radar des d'aquesta pàgina." : "Encara no s'ha carregat cap imatge del radar.";
         return;
       }
       b.setAttribute('aria-busy', 'true');
