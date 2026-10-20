@@ -7,6 +7,7 @@ import { STATIONS, shortName } from '../lib/stations.js';
 import { loadAra } from './live.js';
 import { num, hourMadrid, todayMadrid, dayName, dayMonth, precipColor } from '../lib/format.js';
 import { baseMap, canvasLayer } from './mapa-base.js';
+import { createFlux } from './vent-flux.js';
 
 const REFRESH = 2 * 60e3; // cada quan es mira si hi ha una imatge nova
 // Vistes: tot Catalunya o el Cadí-Moixeró i el Berguedà
@@ -222,6 +223,59 @@ export function startRadarPage() {
       syncPins();
     })
     .catch(() => {});
+
+  // Vent animat: partícules amb el vent de l'AROME-PI de Météo-France per al quart d'hora en curs (/api/vent), per sobre
+  // del radar i per sota dels límits. Encès per defecte; si s'apaga, es recorda. Tot el requadre del vent, no només
+  // Catalunya (el radar també en surt)
+  const K_WIND = 'meteocadi-radar-vent';
+  let windOn = true;
+  try { windOn = localStorage.getItem(K_WIND) !== '0'; } catch {}
+  const flux = createFlux(map, L, [[[39.9, -1.2], [39.9, 4.6], [43.4, 4.6], [43.4, -1.2]]]);
+  flux.tone('dark');
+  // El crèdit diu el model que ha donat el vent (AROME-PI o, si no hi és, AROME)
+  const creditOf = (w) => `vent: <a href="https://meteofrance.com/" target="_blank" rel="noopener">Météo-France</a> (${w?.model === 'AROME' ? 'AROME' : 'AROME-PI'})`;
+  let wind = null, windState = 'idle', windTimer = 0, windCredit = '';
+  function loadWind() {
+    if (windState === 'loading') return;
+    windState = 'loading';
+    fetch('/api/vent')
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((j) => {
+        if (!j || j.error || !j.u) throw new Error('vent');
+        wind = j;
+        windState = 'ok';
+        flux.data(j);
+      })
+      .catch(() => { windState = wind ? 'ok' : 'error'; })
+      .finally(windUpdate);
+  }
+  function windUpdate() {
+    if (windOn && windState === 'idle') loadWind();
+    const show = windOn && windState === 'ok';
+    flux.show(show);
+    const credit = show ? creditOf(wind) : '';
+    if (credit !== windCredit) {
+      if (windCredit) map.attributionControl?.removeAttribution(windCredit);
+      if (credit) map.attributionControl?.addAttribution(credit);
+      windCredit = credit;
+    }
+    // Mentre es veu, es torna a demanar cada 15 minuts
+    if (show && !windTimer) windTimer = setInterval(() => { windState = 'idle'; loadWind(); }, 15 * 60e3);
+    if (!show && windTimer) { clearInterval(windTimer); windTimer = 0; }
+    const b = $('rpWind');
+    if (b) b.setAttribute('aria-pressed', String(windOn));
+    const n = $('rpWindNote');
+    // "per a les 9:45", però "per a la 1:15"
+    const wh = wind?.valid ? hourMadrid(new Date(wind.valid)).replace(/^0(?=\d)/, '') : '';
+    if (n) n.textContent = show && wh ? `Vent: ${wind.model} de Météo-France, previsió per a ${wh.startsWith('1:') ? 'la' : 'les'} ${wh}.` : windOn && windState === 'error' ? 'El vent ara no està disponible.' : '';
+  }
+  $('rpWind')?.addEventListener('click', () => {
+    windOn = !windOn;
+    if (windOn && windState === 'error') windState = 'idle';
+    try { localStorage.setItem(K_WIND, windOn ? '1' : '0'); } catch {}
+    windUpdate();
+  });
+  windUpdate();
 
   loadAll();
   return { map, state: st };

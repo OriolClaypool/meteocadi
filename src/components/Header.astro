@@ -1,22 +1,49 @@
 ---
+// Menú de dalt (Oriol, 20/10/2026: "repasar los enlaces a dónde llevan"): El temps · Mapes ▾ · Estacions ▾ · Muntanya,
+// amb els botons d'Esquí i Contacte. Mapes i Estacions despleguen les seves pàgines: a l'escriptori, en passar-hi per
+// sobre o en clicar-los; al mòbil, dins del menú, en tocar-los.
+import { STATIONS } from '../lib/stations.js';
+import { modelsReady } from '../lib/models.js';
 interface Props { variant: 'overlay' | 'solid'; current?: string; lang?: 'ca' | 'es'; alt?: string }
 const { variant, current = '', lang = 'ca', alt } = Astro.props;
 const es = lang === 'es';
+const here = Astro.url.pathname.replace(/\.html$/, '').replace(/\/$/, '') || '/';
+
+type Item = { href: string; label: string; sub?: string };
+type Entry = { label: string; key: string; href?: string; items?: Item[] };
+const t = (ca: string, esp: string) => (es ? esp : ca);
+const N = STATIONS.length;
 // Les pàgines en castellà enllacen a les catalanes quan no tenen versió pròpia
-const LINKS_ES = [
-  { href: '/es/tiempo', label: 'El tiempo', key: 'temps' },
-  { href: '/mapa/catalunya', label: 'Mapa', key: 'mapa' },
-  { href: '/estacions', label: 'Estaciones', key: 'estacions' },
-  { href: '/es/montana', label: 'Montaña', key: 'muntanya' },
+const MENU: Entry[] = [
+  { href: es ? '/es/tiempo' : '/temps', label: t('El temps', 'El tiempo'), key: 'temps' },
+  {
+    label: t('Mapes', 'Mapas'),
+    key: 'mapes',
+    items: [
+      { href: '/mapa/catalunya', label: t('Catalunya ara', 'Cataluña ahora'), sub: t('Temperatura, pluja i vent de tot Catalunya', 'Temperatura, lluvia y viento de toda Cataluña') },
+      { href: '/radar', label: t('Radar de pluja', 'Radar de lluvia'), sub: t('En directe, amb el vent', 'En directo, con el viento') },
+      { href: '/mapa/previsio', label: t('Previsió hora a hora', 'Previsión hora a hora'), sub: t('El model AROME de Météo-France', 'El modelo AROME de Météo-France') },
+      { href: '/mapa', label: t('La xarxa al mapa', 'La red en el mapa'), sub: t(`Les ${N} estacions Meteocadí`, `Las ${N} estaciones Meteocadí`) },
+    ],
+  },
+  {
+    label: t('Estacions', 'Estaciones'),
+    key: 'estacions',
+    items: [
+      { href: '/estacions', label: t('La xarxa Meteocadí', 'La red Meteocadí'), sub: t('Les dades de cada estació, en directe', 'Los datos de cada estación, en directo') },
+      { href: '/historial', label: t('Historial i rècords', 'Historial y récords'), sub: t('Els dies arxivats, mes a mes i any a any', 'Los días archivados, mes a mes y año a año') },
+      // Quan ja hi ha prou dies de previsions dels models (src/lib/models.js), com al peu
+      ...(modelsReady() ? [{ href: '/models', label: t('Quin model encerta més', 'Qué modelo acierta más'), sub: t('Les previsions, comparades amb les estacions', 'Las previsiones, comparadas con las estaciones') }] : []),
+      { href: '/quina-estacio-meteorologica-comprar', label: t('Quina estació comprar', 'Qué estación comprar'), sub: t('Guia per a casa i per a la muntanya', 'Guía para casa y para la montaña') },
+    ],
+  },
+  { href: es ? '/es/montana' : '/muntanya', label: t('Muntanya', 'Montaña'), key: 'muntanya' },
 ];
-// Radar, historial i "Sobre el projecte" són al peu i a la portada
-const LINKS_CA = [
-  { href: '/temps', label: 'El temps', key: 'temps' },
-  { href: '/mapa/catalunya', label: 'Mapa', key: 'mapa' },
-  { href: '/estacions', label: 'Estacions', key: 'estacions' },
-  { href: '/muntanya', label: 'Muntanya', key: 'muntanya' },
-];
-const LINKS = es ? LINKS_ES : LINKS_CA;
+// Pàgina actual: per l'adreça (els submenús) o per la clau que passa la pàgina (la resta: fitxes d'estació, episodis…)
+const isHere = (href: string) => here === href || (href !== '/mapa' && here.startsWith(`${href}/`));
+const GROUP_KEYS: Record<string, string[]> = { mapes: ['mapa', 'radar'], estacions: ['estacions', 'historial', 'models'] };
+const groupHere = (e: Entry) => !!e.items?.some((i) => isHere(i.href)) || (GROUP_KEYS[e.key] || []).includes(current);
+const CHEV = '<svg class="nav__chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>';
 ---
 <header class={`hdr hdr--${variant}`}>
   <div class="wrap hdr__in">
@@ -29,12 +56,77 @@ const LINKS = es ? LINKS_ES : LINKS_CA;
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
     </button>
     <nav class="nav" id="menu" aria-label="Menú principal">
-      {LINKS.map((l) => <a href={l.href} aria-current={current === l.key ? 'page' : undefined}>{l.label}</a>)}
+      {MENU.map((e, n) => e.items ? (
+        <div class={`nav__grp${groupHere(e) ? ' is-here' : ''}`}>
+          <button type="button" class="nav__dd" aria-expanded="false" aria-controls={`nav-dd-${n}`}>{e.label}<Fragment set:html={CHEV} /></button>
+          <div class="nav__panel" id={`nav-dd-${n}`}>
+            {e.items.map((i) => (
+              <a href={i.href} aria-current={here === i.href ? 'page' : isHere(i.href) ? 'true' : undefined}><b>{i.label}</b>{i.sub && <small>{i.sub}</small>}</a>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <a href={e.href} aria-current={current === e.key ? 'page' : undefined}>{e.label}</a>
+      ))}
       {alt && (es
         ? <a href={alt} class="nav__lang" hreflang="ca" lang="ca" title="Versió en català"><span class="nav__lang-s">CA</span><span class="nav__lang-l">Versió en català</span></a>
         : <a href={alt} class="nav__lang" hreflang="es" lang="es" title="Versión en castellano"><span class="nav__lang-s">ES</span><span class="nav__lang-l">Versión en castellano</span></a>)}
-      <a href={es ? '/es/esqui' : '/esqui'} class="nav__ski" aria-current={current === 'esqui' ? 'page' : undefined}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20M3.3 7l17.4 10M3.3 17 20.7 7M9 3.5l3 2.2 3-2.2M9 20.5l3-2.2 3 2.2"></path></svg>{es ? 'Esquí' : 'Esquí'}</a>
+      <a href={es ? '/es/esqui' : '/esqui'} class="nav__ski" aria-current={current === 'esqui' ? 'page' : undefined}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20M3.3 7l17.4 10M3.3 17 20.7 7M9 3.5l3 2.2 3-2.2M9 20.5l3-2.2 3 2.2"></path></svg>Esquí</a>
       <a href="/contacte" class="nav__cta" aria-current={current === 'contacte' ? 'page' : undefined}>{es ? 'Contacto' : 'Contacte'}</a>
     </nav>
   </div>
 </header>
+
+<script>
+  // Desplegables. A l'escriptori (més de 1200 px): amb el ratolí s'obren en passar-hi per sobre i es tanquen en sortir-ne;
+  // amb el teclat o el dit, en clicar el títol, i es tanquen en tocar fora, amb Esc o quan el focus en surt. Al mòbil,
+  // dins del menú, cada grup s'obre i es tanca tot sol (si en tancar-ne un altre la llista pugés, el toc cauria fora).
+  const nav = document.getElementById('menu');
+  nav?.classList.add('is-js');
+  const groups = Array.from(document.querySelectorAll<HTMLElement>('.nav__grp'));
+  const desk = matchMedia('(min-width: 1200.02px)');
+  const setOpen = (g: HTMLElement, open: boolean) => {
+    g.classList.toggle('is-open', open);
+    g.querySelector('.nav__dd')?.setAttribute('aria-expanded', String(open));
+  };
+  const closeAll = (except?: HTMLElement) => groups.forEach((g) => g !== except && setOpen(g, false));
+  groups.forEach((g) => {
+    const b = g.querySelector<HTMLButtonElement>('.nav__dd');
+    g.addEventListener('pointerenter', (e) => {
+      if (e.pointerType !== 'mouse' || !desk.matches) return;
+      closeAll(g);
+      setOpen(g, true);
+    });
+    g.addEventListener('pointerleave', (e) => {
+      if (e.pointerType === 'mouse' && desk.matches) setOpen(g, false);
+    });
+    b?.addEventListener('click', () => {
+      // Amb el ratolí a sobre ja és obert: el clic no el tanca
+      const open = desk.matches && g.matches(':hover') ? true : !g.classList.contains('is-open');
+      if (desk.matches) closeAll(g);
+      setOpen(g, open);
+    });
+    // El focus se'n va a un altre lloc (amb el teclat): es tanca. Un clic dins, en un lloc no enfocable, no el tanca
+    g.addEventListener('focusout', (e) => {
+      const to = e.relatedTarget as Node | null;
+      if (desk.matches && to && !g.contains(to)) setOpen(g, false);
+    });
+  });
+  // Un toc o un clic fora. En captura i amb pointerdown: a l'iPad, Safari no fa arribar els tocs en llocs no clicables
+  // al document, i els controls dels mapes aturen els clics
+  document.addEventListener(
+    'pointerdown',
+    (e) => {
+      if (desk.matches && !(e.target as HTMLElement).closest?.('.nav__grp')) closeAll();
+    },
+    true,
+  );
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const open = groups.find((g) => g.classList.contains('is-open'));
+    if (!open) return;
+    const inside = open.contains(document.activeElement);
+    closeAll();
+    if (inside) open.querySelector<HTMLButtonElement>('.nav__dd')?.focus({ preventScroll: true });
+  });
+</script>

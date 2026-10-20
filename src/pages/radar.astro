@@ -32,9 +32,15 @@ import { PAL } from '../scripts/radar-pal.js';
           </button>
           <div class="rp-time" aria-live="polite"><b id="rpTime">Carregant el radar…</b><span id="rpAge"></span></div>
         </div>
-        <div class="rp-views" role="group" aria-label="Zona del mapa">
-          <button type="button" data-rp-view="cat" aria-pressed="true">Catalunya</button>
-          <button type="button" data-rp-view="cadi" aria-pressed="false">Cadí-Moixeró</button>
+        <div class="rp-right">
+          <button type="button" id="rpWind" class="rp-tog" aria-pressed="true" title="Partícules que avancen amb el vent previst per a ara">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8h10.5a2.5 2.5 0 1 0-2.5-2.5M3 12h15.5a2.5 2.5 0 1 1-2.5 2.5M3 16h8"></path></svg>
+            Vent
+          </button>
+          <div class="rp-views" role="group" aria-label="Zona del mapa">
+            <button type="button" data-rp-view="cat" aria-pressed="true">Catalunya</button>
+            <button type="button" data-rp-view="cadi" aria-pressed="false">Cadí-Moixeró</button>
+          </div>
         </div>
       </div>
       <input type="range" id="rpSlider" class="rp-slider" min="0" max="0" step="1" value="0" aria-label="Hora de la imatge del radar" disabled />
@@ -60,8 +66,9 @@ import { PAL } from '../scripts/radar-pal.js';
       </div>
       <p class="rp-status" id="rpStatus" aria-live="polite"></p>
       <p class="rp-note" id="rpNote" aria-live="polite"></p>
+      <p class="rp-note" id="rpWindNote"></p>
       <p class="rp-credit">
-        Radar: composició europea <a href="https://www.eumetnet.eu/observations/weather-radar-network/" rel="noopener" target="_blank">OPERA d'EUMETNET</a> (llicència CC BY 4.0), feta amb els radars d'AEMET, de Météo-France i dels altres serveis meteorològics europeus. És la reflectivitat més alta de cada columna d'aire: els colors en donen la intensitat aproximada, i a la muntanya o lluny dels radars pot quedar-se curta. Relleu: Esri. Límits comarcals: ICGC. Pluja de les estacions: acumulada des de mitjanit.
+        Radar: composició europea <a href="https://www.eumetnet.eu/observations/weather-radar-network/" rel="noopener" target="_blank">OPERA d'EUMETNET</a> (llicència CC BY 4.0), feta amb els radars d'AEMET, de Météo-France i dels altres serveis meteorològics europeus. És la reflectivitat més alta de cada columna d'aire: els colors en donen la intensitat aproximada, i a la muntanya o lluny dels radars pot quedar-se curta. Vent: previsió immediata del model AROME-PI de <a href="https://meteofrance.com/" rel="noopener" target="_blank">Météo-France</a> (Llicència Oberta 2.0) per al quart d'hora en curs, no és una mesura. Relleu: Esri. Límits comarcals: ICGC. Pluja de les estacions: acumulada des de mitjanit.
       </p>
     </div>
   </section>
@@ -78,6 +85,10 @@ import { PAL } from '../scripts/radar-pal.js';
   .rp-time { display: flex; flex-direction: column; gap: 2px; }
   .rp-time b { font-family: var(--f-head); font-size: 19px; font-weight: 800; letter-spacing: -0.01em; color: var(--ink); }
   .rp-time span { font-family: var(--f-mono); font-size: 12.5px; color: var(--muted); }
+  .rp-right { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .rp-tog { display: inline-flex; align-items: center; gap: 7px; height: 36px; padding: 0 14px 0 11px; border-radius: 999px; border: 1px solid var(--line); background: #fff; color: var(--ink); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .rp-tog svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .rp-tog[aria-pressed='true'] { background: #e8f1fb; border-color: #9cc2ea; color: #0b4f9c; }
   .rp-views { display: flex; gap: 6px; }
   .rp-views button { height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: #fff; color: var(--ink); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
   .rp-views button[aria-pressed='true'] { background: var(--ink); border-color: var(--ink); color: #fff; }

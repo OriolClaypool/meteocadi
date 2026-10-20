@@ -599,11 +599,12 @@ function windArrow(ctx, x, y, dx, dy, len, color) {
 
 const RADAR_VARS = { rain1h: "pluja de l'última hora (mm)", rain: "pluja d'avui (mm)", gust: "ratxa màxima d'avui (km/h)", t: 'temperatura (°C)' };
 
-// Imatge del radar (estudi): el radar del Meteocat, les estacions i el vent, amb els crèdits de cada font.
+// Imatge del radar (estudi): el radar (OPERA), les estacions i el vent, amb els crèdits de cada font.
 // snap: el que retorna startRadar().snapshot() + format
 export async function renderRadarImage(snap) {
   const { PAL } = await import('./radar-pal.js');
   const snow = snap.prod === 'plujaneu';
+  const src = snap.source === 'meteocat' ? 'Servei Meteorològic de Catalunya' : 'EUMETNET OPERA (CC BY 4.0)';
   // Versió neta: "Radar de precipitació a les 15:30" en petit, sense data ni llegenda d'intensitat, i la font en petit
   // on hi havia la llegenda
   if (snap.net) {
@@ -627,7 +628,7 @@ export async function renderRadarImage(snap) {
       view: snap.view,
       windowed: true,
       legend: null,
-      creditNet: `${what.join(' ')}${what.length ? ' ' : ''}Radar: Servei Meteorològic de Catalunya.${snap.wind || snap.conv ? ` Vent: Météo-France (${snap.windRun?.model || 'AROME'}).` : ''} Estacions: XEMA i xarxa Meteocadí.`,
+      creditNet: `${what.join(' ')}${what.length ? ' ' : ''}Radar: ${src}.${snap.wind || snap.conv ? ` Vent: Météo-France (${snap.windRun?.model || 'AROME'}).` : ''} Estacions: XEMA i xarxa Meteocadí.`,
     });
   }
   const notes = [];
@@ -653,7 +654,7 @@ export async function renderRadarImage(snap) {
     legend: snow
       ? { title: 'Tipus de precipitació', bar: { colors: PAL.plujaneu, ticks: ['Pluja', 'Aiguaneu', 'Neu'] } }
       : { title: 'Intensitat de la precipitació', bar: { colors: PAL[snap.pal] || PAL.meteocat, ticks: ['Feble', 'Moderada', 'Forta', 'Calamarsa'] } },
-    credit: `Radar: Servei Meteorològic de Catalunya.${snap.wind || snap.conv ? ` Vent: model ${snap.windRun?.model || 'AROME'} de Météo-France.` : ''} Estacions: XEMA i xarxa Meteocadí. Límits: ICGC.`,
+    credit: `Radar: ${src}.${snap.wind || snap.conv ? ` Vent: model ${snap.windRun?.model || 'AROME'} de Météo-France.` : ''} Estacions: XEMA i xarxa Meteocadí. Límits: ICGC.`,
     note: notes.join(' '),
   });
 }

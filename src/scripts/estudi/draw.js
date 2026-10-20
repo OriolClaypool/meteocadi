@@ -11,12 +11,12 @@ const TOP = 180;
 const PV_TOP = 280; // la previsió comença més avall (més aire a dalt a Stories)
 const FOOT_Y = 1688;
 const LIMIT = 1652; // on ha d'acabar el contingut
-const X0 = 64;
-const X1 = 1016;
+export const X0 = 64;
+export const X1 = 1016;
 
 const F = { head: "'Schibsted Grotesk Variable'", ui: "'Geist Variable'", mono: "'Geist Mono Variable'" };
 const A = { bg: '#060a12', cy: '#3db8ff', txt: '#e6edf6', txt2: '#c3cfde', mut: '#93a3b8', mut2: '#7d8fa6', gold: '#f6c664' };
-const L = { bg: '#eef3f8', ink: '#10233b', ink2: '#44556b', mut: '#56667a', blue: '#22477a', line: '#dfe6ee', rank: '#8a99ab', warn: '#b45309' };
+export const L = { bg: '#eef3f8', ink: '#10233b', ink2: '#44556b', mut: '#56667a', blue: '#22477a', line: '#dfe6ee', rank: '#8a99ab', warn: '#b45309' };
 const STRIP = ['#22477a', '#47a838', '#be282c', '#fbbd28'];
 
 export const WEATHER = { sol: 'Sol', solnuvol: 'Sol i núvols', solpluja: 'Ruixats', nuvol: 'Ennuvolat', pluja: 'Pluja', tempesta: 'Tempesta', neu: 'Neu', boira: 'Boira', vent: 'Vent' };
@@ -49,24 +49,24 @@ export function loadIcons() {
   ).then((e) => Object.fromEntries(e));
 }
 
-function font(ctx, fam, size, weight = 400) {
+export function font(ctx, fam, size, weight = 400) {
   ctx.font = `${weight} ${size}px ${F[fam]}`;
 }
 
 // Espaiat de lletra: natiu si el navegador el té; si no, lletra a lletra (només per a textos curts)
 const HAS_LS = typeof CanvasRenderingContext2D !== 'undefined' && 'letterSpacing' in CanvasRenderingContext2D.prototype;
-function tracking(ctx, px) {
+export function tracking(ctx, px) {
   if (HAS_LS) ctx.letterSpacing = `${px}px`;
 }
 
-function spacedWidth(ctx, text, sp) {
+export function spacedWidth(ctx, text, sp) {
   let w = 0;
   for (const ch of text) w += ctx.measureText(ch).width + sp;
   return w - sp;
 }
 
 // Text en majúscules espaiat (etiquetes en Geist Mono)
-function spaced(ctx, text, x, y, sp, align = 'left') {
+export function spaced(ctx, text, x, y, sp, align = 'left') {
   const w = spacedWidth(ctx, text, sp);
   let cx = align === 'center' ? x - w / 2 : align === 'right' ? x - w : x;
   ctx.textAlign = 'left';
@@ -120,7 +120,7 @@ export function capFirst(text) {
     .join('\n');
 }
 
-function fitFont(ctx, fam, size, weight, text, maxW, min = size * 0.6) {
+export function fitFont(ctx, fam, size, weight, text, maxW, min = size * 0.6) {
   let s = size;
   font(ctx, fam, s, weight);
   while (ctx.measureText(text).width > maxW && s > min) {
@@ -211,7 +211,7 @@ function header(ctx, eyebrow, l1, l2, c0, c1, c2, top = TOP, k = 1) {
   return top + 234 * k;
 }
 
-function hline(ctx, x0, x1, y, color, w = 1) {
+export function hline(ctx, x0, x1, y, color, w = 1) {
   ctx.fillStyle = color;
   ctx.fillRect(x0, Math.round(y) - (w > 1 ? w / 2 : 0), x1 - x0, w);
 }
@@ -563,7 +563,7 @@ function rankLayoutNet(fmt, cat) {
 
 // Títol d'una línia: icona en un cercle suau, el que es classifica i el període en color. Si no hi cap i es pot
 // (horitzontal), en dues línies. Retorna on acaba.
-function netTitle(ctx, { x0, head, hs, colR, t1, t2, icon, accent, two = false }) {
+export function netTitle(ctx, { x0, head, hs, colR, t1, t2, icon, accent, two = false }) {
   const iconS = Math.round(hs * 0.92);
   const tx = x0 + iconS + Math.round(hs * 0.42);
   ctx.textAlign = 'left';
@@ -586,7 +586,7 @@ function netTitle(ctx, { x0, head, hs, colR, t1, t2, icon, accent, two = false }
 }
 
 // Peu de la versió neta: crèdits en petit (si n'hi ha), meteocadi.cat i la franja de colors
-function netFooter(ctx, { x0, credits, foot, colR, W: ww, H: hh, credit }) {
+export function netFooter(ctx, { x0, credits, foot, colR, W: ww, H: hh, credit }) {
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   if (credit) {

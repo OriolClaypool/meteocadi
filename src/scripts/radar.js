@@ -1,6 +1,14 @@
-// Estudi · visor de radar (ús intern, /estudi/radar): el radar del Meteocat, les estacions i el vent sobre el mateix mapa.
+// Estudi · visor de radar (ús intern, /estudi/radar): el radar, les estacions i el vent sobre el mateix mapa.
 //
-// Radar: les tessel·les del Meteocat (les que fa servir el seu web: una imatge cada 6 minuts, nivell de zoom 7, uns 1 km
+// Dues fonts (Oriol, 20/10/2026):
+// - OPERA (per defecte): la composició europea d'EUMETNET, la mateixa del radar públic (/api/capes/radar, una imatge
+//   cada 10 minuts, PNG de paleta en Web Mercator). Llicència CC BY 4.0: les imatges es poden publicar.
+// - Meteocat: només per mirar i comparar. El seu avís legal demana permís per reutilitzar-ne el contingut, i per això
+//   amb aquesta font no es pot descarregar la imatge.
+// Totes dues es passen als 19 nivells de l'escala (els de l'OPERA són els mateixos, de 2,5 en 2,5 dBZ) i es pinten amb
+// l'escala triada.
+//
+// Meteocat: les tessel·les (les que fa servir el seu web: una imatge cada 6 minuts, nivell de zoom 7, uns 1 km
 // per píxel) del bloc que cobreix Catalunya i voltants. Es compon cada imatge en un canvas, es llegeix el color de cada
 // píxel i es converteix en un nivell de l'escala del Meteocat; després es pinta amb l'escala triada (l'original del
 // Meteocat o la de Meteocadí) i amb els píxels nítids en apropar-se. Si el servidor no deixés llegir els píxels (CORS), es mostren les
@@ -31,6 +39,47 @@ export const RADAR_BOUNDS = { lat0: tileLat(BY[1] + 1), lat1: tileLat(BY[0]), ln
 
 const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
 const RGB = Object.fromEntries(Object.entries(PAL).map(([k, v]) => [k, v.map(hex)]));
+// Fora de l'abast dels radars (el vel gris de les imatges d'OPERA)
+const NOCOVER = 254;
+const VEIL = [96, 108, 124, 70];
+const CREDITS = {
+  opera: 'Radar: <a href="https://www.eumetnet.eu/observations/weather-radar-network/" target="_blank" rel="noopener">EUMETNET OPERA</a> (CC BY 4.0)',
+  meteocat: 'Radar: <a href="https://www.meteo.cat/" target="_blank" rel="noopener">Meteocat</a> (només per mirar)',
+};
+
+// Una imatge d'OPERA (f: { t, time, url } de /api/capes/radar) → { date, idx } amb el nivell de cada píxel. Els colors del
+// PNG són exactament els de l'escala de Meteocadí (api/_opera.js), i el gris semitransparent és "sense radar"
+async function loadOperaFrame(f, w, h) {
+  const img = await loadImg(f.url, false);
+  if (!img) return null;
+  const c = document.createElement('canvas');
+  c.width = w;
+  c.height = h;
+  const x = c.getContext('2d', { willReadFrequently: true });
+  x.drawImage(img, 0, 0);
+  const data = x.getImageData(0, 0, w, h).data;
+  const pal = RGB.meteocadi;
+  const idx = new Uint8Array(w * h).fill(255);
+  const memo = new Map();
+  for (let i = 0, p = 0; i < idx.length; i++, p += 4) {
+    const a = data[p + 3];
+    if (a < 10) continue;
+    if (a < 200) { idx[i] = NOCOVER; continue; }
+    const key = (data[p] << 16) | (data[p + 1] << 8) | data[p + 2];
+    let m = memo.get(key);
+    if (m === undefined) {
+      let bd = Infinity;
+      for (let k = 0; k < pal.length; k++) {
+        const q = pal[k];
+        const dd = (data[p] - q[0]) ** 2 + (data[p + 1] - q[1]) ** 2 + (data[p + 2] - q[2]) ** 2;
+        if (dd < bd) { bd = dd; m = k; }
+      }
+      memo.set(key, m);
+    }
+    idx[i] = m;
+  }
+  return { date: new Date(f.time), t: f.t, idx };
+}
 
 const pad = (n, l = 2) => String(n).padStart(l, '0');
 function tileUrl(prod, date, x, y) {
@@ -381,7 +430,8 @@ export function startRadar() {
   // Vent i convergències: amagats de moment; la pàgina (estudi/radar.astro, WIND) només en posa els controls si estan activats
   const WIND = !!document.querySelector('[data-wind]');
   const st = {
-    prod: 'radar', // 'radar' (intensitat) o 'plujaneu' (tipus)
+    src: 'opera', // 'opera' (per publicar) o 'meteocat' (només per mirar)
+    prod: 'radar', // 'radar' (intensitat) o 'plujaneu' (tipus, només Meteocat)
     pal: 'meteocat', // 'meteocat' o 'meteocadi'
     crisp: true,
     opacity: 1, // per defecte, el radar sense transparència
@@ -402,8 +452,25 @@ export function startRadar() {
     pane: 'radar',
     className: 'rad-cv',
     interactive: false,
-    attribution: 'Radar: <a href="https://www.meteo.cat/" target="_blank" rel="noopener">Meteocat</a>',
   }).addTo(map);
+  // Mida i lloc del canvas segons la font (les tessel·les del Meteocat o la imatge d'OPERA)
+  let geoB = RADAR_BOUNDS;
+  function setGeo(w, h, b) {
+    if (cv.width !== w || cv.height !== h) {
+      cv.width = w;
+      cv.height = h;
+      pix = null;
+    }
+    geoB = b;
+    radarLayer.setBounds([[b.lat0, b.lng0], [b.lat1, b.lng1]]);
+  }
+  let credit = null;
+  function setCredit() {
+    if (credit) map.attributionControl?.removeAttribution(credit);
+    credit = CREDITS[st.src];
+    map.attributionControl?.addAttribution(credit);
+  }
+  setCredit();
   const applyLook = () => {
     cv.style.opacity = String(st.opacity);
     cv.classList.toggle('is-smooth', !st.crisp);
@@ -413,15 +480,16 @@ export function startRadar() {
   // Pinta una imatge al canvas visible amb l'escala triada
   let pix = null;
   function paint(f) {
-    cctx.clearRect(0, 0, W, H);
+    cctx.clearRect(0, 0, cv.width, cv.height);
     if (!f) return;
     if (f.raw) { cctx.drawImage(f.raw, 0, 0); return; }
     const pal = RGB[st.prod === 'plujaneu' ? 'plujaneu' : st.pal];
-    pix = pix || cctx.createImageData(W, H);
+    pix = pix || cctx.createImageData(cv.width, cv.height);
     const d = pix.data;
     for (let i = 0, p = 0; i < f.idx.length; i++, p += 4) {
       const k = f.idx[i];
       if (k === 255) { d[p + 3] = 0; continue; }
+      if (k === NOCOVER) { d[p] = VEIL[0]; d[p + 1] = VEIL[1]; d[p + 2] = VEIL[2]; d[p + 3] = VEIL[3]; continue; }
       const c = pal[k];
       d[p] = c[0]; d[p + 1] = c[1]; d[p + 2] = c[2]; d[p + 3] = 255;
     }
@@ -438,7 +506,9 @@ export function startRadar() {
     sl.max = String(Math.max(0, st.frames.length - 1));
     sl.value = String(st.i);
     $('rAge').textContent = f ? ago(f.date) : '';
-    $('rNote').textContent = f?.odd ? "Els colors del radar no coincideixen amb l'escala coneguda del Meteocat: es mostren tal com venen." : !st.cors ? 'El servidor del Meteocat no deixa llegir els píxels: el radar es mostra amb els seus colors originals i no es pot descarregar com a imatge.' : '';
+    $('rNote').textContent = st.src === 'meteocat'
+      ? (f?.odd ? "Els colors del radar no coincideixen amb l'escala coneguda del Meteocat: es mostren tal com venen. " : '') + "Radar del Meteocat: només per mirar. Per descarregar la imatge, tria l'OPERA."
+      : '';
   }
   const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
   function ago(d) {
@@ -455,11 +525,41 @@ export function startRadar() {
     const k = ok.indexOf(true);
     return k < 0 ? null : cands[k];
   }
+  // OPERA: la llista de /api/capes/radar (les dues últimes hores, una cada 10 minuts); primer la més nova
+  async function loadOpera(seq) {
+    $('rStatus').textContent = 'Carregant el radar…';
+    const ix = await fetch('/api/capes/radar').then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    if (seq !== loadSeq) return;
+    if (!ix?.frames?.length || !ix.bounds || !ix.size) { $('rStatus').textContent = "No s'ha pogut carregar el radar. Torna-ho a provar d'aquí a una estona."; return; }
+    const [[la0, lo0], [la1, lo1]] = ix.bounds;
+    setGeo(ix.size[0], ix.size[1], { lat0: la0, lng0: lo0, lat1: la1, lng1: lo1 });
+    const slots = ix.frames.map((f) => ({ f, fr: null }));
+    const sync = () => {
+      const keepLatest = st.i === -1 || st.i === st.frames.length - 1;
+      st.frames = slots.filter((s) => s.fr).map((s) => s.fr);
+      show(keepLatest ? st.frames.length - 1 : st.i);
+    };
+    slots[slots.length - 1].fr = await loadOperaFrame(slots[slots.length - 1].f, cv.width, cv.height);
+    if (seq !== loadSeq) return;
+    sync();
+    $('rStatus').textContent = 'Carregant les dues últimes hores…';
+    for (let k = slots.length - 2; k >= 0; k -= 3) {
+      const part = slots.slice(Math.max(0, k - 2), k + 1);
+      await Promise.all(part.map(async (s) => { s.fr = await loadOperaFrame(s.f, cv.width, cv.height); }));
+      if (seq !== loadSeq) return;
+      sync();
+    }
+    $('rStatus').textContent = st.frames.length ? '' : "No s'ha pogut carregar el radar. Torna-ho a provar d'aquí a una estona.";
+    $('rPlay').disabled = st.frames.length < 2;
+  }
+
   async function loadAll() {
     const seq = ++loadSeq;
     st.frames = [];
+    show(0);
     st.i = -1;
-    paint(null);
+    if (st.src === 'opera') return loadOpera(seq);
+    setGeo(W, H, RADAR_BOUNDS);
     $('rStatus').textContent = 'Buscant la imatge més nova del radar…';
     const latest = await findLatest(st.prod);
     if (seq !== loadSeq) return;
@@ -493,15 +593,33 @@ export function startRadar() {
   // Cada 2 minuts, mira si ja hi ha una imatge nova
   setInterval(async () => {
     if (!st.frames.length) return;
+    // Si mentrestant s'ha canviat de font o de producte (loadSeq), la resposta ja no serveix
+    const seq = loadSeq;
+    if (st.src === 'opera') {
+      const lastT = st.frames[st.frames.length - 1].t;
+      const ix = await fetch('/api/capes/radar').then((r) => (r.ok ? r.json() : null)).catch(() => null);
+      const fresh = (ix?.frames || []).filter((f) => f.t > lastT);
+      if (!fresh.length || seq !== loadSeq) return;
+      const got = (await Promise.all(fresh.map((f) => loadOperaFrame(f, cv.width, cv.height)))).filter(Boolean);
+      if (!got.length || seq !== loadSeq || !st.frames.length) return;
+      const atEnd = st.i === st.frames.length - 1;
+      st.frames.push(...got);
+      // Les que surten pel principi: la que es mirava (aturada) es queda a la mateixa imatge
+      let dropped = 0;
+      while (st.frames.length > 13) { st.frames.shift(); dropped++; }
+      show(atEnd ? st.frames.length - 1 : Math.max(0, st.i - dropped));
+      return;
+    }
     const last = st.frames[st.frames.length - 1].date;
     const next = new Date(last.getTime() + STEP * 60e3);
     if (Date.now() - next.getTime() < 60e3) return;
     const f = await loadFrame(st.prod, next, st.cors);
-    if (!f) return;
+    if (!f || seq !== loadSeq || !st.frames.length) return;
     const atEnd = st.i === st.frames.length - 1;
     st.frames.push(f);
-    if (st.frames.length > FRAMES) st.frames.shift();
-    show(atEnd ? st.frames.length - 1 : Math.max(0, st.i - 1));
+    let dropped = 0;
+    if (st.frames.length > FRAMES) { st.frames.shift(); dropped = 1; }
+    show(atEnd ? st.frames.length - 1 : Math.max(0, st.i - dropped));
   }, 120e3);
 
   // ------------------------------------------------ animació
@@ -537,6 +655,21 @@ export function startRadar() {
       }),
     );
   seg('[data-prod]', 'prod', (v) => { st.prod = v; play(false); legend(); $('rPalRow').hidden = v === 'plujaneu'; loadAll(); });
+  // Font: OPERA o Meteocat. El producte "Pluja o neu" només el té el Meteocat
+  seg('[data-src]', 'src', (v) => {
+    st.src = v === 'meteocat' ? 'meteocat' : 'opera';
+    play(false);
+    $('rProdRow').hidden = st.src === 'opera';
+    if (st.src === 'opera' && st.prod !== 'radar') {
+      st.prod = 'radar';
+      document.querySelectorAll('[data-prod]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.prod === 'radar')));
+      $('rPalRow').hidden = false;
+      legend();
+    }
+    document.querySelector('.cm-dl')?.classList.toggle('is-off', st.src !== 'opera');
+    setCredit();
+    loadAll();
+  });
   seg('[data-pal]', 'pal', (v) => { st.pal = v; legend(); paint(st.frames[st.i]); });
   seg('[data-look]', 'look', (v) => { st.crisp = v === 'pixel'; applyLook(); });
   seg('[data-base]', 'base', (v) => setBase(v));
@@ -701,13 +834,14 @@ export function startRadar() {
     snapshot() {
       const f = st.frames[st.i];
       if (!f) return null;
+      // Només l'OPERA es pot publicar: amb el Meteocat no hi ha imatge per descarregar
       let raster = null;
-      if (st.cors && !f.raw) {
+      if (st.src === 'opera' && !f.raw) {
         const c = document.createElement('canvas');
-        c.width = W;
-        c.height = H;
+        c.width = cv.width;
+        c.height = cv.height;
         c.getContext('2d').drawImage(cv, 0, 0);
-        raster = { canvas: c, bounds: RADAR_BOUNDS, alpha: Math.min(1, st.opacity + 0.05), crisp: st.crisp };
+        raster = { canvas: c, bounds: geoB, alpha: Math.min(1, st.opacity + 0.05), crisp: st.crisp };
       }
       const v = VARS[st.stVar];
       const pri = (s) => (s.mc ? 1e5 : 0) + s[st.stVar];
@@ -718,6 +852,7 @@ export function startRadar() {
       const vb = map.getBounds();
       return {
         when: f.date,
+        source: st.src,
         prod: st.prod,
         pal: st.pal,
         raster,

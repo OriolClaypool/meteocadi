@@ -56,6 +56,8 @@ export function createFlux(map, L, rings) {
   // Per sobre del mapa de color (350) i per sota dels límits comarcals (400), la marca d'aigua i les etiquetes
   pane.style.zIndex = '380';
   pane.style.pointerEvents = 'none';
+  // Amagat fins que es demana (show)
+  pane.style.display = 'none';
   const cv = L.DomUtil.create('canvas', 'cm-flux', pane);
   const ctx = cv.getContext('2d');
   const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)');
@@ -133,12 +135,36 @@ export function createFlux(map, L, rings) {
     ctx.clearRect(0, 0, W, H);
   }
 
+  // L'esvaïment multiplica l'opacitat per 0,94, però amb 8 bits una opacitat de 8 o menys es queda igual (8 × 0,94
+  // s'arrodoneix a 8): sense res més, quedaria un vel i rastres fantasma per sempre. Cada 48 passos (menys d'un segon)
+  // es neteja una quarta part del canvas (les opacitats molt baixes, a zero): llegir-lo de la targeta gràfica té un
+  // cost, i així es fa poques vegades.
+  const STRIPS = 4;
+  let strip = 0, nStep = 0;
+  function cleanStrip() {
+    const h = Math.ceil(cv.height / STRIPS);
+    const y = strip * h;
+    strip = (strip + 1) % STRIPS;
+    if (y >= cv.height || !cv.width) return;
+    const img = ctx.getImageData(0, y, cv.width, Math.min(h, cv.height - y));
+    const d = img.data;
+    let changed = false;
+    for (let i = 3; i < d.length; i += 4) {
+      if (d[i] && d[i] < 12) {
+        d[i] = 0;
+        changed = true;
+      }
+    }
+    if (changed) ctx.putImageData(img, 0, y);
+  }
+
   function step() {
     // Esvaeix el que hi ha (cap al transparent, no cap al gris) i hi dibuixa el tram nou de cada partícula
     ctx.globalCompositeOperation = 'destination-in';
     ctx.fillStyle = 'rgba(0,0,0,0.94)';
     ctx.fillRect(0, 0, W, H);
     ctx.globalCompositeOperation = 'source-over';
+    if (++nStep % 48 === 0) cleanStrip();
     const paths = [new Path2D(), new Path2D(), new Path2D()];
     for (const p of parts) {
       if (++p.age > p.max) { spawn(p); continue; }

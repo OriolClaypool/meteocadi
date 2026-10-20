@@ -227,7 +227,7 @@ function rainEpisode(run, ctx) {
     ? 'Amb temperatures properes als 0 °C, una part de la precipitació podria haver estat en forma de neu. Els pluviòmetres de la xarxa no mesuren bé la neu, i la xifra real pot ser més alta.'
     : '';
   e.paras = p;
-  e.headline = { v: num(top.total), u: 'mm', where: shortName(top.s) };
+  e.headline = { v: num(top.total), u: 'mm', where: shortName(top.s), a: top.s.a };
   e.cards =
     e.ndays > 1
       ? [card('Màxim acumulat', num(top.total), 'mm', shortName(top.s)), card('Màxim en un dia', num(dayTop.best.v), 'mm', `${shortName(dayTop.s)} · ${diaCurt(dayTop.best.date)}`), card('Mitjana de la xarxa', num(mean), 'mm', `${rows.length} estacions`), card('Durada', String(e.ndays), 'dies', rangeText(e.start, e.end, false))]
@@ -262,7 +262,7 @@ function windEpisode(run, ctx) {
   if (ctx.isRecord(top.s.id, 'windgustHigh', top.best.v, 1)) p.push(`${cap(top.s.a)}, és la ratxa més forta des que hi ha arxiu (${recordSince(ctx, top.s.id)}).`);
   e.note = "Les ratxes són la màxima diària que registra l'anemòmetre de cada estació. Als cims i carenes, el vent pot ser més fort que el que marca l'estació més propera.";
   e.paras = p;
-  e.headline = { v: num(top.best.v, 0), u: 'km/h', where: shortName(top.s) };
+  e.headline = { v: num(top.best.v, 0), u: 'km/h', where: shortName(top.s), a: top.s.a };
   e.cards = [
     card('Ratxa més forta', num(top.best.v, 0), 'km/h', `${shortName(top.s)}${e.ndays > 1 ? ` · ${diaCurt(top.best.date)}` : ''}`),
     other ? card(top.s.group === 'alta' ? 'Ratxa més forta a la vall' : "Ratxa més forta a alta muntanya", num(other.best.v, 0), 'km/h', shortName(other.s)) : null,
@@ -293,7 +293,7 @@ function heatEpisode(run, ctx) {
   if (ctx.isRecord(top.s.id, 'tempHigh', top.best.v, 1)) p.push(`És la màxima més alta ${top.s.a} des que hi ha arxiu (${recordSince(ctx, top.s.id)}).`);
   e.note = '';
   e.paras = p;
-  e.headline = { v: num(top.best.v), u: '°C', where: shortName(top.s) };
+  e.headline = { v: num(top.best.v), u: '°C', where: shortName(top.s), a: top.s.a };
   e.cards = [
     card('Màxima més alta', num(top.best.v), '°C', `${shortName(top.s)}${e.ndays > 1 ? ` · ${diaCurt(top.best.date)}` : ''}`),
     card('Estacions amb 30 °C o més', String(n30), `de ${rows.length}`, ''),
@@ -324,7 +324,7 @@ function coldEpisode(run, ctx) {
   if (ctx.isRecord(top.s.id, 'tempLow', top.best.v, -1)) p.push(`És la mínima més baixa ${top.s.a} des que hi ha arxiu (${recordSince(ctx, top.s.id)}).`);
   e.note = '';
   e.paras = p;
-  e.headline = { v: num(top.best.v), u: '°C', where: shortName(top.s) };
+  e.headline = { v: num(top.best.v), u: '°C', where: shortName(top.s), a: top.s.a };
   e.cards = [
     card('Mínima més baixa', num(top.best.v), '°C', `${shortName(top.s)}${e.ndays > 1 ? ` · ${diaCurt(top.best.date)}` : ''}`),
     other ? card(top.s.group === 'alta' ? 'Mínima a la vall' : 'Mínima a alta muntanya', num(other.best.v), '°C', shortName(other.s)) : null,
@@ -370,7 +370,7 @@ function frostEpisodes(days, ctx) {
     if (prev) p.push(`La temporada passada, la primera glaçada a la vall va ser ${elDia(prev.date)}${Y(prev.date) !== Y(day.date) ? ` de ${Y(prev.date)}` : ''}, amb ${num(prev.v)} °C ${prev.s.a}.`);
     e.note = '';
     e.paras = p;
-    e.headline = { v: num(top.v), u: '°C', where: shortName(top.s) };
+    e.headline = { v: num(top.v), u: '°C', where: shortName(top.s), a: top.s.a };
     e.cards = [
       card('Mínima a la vall', num(top.v), '°C', shortName(top.s)),
       card('Estacions de vall sota 0 °C', String(also.length + 1), `de ${vall.length}`, ''),
