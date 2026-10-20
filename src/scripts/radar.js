@@ -1,10 +1,11 @@
 // Estudi · visor de radar (ús intern, /estudi/radar): el radar, les estacions i el vent sobre el mateix mapa.
 //
-// Dues fonts (Oriol, 20/10/2026):
-// - OPERA (per defecte): la composició europea d'EUMETNET, la mateixa del radar públic (/api/capes/radar, una imatge
-//   cada 10 minuts, PNG de paleta en Web Mercator). Llicència CC BY 4.0: les imatges es poden publicar.
-// - Meteocat: només per mirar i comparar. El seu avís legal demana permís per reutilitzar-ne el contingut, i per això
-//   amb aquesta font no es pot descarregar la imatge.
+// Dues fonts (Oriol, 20/10/2026: "deixaria el radar del Meteocat com a descarregable, citant que les dades són seves";
+// "el de l'OPERA és interessant de mantenir però no funciona igual de bé"):
+// - Meteocat (per defecte): les tessel·les del seu web, una imatge cada 6 minuts. La imatge es descarrega amb el crèdit
+//   del Servei Meteorològic de Catalunya, com fins ara.
+// - OPERA: la composició europea d'EUMETNET, la mateixa del radar públic (/api/capes/radar, una imatge cada 10 minuts,
+//   PNG de paleta en Web Mercator), CC BY 4.0.
 // Totes dues es passen als 19 nivells de l'escala (els de l'OPERA són els mateixos, de 2,5 en 2,5 dBZ) i es pinten amb
 // l'escala triada.
 //
@@ -44,7 +45,7 @@ const NOCOVER = 254;
 const VEIL = [96, 108, 124, 70];
 const CREDITS = {
   opera: 'Radar: <a href="https://www.eumetnet.eu/observations/weather-radar-network/" target="_blank" rel="noopener">EUMETNET OPERA</a> (CC BY 4.0)',
-  meteocat: 'Radar: <a href="https://www.meteo.cat/" target="_blank" rel="noopener">Meteocat</a> (només per mirar)',
+  meteocat: 'Radar: <a href="https://www.meteo.cat/" target="_blank" rel="noopener">Meteocat</a>',
 };
 
 // Una imatge d'OPERA (f: { t, time, url } de /api/capes/radar) → { date, idx } amb el nivell de cada píxel. Els colors del
@@ -430,7 +431,7 @@ export function startRadar() {
   // Vent i convergències: amagats de moment; la pàgina (estudi/radar.astro, WIND) només en posa els controls si estan activats
   const WIND = !!document.querySelector('[data-wind]');
   const st = {
-    src: 'opera', // 'opera' (per publicar) o 'meteocat' (només per mirar)
+    src: 'meteocat', // 'meteocat' (per defecte) o 'opera'
     prod: 'radar', // 'radar' (intensitat) o 'plujaneu' (tipus, només Meteocat)
     pal: 'meteocat', // 'meteocat' o 'meteocadi'
     crisp: true,
@@ -506,9 +507,7 @@ export function startRadar() {
     sl.max = String(Math.max(0, st.frames.length - 1));
     sl.value = String(st.i);
     $('rAge').textContent = f ? ago(f.date) : '';
-    $('rNote').textContent = st.src === 'meteocat'
-      ? (f?.odd ? "Els colors del radar no coincideixen amb l'escala coneguda del Meteocat: es mostren tal com venen. " : '') + "Radar del Meteocat: només per mirar. Per descarregar la imatge, tria l'OPERA."
-      : '';
+    $('rNote').textContent = st.src !== 'meteocat' ? '' : f?.odd ? "Els colors del radar no coincideixen amb l'escala coneguda del Meteocat: es mostren tal com venen i no es pot fer la imatge." : !st.cors ? 'El servidor del Meteocat no deixa llegir els píxels: el radar es mostra amb els seus colors originals i no es pot descarregar com a imatge.' : '';
   }
   const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
   function ago(d) {
@@ -666,7 +665,6 @@ export function startRadar() {
       $('rPalRow').hidden = false;
       legend();
     }
-    document.querySelector('.cm-dl')?.classList.toggle('is-off', st.src !== 'opera');
     setCredit();
     loadAll();
   });
@@ -834,9 +832,9 @@ export function startRadar() {
     snapshot() {
       const f = st.frames[st.i];
       if (!f) return null;
-      // Només l'OPERA es pot publicar: amb el Meteocat no hi ha imatge per descarregar
+      // Amb el Meteocat, només si se n'han pogut llegir els píxels (CORS) i els colors són els de la seva escala
       let raster = null;
-      if (st.src === 'opera' && !f.raw) {
+      if ((st.src === 'opera' || st.cors) && !f.raw) {
         const c = document.createElement('canvas');
         c.width = cv.width;
         c.height = cv.height;
