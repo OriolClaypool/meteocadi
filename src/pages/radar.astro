@@ -41,7 +41,7 @@ import { PAL } from '../scripts/radar-pal.js';
 
       <div class="rp-grid">
         <div class="rp-mapwrap">
-          <div id="radarMap" class="rp-map" tabindex="0" aria-label="Mapa del radar de precipitació. Amb Maj i les fletxes, imatge anterior o següent."></div>
+          <div id="radarMap" class="rp-map mb-map" tabindex="0" aria-label="Mapa del radar de precipitació. Amb Maj i les fletxes, imatge anterior o següent."></div>
           <div class="rp-lg">
             <b>Intensitat de la precipitació</b>
             <div class="rp-lg__bar">{PAL.meteocadi.map((c) => <i style={`background:${c}`}></i>)}</div>
@@ -113,14 +113,7 @@ import { PAL } from '../scripts/radar-pal.js';
   }
 </style>
 <style is:global>
-  .rp-map.leaflet-container { font-family: var(--f-ui); background: #e9eef3; }
-  .rp-map .leaflet-tile-pane { filter: saturate(0.2) contrast(0.85) brightness(1.06); opacity: 0.75; }
-  .rp-map .leaflet-control-attribution { font-size: 10px; }
-  /* Leaflet només ho treu a la capa d'objectes; les línies són en una capa pròpia */
-  .rp-map .leaflet-pane svg { max-width: none !important; max-height: none !important; }
   .rp-cv { image-rendering: auto; }
-  .rp-place { width: 0 !important; height: 0 !important; }
-  .rp-place span { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); font-family: var(--f-ui); font-size: 12px; font-weight: 600; color: #22344b; white-space: nowrap; text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 5px #fff; letter-spacing: -0.01em; }
   .rp-pin { width: 0 !important; height: 0 !important; }
   .rp-pin span { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); width: 9px; height: 9px; border-radius: 50%; background: var(--c, #fff); box-shadow: 0 0 0 2px #10233b; font-size: 0; }
   .rp-near .rp-pin span:not(:empty):not(.is-dot) { width: auto; height: auto; padding: 2px 7px; border-radius: 999px; font-family: var(--f-ui); font-size: 12px; font-weight: 700; color: #10233b; font-variant-numeric: tabular-nums; }

@@ -1,0 +1,106 @@
+---
+// Mapa de previsió: el model AROME de Météo-France hora a hora (/api/capes/arome, api/_arome.js). La lògica és a
+// src/scripts/previsio-arome.js; el mapa base, compartit amb el radar, a src/scripts/mapa-base.js.
+import Base from '../../layouts/Base.astro';
+---
+<Base
+  title="Mapa de previsió hora a hora a Catalunya i al Pirineu | Meteocadí"
+  description="Temperatura, pluja, neu, vent i ratxes previstes hora a hora sobre Catalunya, Andorra i el Pirineu amb el model AROME de Météo-France, a uns 2,5 km de resolució."
+  path="/mapa/previsio"
+  card={{ variant: 'field' }}
+  current="mapa"
+>
+  <section class="phead" style="padding-bottom:28px;">
+    <div class="wrap">
+      <nav class="crumbs" aria-label="Ruta"><a href="/">Inici</a><span>›</span><a href="/mapa">Mapa</a><span>›</span><span>Previsió</span></nav>
+      <h1>Previsió, <em>hora a hora</em></h1>
+      <p>El model AROME de Météo-France, el de més detall que cobreix Catalunya (uns 2,5 km): temperatura, pluja, neu, vent i ratxes per a les pròximes hores sobre Catalunya, Andorra i el Pirineu.</p>
+    </div>
+  </section>
+
+  <section class="sec" style="padding:28px 0 64px;">
+    <div class="wrap pv">
+      <div class="pv-bar">
+        <div class="pv-vars" id="pvVars" role="group" aria-label="Variable del mapa"></div>
+        <div class="pv-views" role="group" aria-label="Zona del mapa">
+          <button type="button" data-pv-view="cat" aria-pressed="true">Catalunya</button>
+          <button type="button" data-pv-view="pir" aria-pressed="false">Pirineu</button>
+        </div>
+      </div>
+      <div class="pv-now">
+        <button type="button" id="pvPlay" class="pv-btn" aria-pressed="false" aria-label="Reprodueix la previsió hora a hora" disabled>
+          <svg class="pv-ico pv-ico--play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" /></svg>
+          <svg class="pv-ico pv-ico--pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" /></svg>
+          <span>Reprodueix</span>
+        </button>
+        <div class="pv-time" aria-live="polite"><b id="pvTime">Carregant la previsió…</b><span id="pvAge"></span></div>
+        <span class="pv-run" id="pvRun"></span>
+      </div>
+      <input type="range" id="pvSlider" class="pv-slider" min="0" max="0" step="1" value="0" aria-label="Hora de la previsió" disabled />
+      <div class="pv-mapwrap">
+        <div id="pvMap" class="pv-map mb-map" tabindex="0" aria-label="Mapa de la previsió. Amb Maj i les fletxes, hora anterior o següent."></div>
+        <div class="pv-lg" id="pvLegend"></div>
+      </div>
+      <p class="pv-status" id="pvStatus" aria-live="polite"></p>
+      <p class="pv-note" id="pvNote" aria-live="polite"></p>
+      <p class="pv-credit">
+        Previsió: model AROME de <a href="https://meteofrance.com/" rel="noopener" target="_blank">Météo-France</a> (Llicència Oberta 2.0), la passada més nova, a uns 2,5 km de resolució. La pluja és la que el model fa caure en una hora; la neu, la que fa caure en una hora en centímetres aproximats (1 mm d'aigua, 1 cm de neu); el vent és la mitjana a 10 m i les ratxes, la més forta de l'hora. És una previsió: a la muntanya els detalls poden canviar molt d'un vessant a l'altre. Relleu: Esri. Límits comarcals: ICGC.
+      </p>
+    </div>
+  </section>
+</Base>
+<style>
+  .pv { display: flex; flex-direction: column; gap: 14px; }
+  .pv-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px 20px; flex-wrap: wrap; }
+  .pv-vars, .pv-views { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pv-views button { height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: #fff; color: var(--ink); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .pv-views button[aria-pressed='true'] { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .pv-now { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+  .pv-btn { display: inline-flex; align-items: center; gap: 8px; height: 42px; padding: 0 18px 0 14px; border-radius: 999px; border: 1px solid var(--ink); background: var(--ink); color: #fff; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .pv-btn:disabled { opacity: 0.45; cursor: default; }
+  .pv-ico { width: 18px; height: 18px; fill: currentColor; }
+  .pv-ico--pause, .pv-btn[aria-pressed='true'] .pv-ico--play { display: none; }
+  .pv-btn[aria-pressed='true'] .pv-ico--pause { display: block; }
+  .pv-time { display: flex; flex-direction: column; gap: 2px; }
+  .pv-time b { font-family: var(--f-head); font-size: 19px; font-weight: 800; letter-spacing: -0.01em; color: var(--ink); }
+  .pv-time span { font-family: var(--f-mono); font-size: 12.5px; color: var(--muted); }
+  .pv-run { margin-left: auto; font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
+  .pv-slider { width: 100%; accent-color: #10233b; cursor: pointer; margin: 0; }
+  .pv-slider:disabled { opacity: 0.4; cursor: default; }
+  .pv-mapwrap { position: relative; }
+  .pv-map { width: 100%; height: min(78vh, 780px); min-height: 480px; border-radius: 16px; border: 1px solid var(--line); background: #e9eef3; overflow: hidden; }
+  .pv-map:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .pv-lg { position: absolute; left: 12px; bottom: 28px; z-index: 500; background: rgba(255, 255, 255, 0.94); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px 10px; font-family: var(--f-ui); font-size: 12px; color: var(--ink2); box-shadow: 0 2px 8px rgba(16, 35, 59, 0.08); width: 300px; }
+  .pv-lg:empty { display: none; }
+  .pv-status:empty, .pv-note:empty { display: none; }
+  .pv-status, .pv-note { font-size: 14.5px; color: var(--ink2); }
+  .pv-credit { font-size: 13.5px; color: var(--muted); max-width: 980px; line-height: 1.55; }
+  .pv.is-off .pv-now, .pv.is-off .pv-slider, .pv.is-off .pv-vars { display: none; }
+  @media (max-width: 640px) {
+    .pv-map { height: 66vh; min-height: 420px; }
+    .pv-lg { position: static; width: auto; margin-top: 10px; box-shadow: none; }
+    .pv-run { margin-left: 0; width: 100%; }
+  }
+</style>
+<style is:global>
+  /* Els botons de les variables es fan des del codi (les que té la passada): estils globals */
+  .pv-vars button { height: 40px; padding: 0 16px; border-radius: 999px; border: 1px solid var(--line); background: #fff; color: var(--ink); font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .pv-vars button[aria-pressed='true'] { background: var(--ink); border-color: var(--ink); color: #fff; }
+  @media (max-width: 640px) { .pv-vars button { height: 36px; padding: 0 12px; font-size: 14px; } }
+  .pv-cv { image-rendering: auto; }
+  .pv-lg b { display: block; font-family: var(--f-mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 500; margin-bottom: 6px; }
+  .pv-grad { height: 10px; border-radius: 3px; }
+  .pv-ticks { position: relative; height: 16px; margin-top: 3px; font-family: var(--f-mono); font-size: 10.5px; }
+  .pv-ticks span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
+  .pv-ticks span:first-child { transform: none; }
+  .pv-sw { display: flex; gap: 2px; }
+  .pv-sw span { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; font-family: var(--f-mono); font-size: 10px; }
+  .pv-sw i { display: block; width: 100%; height: 10px; border-radius: 2px; }
+</style>
+
+<script>
+  import { startPrevisio } from '../../scripts/previsio-arome.js';
+  import 'leaflet/dist/leaflet.css';
+  // Per a les proves
+  (window as any).__previsio = startPrevisio();
+</script>

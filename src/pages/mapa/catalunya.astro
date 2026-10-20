@@ -16,6 +16,7 @@ import CatalunyaMapa from '../../components/CatalunyaMapa.astro';
       <nav class="crumbs" aria-label="Ruta"><a href="/">Inici</a><span>›</span><a href="/mapa">Mapa</a><span>›</span><span>Catalunya</span></nav>
       <h1>El temps a Catalunya, <em>ara</em></h1>
       <p>Les estacions automàtiques del Servei Meteorològic de Catalunya i les de la xarxa Meteocadí en un sol mapa. Tria què vols veure: les dades s'actualitzen cada mitja hora.</p>
+      <p class="ph-more" data-arome-link hidden><a href="/mapa/previsio">I la previsió hora a hora, amb el model AROME →</a></p>
     </div>
   </section>
 
@@ -25,3 +26,11 @@ import CatalunyaMapa from '../../components/CatalunyaMapa.astro';
     </div>
   </section>
 </Base>
+<style>
+  .ph-more { font-size: 16px !important; margin-top: 10px !important; }
+  .ph-more a { font-weight: 600; }
+</style>
+<script>
+  import { aromeLinks } from '../../scripts/arome-link.js';
+  aromeLinks();
+</script>

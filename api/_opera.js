@@ -12,12 +12,13 @@
 // cap al sud. El GeoTIFF la posa mig píxel desplaçada (-500, 500), com si les cantonades fossin centres: es fa servir
 // la de l'ODIM, que encaixa al metre amb les cantonades de les metadades (comprovat amb pyproj el 20/10/2026).
 //
-// Sortida: PNG de paleta en Web Mercator (com els mapes de Leaflet) sobre la mateixa zona que el vent (/api/vent), a la
-// resolució del nivell de zoom 8 (uns 450 m per píxel): la reflectivitat s'interpola entre els centres dels píxels
+// Sortida: PNG de paleta en Web Mercator (com els mapes de Leaflet) sobre la mateixa zona que el vent (/api/vent,
+// api/_merc.js), a la resolució del nivell de zoom 8 (uns 450 m per píxel): la reflectivitat s'interpola entre els centres dels píxels
 // d'1 km abans de passar-la a colors, i les vores queden suaus en lloc d'esglaonades.
 import { createRequire } from 'node:module';
 import { fromUrl } from 'geotiff';
 import { palettePng } from './_png.js';
+import { mercGrid, maskOf } from './_merc.js';
 
 const require = createRequire(import.meta.url);
 const CONTORN = require('../src/lib/catalunya-contorn.json');
@@ -42,7 +43,6 @@ const level = (v) => (!(v >= LEVELS[0]) ? 0 : v >= LEVELS[18] ? 20 : 2 + Math.mi
 
 // ------------------------------------------------------------------ projeccions
 const rad = (d) => (d * Math.PI) / 180;
-const deg = (r) => (r * 180) / Math.PI;
 // LAEA el·lipsoidal (Snyder, Map Projections: A Working Manual, p. 187-188)
 const A = 6378137, FL = 1 / 298.257223563, E2 = FL * (2 - FL), E = Math.sqrt(E2);
 const qf = (s) => (1 - E2) * (s / (1 - E2 * s * s) - (1 / (2 * E)) * Math.log((1 - E * s) / (1 + E * s)));
@@ -60,18 +60,11 @@ export function laea(lat, lng) {
   return [FE + k * D * cb * Math.sin(dl), FN + (k / D) * (CB1 * sb - SB1 * cb * cdl)];
 }
 
-// Web Mercator al nivell de zoom 8
-const Z = 8, WORLD = 256 * 2 ** Z;
-const lngX = (lng) => ((lng + 180) / 360) * WORLD;
-const latY = (lat) => ((1 - Math.log(Math.tan(Math.PI / 4 + rad(lat) / 2)) / Math.PI) / 2) * WORLD;
-const xLng = (x) => (x / WORLD) * 360 - 180;
-const yLat = (y) => deg(Math.atan(Math.sinh(Math.PI * (1 - (2 * y) / WORLD))));
-// La mateixa zona que el vent (api/vent.js): Catalunya, Andorra, el sud de França, l'Aragó i el mar
-const BOX = { lat0: 39.9, lat1: 43.4, lng0: -1.2, lng1: 4.6 };
-const OX = Math.floor(lngX(BOX.lng0)), OY = Math.floor(latY(BOX.lat1));
-export const W = Math.ceil(lngX(BOX.lng1)) - OX, H = Math.ceil(latY(BOX.lat0)) - OY;
+// Sortida: Web Mercator al nivell de zoom 8 (api/_merc.js)
+const G = mercGrid(8);
+export const W = G.w, H = G.h;
 // Límits exactes de la imatge (per a L.imageOverlay): [[sud, oest], [nord, est]]
-export const BOUNDS = [[yLat(OY + H), xLng(OX)], [yLat(OY), xLng(OX + W)]].map((p) => p.map((v) => Math.round(v * 1e6) / 1e6));
+export const BOUNDS = G.bounds;
 
 // Per a cada píxel de la sortida, la posició a la graella del radar (centres dels píxels als enters), la finestra que
 // cal llegir del COG i la màscara de Catalunya (per saber si a la imatge hi falten radars i si plou a Catalunya)
@@ -82,13 +75,13 @@ function geo() {
   // Parts que només depenen de la fila (latitud) o de la columna (longitud)
   const cdl = new Float64Array(W), sdl = new Float64Array(W);
   for (let i = 0; i < W; i++) {
-    const dl = rad(xLng(OX + i + 0.5)) - LNG0;
+    const dl = rad(G.colLng[i]) - LNG0;
     cdl[i] = Math.cos(dl);
     sdl[i] = Math.sin(dl);
   }
   let c0 = Infinity, r0 = Infinity, c1 = -Infinity, r1 = -Infinity;
   for (let j = 0; j < H; j++) {
-    const b = Math.asin(qf(Math.sin(rad(yLat(OY + j + 0.5)))) / QP);
+    const b = Math.asin(qf(Math.sin(rad(G.rowLat[j]))) / QP);
     const sb = Math.sin(b), cb = Math.cos(b);
     for (let i = 0; i < W; i++) {
       const k = RQ * Math.sqrt(2 / (1 + SB1 * sb + CB1 * cb * cdl[i]));
@@ -107,26 +100,8 @@ function geo() {
     fx[p] -= win[0];
     fy[p] -= win[1];
   }
-  // Màscara de Catalunya: emplenat per files (regla parell-senar) del contorn
-  const mask = new Uint8Array(W * H);
-  const rings = CONTORN.coordinates.map((poly) => poly[0].map(([lng, lat]) => [lngX(lng) - OX, latY(lat) - OY]));
-  let inCat = 0;
-  for (let j = 0; j < H; j++) {
-    const y = j + 0.5;
-    const xs = [];
-    for (const ring of rings)
-      for (let a = 0, b = ring.length - 1; a < ring.length; b = a++) {
-        const [xa, ya] = ring[a], [xb, yb] = ring[b];
-        if (ya > y !== yb > y) xs.push(xa + ((y - ya) / (yb - ya)) * (xb - xa));
-      }
-    xs.sort((p, q) => p - q);
-    for (let k = 0; k + 1 < xs.length; k += 2)
-      for (let i = Math.max(0, Math.ceil(xs[k] - 0.5)); i < Math.min(W, xs[k + 1] - 0.5); i++) {
-        mask[j * W + i] = 1;
-        inCat++;
-      }
-  }
-  GEO = { fx, fy, win, ww: win[2] - win[0], wh: win[3] - win[1], mask, inCat };
+  const { mask, n } = maskOf(G, CONTORN.coordinates);
+  GEO = { fx, fy, win, ww: win[2] - win[0], wh: win[3] - win[1], mask, inCat: n };
   return GEO;
 }
 

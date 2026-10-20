@@ -1,11 +1,15 @@
-// Capes per als mapes: imatges georeferenciades fetes al servidor (de moment, el radar).
+// Capes per als mapes: imatges georeferenciades fetes al servidor.
 //
 // /api/capes/radar: les imatges del radar de les dues últimes hores, una cada 10 minuts (JSON, 1 minut a la CDN)
 // /api/capes/radar-AAAAMMDDHHMM: una imatge del radar (PNG de paleta en Web Mercator; l'hora és UTC). Les imatges ja no
 //   canvien: un any a la CDN, i cada una es fa una sola vegada per a tothom.
+// /api/capes/arome: la passada més nova del model AROME, les variables que té i les hores (JSON, 10 minuts)
+// /api/capes/arome-<variable>-AAAAMMDDHH-AAAAMMDDHH: una variable (temp, pluja, neu, vent, ratxa, cota) d'una passada a
+//   una hora (UTC), en PNG de paleta en Web Mercator; set dies a la CDN (una passada ja no canvia).
 // Les dades i com es fan les imatges: api/_opera.js. Com les altres funcions, qualsevol paràmetre es redirigeix a
 // l'adreça neta (perquè no se salti la CDN) i l'hora de la imatge va dins del camí.
 import { listFrames, radarFrame, stamp, fromStamp, BOUNDS, LEVELS, COLORS, W, H } from '../_opera.js';
+import { aromeIndex, aromeImage, VAR, hstamp, fromHstamp } from '../_arome.js';
 
 // Una imatge cada 10 minuts (les de les hores en punt, i 10, 20…): les composicions intermèdies (…5) solen arribar
 // sense una part dels radars d'AEMET, que en fan una cada 10 minuts, i l'animació faria pampallugues
@@ -76,6 +80,49 @@ async function radarImage(res, t) {
   }
 }
 
+// ------------------------------------------------------------------ previsió AROME (api/_arome.js)
+let aromeMemo = null;
+async function aromeList(res) {
+  const now = new Date();
+  // La llista es guarda 10 minuts (a la CDN i a la funció): GetCapabilities és gran i les passades arriben cada 3 hores
+  if (!aromeMemo || Date.now() - aromeMemo.at > 10 * 60e3) {
+    const body = await aromeIndex(now);
+    if (!body.error || !aromeMemo) aromeMemo = { at: Date.now(), body };
+  }
+  const body = aromeMemo.body;
+  if (body.error) {
+    console.error('[capes/arome]', body.message, JSON.stringify(body.tried || []));
+    res.setHeader('Cache-Control', 'public, s-maxage=120');
+  } else res.setHeader('Cache-Control', 'public, s-maxage=600, stale-while-revalidate=1800');
+  res.status(200).json({ updated: now.toISOString(), ...body });
+}
+
+async function aromeImg(res, k, r, t) {
+  const run = fromHstamp(r), valid = fromHstamp(t);
+  const hrs = (valid - run) / 3600e3;
+  if (!VAR[k] || hstamp(run) !== r || hstamp(valid) !== t || hrs < 0 || hrs > 54 || Date.now() - run.getTime() > 3 * 864e5 || run.getTime() > Date.now()) {
+    send404(res, 'Imatge: arome-<variable>-AAAAMMDDHH (passada)-AAAAMMDDHH (hora), en UTC.');
+    return;
+  }
+  try {
+    const f = await aromeImage(k, run, valid);
+    if (!f) {
+      send404(res, 'Aquesta imatge de la previsió no hi és.', 300);
+      return;
+    }
+    res.setHeader('Content-Type', 'image/png');
+    // Una passada ja no canvia
+    res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=604800, immutable');
+    if (f.min != null) res.setHeader('X-Arome-Min', String(f.min));
+    if (f.max != null) res.setHeader('X-Arome-Max', String(f.max));
+    res.status(200).send(f.png);
+  } catch (e) {
+    console.error('[capes/arome]', k, r, t, String(e));
+    res.setHeader('Cache-Control', 'public, s-maxage=60');
+    res.status(502).json({ error: 'arome', message: String(e) });
+  }
+}
+
 export default async function handler(req, res) {
   const url = new URL(req.url || '/', 'https://www.meteocadi.cat');
   const capa = decodeURIComponent(url.pathname.split('/').filter(Boolean).pop() || '');
@@ -90,5 +137,8 @@ export default async function handler(req, res) {
   if (capa === 'radar') return radarIndex(res);
   const m = /^radar-(\d{12})$/.exec(capa);
   if (m) return radarImage(res, m[1]);
-  send404(res, 'Capes: radar (llista) i radar-AAAAMMDDHHMM (imatge).');
+  if (capa === 'arome') return aromeList(res);
+  const a = /^arome-([a-z]+)-(\d{10})-(\d{10})$/.exec(capa);
+  if (a) return aromeImg(res, a[1], a[2], a[3]);
+  send404(res, 'Capes: radar, radar-AAAAMMDDHHMM, arome i arome-<variable>-AAAAMMDDHH-AAAAMMDDHH.');
 }
