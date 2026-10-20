@@ -86,23 +86,64 @@ const S2 = 2 * 2;
 // maskHi: la màscara a HI vegades la resolució (comarquesMask(geo, HI)) per a les variables per classes; si no n'hi
 // ha, s'amplia la de la graella.
 // min: per sota d'aquest valor no es pinta (la pluja l'adapta al màxim del mapa, vegeu rainClasses)
+// Temperatura segons l'altitud (la "tendència" que es treu abans d'interpolar i es torna a sumar amb el relleu):
+// - Un sol gradient, ajustat amb les mateixes estacions, entre -9,8 i -2 °C/km.
+// - O dos trams que s'ajunten a l'alçada h: el de baix pot ser més suau o fins i tot pujar (inversió tèrmica: les
+//   valls i els plans més freds que els vessants), el de dalt, entre -9,8 i -2 °C/km. Es fa servir quan redueix
+//   l'error de l'ajust un 25 % o més i el tram de baix és clarament diferent; cada tram ha de tenir 6 estacions.
+// Provat deixant fora cada estació (20/10/2026): a les mínimes de les 12 estacions de la xarxa en 460 dies, l'error
+// mitjà passa d'1,12 a 1,07 °C, i els 230 matins amb inversió (les de la vall més fredes que el Rebost, a 1.650 m),
+// d'1,89 a 1,57 °C; a les màximes, igual (0,94 i 0,93). Amb les 184 estacions de la XEMA d'un dia de pluja (19/10)
+// no s'activa i el mapa queda igual. La posició al relleu (fons de vall o carena) no millorava res: la graella del
+// relleu (4 km) és massa grossa per a les valls estretes.
+function solve3(X, y) {
+  const A = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
+  for (let i = 0; i < X.length; i++) for (let a = 0; a < 3; a++) { A[a][3] += X[i][a] * y[i]; for (let c = 0; c < 3; c++) A[a][c] += X[i][a] * X[i][c]; }
+  for (let i = 0; i < 3; i++) {
+    let mx = i;
+    for (let r = i + 1; r < 3; r++) if (Math.abs(A[r][i]) > Math.abs(A[mx][i])) mx = r;
+    [A[i], A[mx]] = [A[mx], A[i]];
+    if (Math.abs(A[i][i]) < 1e-9) return null;
+    for (let r = 0; r < 3; r++) if (r !== i) { const f = A[r][i] / A[i][i]; for (let c = i; c < 4; c++) A[r][c] -= f * A[i][c]; }
+  }
+  return A.map((row, i) => row[3] / row[i]);
+}
+export function altTrend(pts) {
+  const n = pts.length;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const mz = pts.reduce((a, p) => a + p.alt, 0) / n, mv = pts.reduce((a, p) => a + p.v, 0) / n;
+  const sxx = pts.reduce((a, p) => a + (p.alt - mz) ** 2, 0);
+  const b = clamp(sxx > 0 ? pts.reduce((a, p) => a + (p.alt - mz) * (p.v - mv), 0) / sxx : -0.0065, -0.0098, -0.002);
+  const lin = { f: (z) => b * z, b };
+  const rss0 = pts.reduce((a, p) => a + (p.v - mv - b * (p.alt - mz)) ** 2, 0);
+  let best = null;
+  for (let h = 300; h <= 2000; h += 100) {
+    let lo = 0;
+    for (const p of pts) if (p.alt < h) lo++;
+    if (lo < 6 || n - lo < 6) continue;
+    const c = solve3(pts.map((p) => [1, Math.min(p.alt, h), Math.max(p.alt - h, 0)]), pts.map((p) => p.v));
+    if (!c) continue;
+    const b1 = clamp(c[1], -0.0098, 0.025), b2 = clamp(c[2], -0.0098, -0.002);
+    let rss = 0;
+    for (const p of pts) rss += (p.v - c[0] - b1 * Math.min(p.alt, h) - b2 * Math.max(p.alt - h, 0)) ** 2;
+    if (!best || rss < best.rss) best = { h, b1, b2, rss };
+  }
+  if (!best || best.rss > rss0 * 0.75 || best.b1 < best.b2 + 0.002) return lin;
+  const { h, b1, b2 } = best;
+  return { f: (z) => b1 * Math.min(z, h) + b2 * Math.max(z - h, 0), b: b2, h, b1 };
+}
+
 export function computeField(pts, key, { mask, maskHi = null, dem = null, alpha = null, min = null }) {
   const cfg = FIELD[key] && min != null ? { ...FIELD[key], min } : FIELD[key];
   if (!cfg || !mask || pts.length < 5) return null;
-  let slope = 0;
   const useDem = !!cfg.dem && !!dem;
-  if (useDem) {
-    const n = pts.length, mx = pts.reduce((a, p) => a + p.alt, 0) / n, my = pts.reduce((a, p) => a + p.v, 0) / n;
-    const sxx = pts.reduce((a, p) => a + (p.alt - mx) ** 2, 0);
-    slope = sxx > 0 ? pts.reduce((a, p) => a + (p.alt - mx) * (p.v - my), 0) / sxx : -0.0065;
-    slope = Math.max(-0.0098, Math.min(-0.002, slope));
-  }
+  const trend = useDem ? altTrend(pts) : null;
   const n = pts.length;
   const PX = new Float64Array(n), PY = new Float64Array(n), PR = new Float64Array(n);
   pts.forEach((p, j) => {
     PX[j] = p.lng;
     PY[j] = p.lat;
-    PR[j] = cfg.log ? Math.log1p(Math.max(0, p.v)) : p.v - slope * p.alt;
+    PR[j] = cfg.log ? Math.log1p(Math.max(0, p.v)) : trend ? p.v - trend.f(p.alt) : p.v;
   });
   const kk = Math.min(K, n - 1);
   // Les kk + 1 estacions més properes del punt, ordenades per distància (bd: km², bi: índex de l'estació)
@@ -158,7 +199,7 @@ export function computeField(pts, key, { mask, maskHi = null, dem = null, alpha 
         continue;
       }
       if (cfg.log) v = Math.expm1(v);
-      if (useDem) v += slope * elevAt(dem, lat, lng);
+      if (trend) v += trend.f(elevAt(dem, lat, lng));
       if ((cfg.min != null && v < cfg.min) || bd[0] > maxD2) continue;
       const c = ramp(cfg.stops, v, cfg.step);
       const k = i * 4;
@@ -170,7 +211,7 @@ export function computeField(pts, key, { mask, maskHi = null, dem = null, alpha 
     }
   }
   if (step) return { ...paintClasses(G, cfg, mask, maskHi, alpha ?? cfg.alpha), useDem, alpha: cfg.alpha };
-  return { raw, web, useDem, alpha: cfg.alpha };
+  return { raw, web, useDem, alpha: cfg.alpha, inversion: trend?.h != null ? { h: trend.h, below: trend.b1 } : null };
 }
 
 // Pinta per classes a HI × la graella: interpolació bilineal del valor (en l'escala d'interpolació) i classificació
