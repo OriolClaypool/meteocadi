@@ -9,7 +9,7 @@
 import { rateDay, dayVerdict as skiVerdict } from '../ski.js';
 import { num, dayName, dayShort, parseDay, cap } from '../format.js';
 import { wmoText } from '../wmo.js';
-import { notesOf, notaFmt, partLevel, NOTA_LABEL, partTxt, depthSource, depthTxt } from './nota.js';
+import { notesOf, notaFmt, partLevel, NOTA_LABEL, partTxt, depthSource, depthTxt, allNew } from './nota.js';
 
 export const thousands = (v) => String(v).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -422,8 +422,12 @@ ${wind}
 function bestNotaCard(b, base, type) {
   const n = b.n;
   const why = [];
-  if (n.cm != null && n.cm >= 25) why.push([icon('flake', 16, 'is-ice'), `${cap(depthTxt(n))} de neu`]);
-  if (n.fresh >= 5) why.push([icon('snow', 16, 'is-ice'), `${Math.round(n.fresh)} cm de ${n.q === 'pols' ? 'pols' : 'nova'}`]);
+  // Si tota la neu de terra és nova, una sola xifra: "Uns 30 cm de neu nova" (nota.js, allNew)
+  if (allNew(n)) why.push([icon('snow', 16, 'is-ice'), `${cap(depthTxt(n))} de neu ${n.q === 'pols' ? 'pols' : 'nova'}`]);
+  else {
+    if (n.cm != null && n.cm >= 25) why.push([icon('flake', 16, 'is-ice'), `${cap(depthTxt(n))} de neu`]);
+    if (n.fresh >= 5) why.push([icon('snow', 16, 'is-ice'), `${Math.round(n.fresh)} cm de ${n.q === 'pols' ? 'pols' : 'nova'}`]);
+  }
   if (n.rate.good.includes('sun')) why.push([icon('sun', 16, 'is-sun'), 'Sol']);
   else if (n.rate.good.includes('calm')) why.push([icon('wind', 16), 'Poc vent']);
   const more = b.same - 1;
