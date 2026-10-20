@@ -1,7 +1,7 @@
 ---
 // Plantilla de Meteocadí Neu (/neu): aspecte propi, sense la capçalera ni el peu de la resta del web.
 // Capçalera fosca (la marca i, a l'escriptori, el menú) que cada pàgina omple amb el slot "hero"; peu propi i, al
-// mòbil, el menú a baix. Amagada (noindex, robots i fora del mapa del web) fins que es publiqui.
+// mòbil, el menú a baix. Publicada el 20/10/2026 (fins aleshores, noindex, robots i fora del mapa del web).
 import Base from './Base.astro';
 import '../styles/neu.css';
 
@@ -33,7 +33,7 @@ const seg = (off: number, mirror: boolean) => (mirror ? [...pts].reverse().map((
 const ridge = [0, 1, 2, 3, 4, 5].flatMap((k) => seg(k * 390, k % 2 === 1).slice(k ? 1 : 0));
 const ridgeD = `M0 46V${ridge[0][1]}${ridge.map(([x, y]) => `L${x} ${y}`).join('')}V46Z`;
 ---
-<Base title={title} description={description} path={path} noindex bare card={{ kicker: 'Meteocadí Neu', ...card }}>
+<Base title={title} description={description} path={path} bare card={{ kicker: 'Meteocadí Neu', ...card }}>
   <div class="nv">
     <header class="nv-hero">
       <div class="nv-in">

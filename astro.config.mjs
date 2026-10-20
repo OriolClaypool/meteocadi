@@ -4,8 +4,7 @@ import ogCards from './integrations/og-cards.mjs';
 import { episodes } from './src/lib/episodes.js';
 import { modelsReady } from './src/lib/models.js';
 
-// Meteocadí Neu (/neu) queda fora del mapa del web fins que es publiqui
-const HIDDEN = /\/(estudi(\/.*)?|neu(\/.*)?|404|webcams)(\.html)?$/;
+const HIDDEN = /\/(estudi(\/.*)?|404|webcams)(\.html)?$/;
 // La llista d'episodis és noindex mentre no n'hi ha cap
 const NO_EPISODES = episodes().length === 0;
 // "Quin model encerta més al Cadí?" també, mentre no hi ha prou dies de previsions (src/lib/models.js)

@@ -1,15 +1,17 @@
 ---
 // Portada: les estacions d'esquí més properes al Cadí en targetes resumides (neu prevista, 7 dies, temps a dalt).
-import { PLACE_BY_SLUG, PLACES, SKI_HOME } from '../lib/places.js';
+import { PLACE_BY_SLUG, SKI_HOME } from '../lib/places.js';
 import { fetchSki, skiCompactHTML, inSeason } from '../lib/ski.js';
 import { todayMadrid } from '../lib/format.js';
+import { NEU } from '../lib/neu/estacions.js';
 
 const resorts = SKI_HOME.map((s) => PLACE_BY_SLUG[s]).filter(Boolean).map((p) => ({ slug: p.slug, name: p.name, points: p.points, ski: p.ski }));
 const today = todayMadrid();
 const season = inSeason(today);
 const groups = await fetchSki(resorts);
 const cards = skiCompactHTML(groups, { today, season, base: '/temps/' });
-const total = PLACES.filter((p) => p.ski).length;
+// Les de Meteocadí Neu (/neu), on porta el botó
+const total = NEU.length;
 const ARROW = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg>';
 ---
 <section class="sec sec--ski" id="esqui">
@@ -24,7 +26,7 @@ const ARROW = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" strok
             : "La temporada comença a mitjan novembre. Mentrestant, aquí veuràs quan arriben les primeres neus a dalt de les pistes de cada estació."}
         </p>
       </div>
-      <a class="btn btn--blue" href="/esqui">{`Les ${total} estacions d'esquí`} <Fragment set:html={ARROW} /></a>
+      <a class="btn btn--blue" href="/neu">{`Les ${total} estacions d'esquí`} <Fragment set:html={ARROW} /></a>
     </div>
     <div class="skcs" data-skih={JSON.stringify({ resorts })} set:html={cards || '<p class="mfc__load">Carregant la previsió…</p>'}></div>
   </div>

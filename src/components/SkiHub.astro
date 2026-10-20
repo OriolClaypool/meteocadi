@@ -2,7 +2,8 @@
 // Neu i esquí (Meteocadí Neu): resum de la setmana en paraules, tauler de 7 dies de totes les estacions (què farà cada
 // dia, amb colors i paraules: neva, neu a dalt i pluja a baix, pluja, vent, sol…), on nevarà més (rànquing i mapa),
 // la targeta de cada estació, carreteres d'accés i informació oficial.
-// En català a /esqui i en castellà a /es/esqui.
+// Només en castellà, a /es/esqui: en català, des del 20/10/2026 /esqui porta a Meteocadí Neu (/neu), que encara no té
+// versió en castellà.
 import Base from '../layouts/Base.astro';
 import MountainNotice from './MountainNotice.astro';
 import RoadStatus from './RoadStatus.astro';
@@ -65,7 +66,7 @@ const description = es
   ? `Previsión de 7 días para las ${resorts.length} estaciones de esquí del Pirineo catalán y Andorra: nieve nueva, viento en las cimas, temperatura arriba y abajo, mejor día para esquiar y estado de las carreteras.`
   : `Previsió de 7 dies per a les ${resorts.length} estacions d'esquí del Pirineu català i Andorra: neu nova, vent als cims, temperatura a dalt i a baix, millor dia per esquiar i estat de les carreteres.`;
 ---
-<Base title={title} description={description} path={path} card={{ pins: mapItems.map((x) => [x.lat, x.lng]) }} jsonLd={ld} current="esqui" lang={lang} alternates={{ ca: '/esqui', es: '/es/esqui' }}>
+<Base title={title} description={description} path={path} card={{ pins: mapItems.map((x) => [x.lat, x.lng]) }} jsonLd={ld} current="esqui" lang={lang}>
   <section class="phead phead--ski">
     <div class="wrap">
       <nav class="crumbs" aria-label="Ruta"><a href="/">{es ? 'Inicio' : 'Inici'}</a><span>›</span><span>{es ? 'Nieve y esquí' : 'Neu i esquí'}</span></nav>

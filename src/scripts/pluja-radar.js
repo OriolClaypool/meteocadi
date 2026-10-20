@@ -1,7 +1,9 @@
-// La pluja d'avui segons el radar (OPERA, /api/capes/pluja): la suma de les hores des de la mitjanit (hora local) fins
-// a l'hora de les dades de les estacions, a la graella del mapa de color (camp.js: FW × FH). El mapa la fa servir per
-// ajustar la pluja entre estacions (computeField, radar). Retorna { grid (Float32Array, mm; NaN sense dades), hours,
-// to } o null si falten hores o no n'hi ha.
+// La pluja segons el radar (OPERA, /api/capes/pluja): la suma de les hores d'un període fins a l'hora de les dades de
+// les estacions, a la graella del mapa de color (camp.js: FW × FH). El mapa la fa servir per ajustar la pluja entre
+// estacions (computeField, radar): "Avui" (des de la mitjanit, hora local) i, des del 20/10/2026, "Darreres 24 h"
+// (Oriol: amb el radar a "Avui" i sense a les 24 hores, la pluja es veia diferent). Els dies anteriors no poden: el
+// dipòsit obert de l'OPERA només guarda les darreres 24 hores. Retorna { grid (Float32Array, mm; NaN sense dades),
+// hours, to } o null si falten hores o no n'hi ha.
 import { hourMadrid, todayMadrid } from '../lib/format.js';
 import { FW, FH } from './camp.js';
 
@@ -41,7 +43,12 @@ function midnight() {
 }
 
 // until: fins a quina hora (les dades de les estacions); per defecte, ara
-export async function radarToday(until = new Date()) {
+export const radarToday = (until = new Date()) => radarSum(midnight(), until);
+// Les darreres 24 hores fins a until (com el període "Darreres 24 h" del mapa, que acaba a la lectura més nova)
+export const radar24h = (until = new Date()) => radarSum(until.getTime() - 24 * 3600e3, until);
+
+// Les hores que acaben després de from (ms) i, com a molt, 20 minuts després de until
+async function radarSum(from, until) {
   if (typeof DecompressionStream === 'undefined') return null;
   let ix = null;
   try {
@@ -49,7 +56,7 @@ export async function radarToday(until = new Date()) {
     ix = r.ok ? await r.json() : null;
   } catch {}
   if (!ix?.hours?.length) return null;
-  const from = midnight(), to = until.getTime() + 20 * 60e3;
+  const to = until.getTime() + 20 * 60e3;
   const hs = ix.hours.filter((h) => { const e = Date.parse(h.end); return e > from && e <= to; });
   // Han de ser-hi gairebé totes (com a molt en falten dues): si no, la suma es quedaria curta
   const want = Math.floor((Math.min(to, Date.now()) - from) / 3600e3);

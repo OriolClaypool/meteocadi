@@ -56,7 +56,7 @@ const alt = (p) => (p.ski ? `${fmtAlt(p.points[p.points.length - 1].alt)} – ${
         ? 'Cada lugar tiene la previsión por horas calculada para su altitud y los datos en directo de las estaciones más cercanas: las de la red Meteocadí en el Cadí y el Berguedà, y las del Meteocat en el resto.'
         : "Cada lloc té la previsió per hores calculada per a la seva altitud i les dades en directe de les estacions més properes: les de la xarxa Meteocadí al Cadí i el Berguedà, i les del Meteocat a la resta."}</p>
       <p style="margin-top:16px;display:flex;flex-wrap:wrap;gap:12px;">
-        <a class="btn btn--blue" href={es ? '/es/esqui' : '/esqui'} style="height:46px;font-size:16px;">{es ? 'Nieve y esquí' : 'Neu i esquí'}</a>
+        <a class="btn btn--blue" href={es ? '/es/esqui' : '/neu'} style="height:46px;font-size:16px;">{es ? 'Nieve y esquí' : 'Neu i esquí'}</a>
         <a class="btn btn--line" href={es ? '/es/montana' : '/muntanya'} style="height:46px;font-size:16px;background:#fff;">{es ? 'Condiciones en la montaña' : 'Condicions a la muntanya'}</a>
         {!es && <a class="btn btn--line" href="/cap-de-setmana" style="height:46px;font-size:16px;background:#fff;">Previsió per al cap de setmana</a>}
       </p>
