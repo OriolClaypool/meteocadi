@@ -1,0 +1,203 @@
+---
+// "Quin model encerta més al Cadí?": la previsió del dia abans de cada model contra les estacions de la xarxa
+// (src/lib/models.js, dades/models/ que omple api/arxiva.js cada nit). Idea de l'anàlisi de ToleMeteo (20/10/2026):
+// contingut únic de muntanya. Mentre no hi ha prou dies, la pàgina ho diu i és noindex (i fora del mapa del web).
+import Base from '../layouts/Base.astro';
+import { verify, modelsReady } from '../lib/models.js';
+import { STATIONS } from '../lib/stations.js';
+import { num, dayMonth } from '../lib/format.js';
+
+const v30 = verify({ n: 30 });
+const v90 = verify({ n: 90 });
+const alta = verify({ n: 30, group: 'alta' });
+const vall = verify({ n: 30, group: 'vall' });
+const two = verify({ n: 30, lead: 2 });
+const ready = modelsReady(v30);
+const best = ready ? v30.rows[0] : null;
+const show90 = ready && v90 && v90.days > v30.days + 7 && v90.rows.length >= 3;
+
+const fmtAlt = (m: number) => `${String(m).replace(/\B(?=(\d{3})+(?!\d))/g, '.')} m`;
+const altOf = (g: string) => {
+  const a = STATIONS.filter((s) => s.group === g).map((s) => s.alt);
+  return `${fmtAlt(Math.min(...a))} a ${fmtAlt(Math.max(...a))}`;
+};
+const deg = (v: number | null) => (v == null ? '—' : `${num(v)} °C`);
+const sign = (v: number | null) => (v == null ? '—' : v > 0.05 ? `+${num(v)}` : v < -0.05 ? `−${num(Math.abs(v))}` : '0,0');
+// "del 21 de setembre al 20 d'octubre"
+const span = (v: any) => {
+  const a = dayMonth(v.from), b = dayMonth(v.to);
+  return `${a.startsWith('1 ') || a.startsWith('11 ') ? "de l'" : 'del '}${a} ${b.startsWith('1 ') || b.startsWith('11 ') ? "a l'" : 'al '}${b}`;
+};
+const tend = (r: any) => {
+  const t = (v: number | null, what: string) => (v == null || Math.abs(v) < 0.3 ? null : `${what} ${v > 0 ? 'més altes' : 'més baixes'}`);
+  const parts = [t(r.biasMax, 'màximes'), t(r.biasMin, 'mínimes')].filter(Boolean);
+  return parts.length ? `Fa les ${parts.join(' i les ')}` : 'Sense tendència clara';
+};
+const maxMae = (v: any) => Math.max(...v.rows.map((r: any) => r.mae));
+const sets = [{ key: '30', v: v30, label: '30 dies' }, ...(show90 ? [{ key: '90', v: v90, label: '90 dies' }] : [])];
+const leadRows = ready && two ? v30.rows.map((r: any) => ({ ...r, two: two.rows.find((x: any) => x.model === r.model)?.mae ?? null })) : [];
+---
+<Base
+  title="Quin model meteorològic encerta més al Cadí? Comparació amb les estacions | Meteocadí"
+  description="Cada dia comparem la previsió del dia abans dels principals models meteorològics (ECMWF, ICON, AROME, GFS i altres) amb les màximes, les mínimes i la pluja de les estacions de la xarxa Meteocadí al Cadí-Moixeró."
+  path="/models"
+  current="estacions"
+  noindex={!ready}
+>
+  <section class="phead" style="padding-bottom:32px;">
+    <div class="wrap">
+      <nav class="crumbs" aria-label="Ruta"><a href="/">Inici</a><span>›</span><a href="/estacions">Estacions</a><span>›</span><span>Models</span></nav>
+      <h1>Quin model encerta més <em>al Cadí?</em></h1>
+      <p>Cada nit comparem la previsió que feien els principals models meteorològics el dia abans amb el que han mesurat les {STATIONS.length} estacions de la xarxa Meteocadí, de {altOf('vall').split(' a ')[0]} a {fmtAlt(Math.max(...STATIONS.map((s) => s.alt)))}.</p>
+    </div>
+  </section>
+
+  {!ready && (
+    <section class="sec" style="padding:40px 0 72px;">
+      <div class="wrap prose">
+        <p>Encara estem recollint les previsions de cada model. D'aquí a pocs dies, aquí hi haurà la comparació: quin model s'equivoca menys amb les màximes, amb les mínimes i amb la pluja, a la vall i al cim.</p>
+      </div>
+    </section>
+  )}
+
+  {ready && (
+    <section class="sec" style="padding:36px 0 24px;">
+      <div class="wrap md">
+        <p class="md-lead">Els darrers {v30.days} dies ({span(v30)}), el que més ha encertat la temperatura és <strong>{best.name}</strong> ({best.who}): de mitjana s'ha equivocat {deg(best.maeMax)} a la màxima i {deg(best.maeMin)} a la mínima.</p>
+
+        {sets.length > 1 && (
+          <div class="md-seg" role="group" aria-label="Període">
+            {sets.map((s, i) => <button type="button" data-md={s.key} aria-pressed={i === 0 ? 'true' : 'false'}>{s.label}</button>)}
+          </div>
+        )}
+
+        {sets.map((s, i) => (
+          <div class="md-set" data-md-set={s.key} hidden={i > 0}>
+            <div class="md-tw">
+              <table class="md-t">
+                <caption>Error mitjà de la previsió del dia abans, {span(s.v)} ({s.v.days} dies)</caption>
+                <thead>
+                  <tr><th scope="col">Model</th><th scope="col" class="md-c-bar">Temperatura</th><th scope="col">Màxima</th><th scope="col">Mínima</th><th scope="col">Tendència</th><th scope="col">Pluja</th></tr>
+                </thead>
+                <tbody>
+                  {s.v.rows.map((r: any, k: number) => (
+                    <tr class={r.model === 'best_match' ? 'is-ours' : ''}>
+                      <th scope="row"><div class="md-mod"><span class="md-pos">{k + 1}</span><span class="md-name">{r.name}<small>{r.who}</small></span></div></th>
+                      <td class="md-c-bar"><div class="md-bc"><span class="md-bar" aria-hidden="true"><i style={`width:${Math.max(4, (r.mae / maxMae(s.v)) * 100)}%`}></i></span><b>{deg(r.mae)}</b></div></td>
+                      <td class="mono">{deg(r.maeMax)}</td>
+                      <td class="mono">{deg(r.maeMin)}</td>
+                      <td><div class="md-tend">{tend(r)}<small class="mono">{sign(r.biasMax)} / {sign(r.biasMin)}</small></div></td>
+                      <td class="mono md-nw">{r.rain ? `${r.rain.acc}\u00A0%` : '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ))}
+        <p class="md-note">Temperatura: la mitjana dels errors de la màxima i de la mínima (sense signe). Tendència: si el model fa les màximes o les mínimes més altes o més baixes del que després marquen les estacions (a l'esquerra, la màxima; a la dreta, la mínima). Pluja: percentatge de dies que encerta si plourà o no (1 mm o més); d'aquests {v30.days} dies, en {v30.rainy} ha plogut a alguna estació.</p>
+      </div>
+    </section>
+  )}
+
+  {ready && alta && vall && (
+    <section class="sec" style="padding:24px 0 24px;">
+      <div class="wrap md">
+        <h2 class="md-h2">A dalt i a baix</h2>
+        <p class="md-p">Als cims la previsió s'equivoca més: el relleu dels models és més suau que el de debò i el vent i les inversions hi compten molt.</p>
+        <div class="md-two">
+          {[{ v: alta, t: 'Alta muntanya', g: 'alta' }, { v: vall, t: 'Vall i Prepirineu', g: 'vall' }].map((x) => (
+            <div class="card md-mini">
+              <span class="eyebrow">{x.t} · {altOf(x.g)}</span>
+              <ol>
+                {x.v.rows.map((r: any) => (
+                  <li><span>{r.name}</span><b class="mono">{deg(r.mae)}</b></li>
+                ))}
+              </ol>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )}
+
+  {ready && leadRows.length > 0 && (
+    <section class="sec" style="padding:24px 0 24px;">
+      <div class="wrap md">
+        <h2 class="md-h2">I dos dies abans?</h2>
+        <p class="md-p">La mateixa comparació amb la previsió que feia cada model dos dies abans: com més lluny, més s'equivoca.</p>
+        <div class="md-tw">
+          <table class="md-t md-t--sm">
+            <thead><tr><th scope="col">Model</th><th scope="col">Un dia abans</th><th scope="col">Dos dies abans</th></tr></thead>
+            <tbody>
+              {leadRows.map((r: any) => (
+                <tr><th scope="row">{r.name}</th><td class="mono">{deg(r.mae)}</td><td class="mono">{deg(r.two)}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  )}
+
+  <section class="sec" style="padding:24px 0 72px;">
+    <div class="wrap"><div class="prose md-how">
+      <h2>Com ho fem</h2>
+      <ul>
+        <li>Cada nit desem la previsió que feia cada model, el dia abans i dos dies abans, per al punt i l'alçada exactes de cada estació, amb l'<a href="https://open-meteo.com/en/docs/previous-runs-api" rel="noopener" target="_blank">API de passades anteriors d'Open-Meteo</a>, que ajusta la temperatura del model a l'alçada de l'estació.</li>
+        <li>En traiem la màxima, la mínima i la pluja del dia (de mitjanit a mitjanit) i les comparem amb el que han mesurat les estacions, amb el mateix control de qualitat que fem servir a tot el web: un dia amb dades estranyes d'una estació no compta.</li>
+        <li>La màxima i la mínima del model surten de valors cada hora i les de l'estació, de lectures cada 5 minuts: per això els models solen fer les màximes una mica més baixes.</li>
+        <li>Open-Meteo és la combinació de models que fa servir Meteocadí per a les previsions de cada poble i cada cim.</li>
+      </ul>
+      <p class="md-credit">Previsions: <a href="https://open-meteo.com/" rel="noopener" target="_blank">Open-Meteo</a> (CC BY 4.0), amb els models d'ECMWF, DWD, Météo-France, NOAA, Met Office i el Servei Meteorològic del Canadà. Observacions: xarxa Meteocadí.</p>
+    </div></div>
+  </section>
+</Base>
+<style>
+  .md { display: flex; flex-direction: column; gap: 16px; }
+  .md-lead { font-size: 19px; line-height: 1.55; color: var(--ink2); max-width: 820px; }
+  .md-lead strong { color: var(--ink); }
+  .md-h2 { font-size: 30px; font-weight: 800; color: var(--ink); letter-spacing: -0.02em; }
+  .md-p { font-size: 17px; line-height: 1.6; color: var(--ink2); max-width: 760px; }
+  .md-seg { display: flex; gap: 6px; }
+  .md-seg button { height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: #fff; color: var(--ink); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .md-seg button[aria-pressed='true'] { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .md-tw { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
+  .md-t { width: 100%; border-collapse: collapse; font-size: 15px; min-width: 720px; }
+  .md-t caption { text-align: left; padding: 14px 16px 6px; font-family: var(--f-mono); font-size: 11.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+  .md-t th, .md-t td { padding: 11px 16px; border-top: 1px solid var(--line); text-align: left; vertical-align: middle; }
+  .md-t thead th { font-size: 12.5px; font-weight: 600; color: var(--muted); border-top: 0; }
+  .md-t tbody th { font-weight: 600; color: var(--ink); }
+  .md-mod { display: flex; gap: 6px; align-items: baseline; }
+  .md-pos { flex: 0 0 18px; font-family: var(--f-mono); font-size: 13px; color: var(--muted); }
+  .md-name { display: flex; flex-direction: column; min-width: 0; }
+  .md-name small, .md-tend small { font-size: 12.5px; font-weight: 400; color: var(--muted); }
+  .md-tend { display: flex; flex-direction: column; gap: 2px; font-size: 14px; color: var(--ink2); }
+  .md-c-bar { width: 32%; }
+  .md-bc { display: flex; align-items: center; gap: 10px; }
+  .md-nw { white-space: nowrap; }
+  .md-bar { flex: 1; min-width: 60px; height: 10px; }
+  .md-bar i { display: block; height: 10px; border-radius: 0 4px 4px 0; background: var(--blue); }
+  .md-bc b { font-family: var(--f-mono); font-size: 14px; font-weight: 600; color: var(--ink); white-space: nowrap; }
+  .md-t tr.is-ours { background: #f4f8fd; }
+  .md-t--sm { min-width: 420px; }
+  .md-note { font-size: 13.5px; color: var(--muted); max-width: 900px; line-height: 1.55; }
+  .md-two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .md-mini ol { list-style: none; margin: 10px 0 0; padding: 0; counter-reset: md; }
+  .md-mini li { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 15px; color: var(--ink); counter-increment: md; }
+  .md-mini li:first-child { border-top: 0; }
+  .md-mini li span::before { content: counter(md) '.'; display: inline-block; width: 22px; font-family: var(--f-mono); font-size: 13px; color: var(--muted); }
+  .md-mini .eyebrow { color: var(--muted); }
+  .md-credit { font-size: 13.5px !important; color: var(--muted) !important; }
+  @media (max-width: 760px) { .md-two { grid-template-columns: 1fr; } }
+</style>
+<script>
+  // 30 / 90 dies
+  const btns = document.querySelectorAll<HTMLButtonElement>('[data-md]');
+  btns.forEach((b) =>
+    b.addEventListener('click', () => {
+      btns.forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      document.querySelectorAll<HTMLElement>('[data-md-set]').forEach((s) => (s.hidden = s.dataset.mdSet !== b.dataset.md));
+    }),
+  );
+</script>

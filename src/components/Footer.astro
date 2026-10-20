@@ -2,6 +2,7 @@
 import { CADI as PLACES } from '../lib/places.js';
 import { REGIONS, localizeRegion } from '../lib/regions.js';
 import { PLACES_ES } from '../lib/places-es.js';
+import { modelsReady } from '../lib/models.js';
 interface Props { lang?: 'ca' | 'es' }
 const { lang = 'ca' } = Astro.props;
 const es = lang === 'es';
@@ -25,6 +26,8 @@ const SITE_CA = [
   ['/mapa/catalunya', 'Mapa de Catalunya'],
   ['/radar', 'Radar de pluja'],
   ['/historial', 'Historial i rècords'],
+  // Quan ja hi ha prou dies de previsions dels models (src/lib/models.js)
+  ...(modelsReady() ? [['/models', 'Quin model encerta més']] : []),
   ['/quina-estacio-meteorologica-comprar', 'Quina estació comprar'],
   ['/episodis', 'Episodis destacats'],
   ['/cap-de-setmana', 'Aquest cap de setmana'],

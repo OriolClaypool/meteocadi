@@ -7,12 +7,16 @@
 // lectures es corregeix la pluja del dia (vegeu dayRain, i rainTail per als darrers minuts, que algunes consoles
 // només donen a la lectura de les 00:00 de l'endemà): precipTotal és la corregida i precipTotalWU, la del resum de WU.
 // Tot el que es desa en una execució va en un sol commit (API de dades de Git), perquè cada commit fa un build.
+// I les previsions dels models per a /models (api/_models.js, dades/models/AAAA-MM.json), en paral·lel amb la resta i
+// sense aturar mai l'arxiu si fallen.
 //
 // Required env vars in Vercel:
 //   WU_API_KEY    — Weather Underground API key
 //   GITHUB_TOKEN  — fine-grained PAT with Contents read+write on OriolClaypool/meteocadi
 //   CRON_SECRET   — random secret; add it in Vercel project settings and Vercel Cron
 //                   will send it automatically as Authorization: Bearer <secret>
+
+import { modelsUpdate } from './_models.js';
 
 const STATIONS_META = {
   IBAG65:     { name: 'Bagà Nord',                  alt: 865  },
@@ -274,6 +278,13 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: 'GITHUB_TOKEN not configured' });
   }
 
+  // Previsions dels models (Open-Meteo): en paral·lel amb WU; si fallen, l'arxiu es desa igualment
+  const ghJson = async (path) => {
+    const f = await ghGet(path, ghToken);
+    return f?.content ? JSON.parse(Buffer.from(f.content, 'base64').toString('utf8')) : null;
+  };
+  const modelsP = modelsUpdate(ghJson, dateNDaysAgo(1)).catch((e) => ({ files: {}, days: [], errors: [String(e?.message ?? e)] }));
+
   // By default, self-heal: scan the last 7 complete days and archive any that are
   // still missing (so a failed night gets backfilled by the next run automatically).
   // ?backfill=N overrides the scan window (max 7).
@@ -311,8 +322,15 @@ export default async function handler(req, res) {
   const hoursMissing = dateInfos.filter((_, i) => hourlyChecks[i] === null).reverse();
 
   if (toArchive.length === 0 && hoursMissing.length === 0) {
+    const mod = await modelsP;
+    for (const e of mod.errors) console.error('[arxiva] models:', e);
+    if (Object.keys(mod.files).length) {
+      const sha = await commitFiles(mod.files, `dades: previsions dels models ${mod.days[0]}${mod.days.length > 1 ? `…${mod.days.at(-1)}` : ''}`, ghToken);
+      console.log(`[arxiva] models ${mod.days.join(', ')} → commit ${sha}`);
+      return res.status(200).json({ status: 'models', models: mod.days, errors: mod.errors });
+    }
     console.log(`[arxiva] nothing to archive, all of ${targetDates.join(', ')} already exist`);
-    return res.status(200).json({ status: 'skipped', dates: targetDates, reason: 'already exists' });
+    return res.status(200).json({ status: 'skipped', dates: targetDates, reason: 'already exists', modelErrors: mod.errors });
   }
 
   const stationIds = Object.keys(STATIONS_META);
@@ -418,11 +436,15 @@ export default async function handler(req, res) {
     files[group.monthlyPath] = JSON.stringify({ year: group.year, month: group.month, days }, null, 2);
   }
 
+  const mod = await modelsP;
+  for (const e of mod.errors) console.error('[arxiva] models:', e);
+  Object.assign(files, mod.files);
+
   if (!Object.keys(files).length) {
     return res.status(200).json({ status: 'nothing-written', skipped });
   }
   const archivedDates = toArchive.map(info => info.date);
-  const what = archivedDates.length ? archivedDates.join(', ') : `hores ${hoursDone.join(', ')}`;
+  const what = archivedDates.length ? archivedDates.join(', ') : hoursDone.length ? `hores ${hoursDone.join(', ')}` : `previsions dels models ${mod.days.join(', ')}`;
   const sha = await commitFiles(files, `dades: arxiva ${what}`, ghToken);
   for (const f of Object.keys(files)) console.log(`[arxiva] wrote ${f}`);
   console.log(`[arxiva] commit ${sha}`);
@@ -431,6 +453,8 @@ export default async function handler(req, res) {
     status: 'archived',
     archived: archivedDates,
     hours: hoursDone,
+    models: mod.days,
+    modelErrors: mod.errors.length ? mod.errors : undefined,
     skipped,
     stations: archivedDates.length
       ? Object.fromEntries(stationIds.map(id => [id, dailyDocs[archivedDates[archivedDates.length - 1]].stations[id] !== null ? 'ok' : 'missing']))
