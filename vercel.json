@@ -414,6 +414,9 @@
     },
     "api/neu/[estacio].js": {
       "maxDuration": 30
+    },
+    "api/capes/[capa].js": {
+      "maxDuration": 30
     }
   }
 }

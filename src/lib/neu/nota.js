@@ -222,25 +222,36 @@ const WX = {
 const ACC = { neu: 'neu a les carreteres', neu2: 'molta neu a les carreteres' };
 export const accTxt = (a) => (a.code === 'cadenes' ? `cadenes a la ${a.road}` : a.code === 'tallada' ? `${a.road} tallada per la neu` : ACC[a.code] ?? '');
 
+// Tota la neu que hi ha a terra és nova: n'ha caigut tanta o més que el gruix (la resta s'ha fos o assentat, o el
+// gruix del sensor és més baix que la neu del model). Llavors no es diuen les dues xifres ("30 cm de neu, 45 cm de
+// nova" es contradiu) sinó el gruix i que és nou: "uns 30 cm de neu nova".
+export const allNew = (n) => n.cm != null && n.cm >= 3 && Math.round(n.fresh) >= 5 && Math.round(n.fresh) >= n.cm - 2;
+
 // Frase del perquè: el bo i, després d'un "però", el dolent (com a molt 3 i 2 coses)
 export function whyText(n) {
   if (n.label === 'Tancada') return 'Tancada.';
-  // Sense base de neu, la resta no compta
+  const fresh = Math.round(n.fresh);
+  // Sense base de neu, la resta no compta. Si n'ha caigut més de la que queda, es diu així (abans deia "només 19 cm
+  // de nova" amb 5 cm a terra); les frases no tenen temps verbal perquè també valen per als dies que vénen.
   if (n.cm != null && n.cm < 10) {
-    const fresh = Math.round(n.fresh);
-    return fresh >= 5 ? `Gairebé sense neu: només ${fresh}\u00A0cm de nova.` : n.cm < 3 ? 'Sense neu a terra.' : 'Gairebé sense neu.';
+    if (fresh < 5) return n.cm < 3 ? 'Sense neu a terra.' : 'Gairebé sense neu.';
+    if (n.cm < 3) return `Gairebé sense neu: dels ${fresh}\u00A0cm de nova no en queda gairebé res.`;
+    if (fresh > n.cm + 2) return `Gairebé sense neu: dels ${fresh}\u00A0cm de nova en queden ${depthTxt(n)}.`;
+    return `Gairebé sense neu: només ${fresh}\u00A0cm de nova.`;
   }
   const good = [], bad = [];
-  const fresh = Math.round(n.fresh);
   const nova = n.q === 'pols' ? 'pols' : 'nova';
+  const tot = allNew(n);
   if (n.cm != null) {
     if (n.cm < 25) bad.push(`poca neu (${depthTxt(n)})`);
-    else good.push(`${depthTxt(n)} de neu`);
+    else good.push(tot ? `${depthTxt(n)} de neu ${nova}` : `${depthTxt(n)} de neu`);
   }
   // La neu nova: "20 cm de nova" després del gruix; sola, "20 cm de neu nova"; amb fred, "de pols"
-  // (amb poca neu a terra, la nova no és cap avantatge: es diu només que n'hi ha poca)
-  if (fresh >= 5 && (n.cm == null || n.cm >= 25)) good.push(good.length ? `${fresh}\u00A0cm de ${nova}` : `${fresh}\u00A0cm de neu ${nova}`);
-  else if (n.q === 'pols') good.push('neu pols');
+  // (amb poca neu a terra, la nova no és cap avantatge: es diu només que n'hi ha poca; si tota la neu és nova, ja
+  // s'ha dit amb el gruix)
+  const said = tot && n.cm >= 25;
+  if (!said && fresh >= 5 && (n.cm == null || n.cm >= 25)) good.push(good.length ? `${fresh}\u00A0cm de ${nova}` : `${fresh}\u00A0cm de neu ${nova}`);
+  else if (!said && n.q === 'pols') good.push('neu pols');
   if (n.q === 'pluja') bad.push('pluja sobre la neu');
   if (n.q === 'dura') bad.push('neu dura al matí');
   const g = n.rate.good.filter((c) => WX[c]), b = n.rate.bad.filter((c) => WX[c]);
@@ -262,7 +273,10 @@ export function partTxt(n, key) {
     if (n.cm < 3) return 'Sense neu a terra';
     if (n.cm < 10) return `Gairebé sense neu (${depthTxt(n)})`;
     const fresh = Math.round(n.fresh);
-    return `${cap(depthTxt(n))}${fresh >= 5 ? ` · ${fresh}\u00A0cm nous` : ''}${n.q === 'pluja' ? ' · pluja a sobre' : n.q === 'dura' ? ' · dura al matí' : n.q === 'pols' ? ' · pols' : ''}`;
+    const q = n.q === 'pluja' ? ' · pluja a sobre' : n.q === 'dura' ? ' · dura al matí' : '';
+    // Tota nova: "Uns 30 cm de neu nova" (no "Uns 30 cm · 45 cm nous")
+    if (allNew(n)) return `${cap(depthTxt(n))} de neu ${n.q === 'pols' ? 'pols' : 'nova'}${q}`;
+    return `${cap(depthTxt(n))}${fresh >= 5 ? ` · ${fresh}\u00A0cm nous` : ''}${q}${n.q === 'pols' ? ' · pols' : ''}`;
   }
   if (key === 'temps') {
     const g = n.rate.good.filter((c) => WX[c]), b = n.rate.bad.filter((c) => WX[c]);

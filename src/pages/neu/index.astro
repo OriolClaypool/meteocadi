@@ -86,6 +86,7 @@ const BULLETINS = [
         <div class="nv-map" id="nv-map" role="region" aria-label="Mapa de les estacions d'esquí"></div>
         <div data-nv-scale set:html={season ? '' : scaleHTML('snow')} />
         <p class="nv-map__note" data-nv-mapnote>{season ? 'Nota de cada estació avui.' : 'Neu prevista al cim de cada estació.'}</p>
+        <p class="nv-map__more" data-arome-link data-arome-var="neu" hidden><a href="/mapa/previsio#neu">Neu prevista hora a hora a tot el Pirineu, amb el model AROME →</a></p>
       </div>
     </div>
   </section>
@@ -144,6 +145,7 @@ const BULLETINS = [
 </NeuLayout>
 
 <script>
+  import { aromeLinks } from '../../scripts/arome-link.js';
   import { groupsOf, parte, forecastCardsHTML, measuredCardHTML, listHTML, allNotes, notaItems, resortFilter, mapItems, sensorItems, pinHTML, scaleHTML, NOTA_LEGEND, todayIdx, dayLabel, dayWord, aLes } from '../../lib/neu/neu.js';
   import { inSeason } from '../../lib/ski.js';
   import { todayMadrid, longDate, dayName, cap } from '../../lib/format.js';
@@ -451,4 +453,5 @@ const BULLETINS = [
   }
   load();
   setInterval(load, 30 * 60 * 1000);
+  aromeLinks();
 </script>

@@ -669,3 +669,12 @@ button { font: inherit; }
   .year__s { grid-template-columns: 1fr 1fr; }
   .year__m { grid-column: 1; }
 }
+
+/* Mapes amb capes fetes al servidor (/radar, /mapa/previsio): src/scripts/mapa-base.js */
+.mb-map.leaflet-container { font-family: var(--f-ui); background: #e9eef3; }
+.mb-map .leaflet-tile-pane { filter: saturate(0.2) contrast(0.85) brightness(1.06); opacity: 0.75; }
+.mb-map .leaflet-control-attribution { font-size: 10px; }
+/* Leaflet només ho treu a la capa d'objectes; les línies són en una capa pròpia */
+.mb-map .leaflet-pane svg { max-width: none !important; max-height: none !important; }
+.mb-place { width: 0 !important; height: 0 !important; }
+.mb-place span { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); font-family: var(--f-ui); font-size: 12px; font-weight: 600; color: #22344b; white-space: nowrap; text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 5px #fff; letter-spacing: -0.01em; }

@@ -18,7 +18,7 @@ import Base from '../layouts/Base.astro';
       </div>
       <div id="map" aria-label="Mapa de les estacions"></div>
       <p style="font-size:13px;color:#7d8fa6;">El mapa tèrmic és orientatiu: s'interpola a partir de les lectures de les estacions de la xarxa i no té en compte el relleu.</p>
-      <p><a href="/mapa/catalunya" class="btn btn--light" style="height:46px;font-size:16px;">Mapa de tot Catalunya, amb les estacions del Meteocat →</a></p>
+      <p style="display:flex;flex-wrap:wrap;gap:12px;"><a href="/mapa/catalunya" class="btn btn--light" style="height:46px;font-size:16px;">Mapa de tot Catalunya, amb les estacions del Meteocat →</a><a href="/mapa/previsio" class="btn btn--light" style="height:46px;font-size:16px;" data-arome-link hidden>Previsió hora a hora →</a></p>
     </div>
   </section>
 </Base>
@@ -42,6 +42,7 @@ import Base from '../layouts/Base.astro';
   .map-box button[aria-pressed='true'] { background: #3db8ff; border-color: #3db8ff; color: #04121f; font-weight: 600; }
 </style>
 <script>
+  import { aromeLinks } from '../scripts/arome-link.js';
   import L from 'leaflet';
   import 'leaflet/dist/leaflet.css';
   import { loadAra } from '../scripts/live.js';
@@ -197,4 +198,5 @@ import Base from '../layouts/Base.astro';
     });
   refresh();
   setInterval(() => refresh(true), 10 * 60 * 1000);
+  aromeLinks();
 </script>

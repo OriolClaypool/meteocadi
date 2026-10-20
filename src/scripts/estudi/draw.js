@@ -3,6 +3,7 @@
 // contingut i peu amb meteocadi.cat. Marges pensats per a Stories: capçalera a 180 px, peu a ~1.700 px.
 import { tempColor, num, dayName, dayMonth, cap } from '../../lib/format.js';
 import { SCALES, fieldColor, readableOn, rainClasses } from '../../lib/escales.js';
+import { iconBadge } from '../icones.js';
 
 export const W = 1080;
 export const H = 1920;
@@ -319,13 +320,14 @@ export function drawResum(ctx, d) {
 
 // ------------------------------------------------------------------ Rànquing
 export const RANK_VARS = {
-  max: { t1: 'Les màximes', key: 'max', dir: 1, color: '#c2410c', unit: '°' },
-  min: { t1: 'Les mínimes', key: 'min', dir: -1, color: '#0369a1', unit: '°' },
-  pluja: { t1: 'La pluja', key: 'rain', dir: 1, color: '#1d4ed8', unit: 'mm' },
-  ratxa: { t1: 'Les ratxes', key: 'gust', dir: 1, color: '#b45309', unit: 'km/h' },
+  // t1: títol de la versió completa; short i icon: el de la versió neta ("Pluja del 17 al 20 d'octubre")
+  max: { t1: 'Les màximes', short: 'Màximes', icon: 'temp', key: 'max', dir: 1, color: '#c2410c', unit: '°' },
+  min: { t1: 'Les mínimes', short: 'Mínimes', icon: 'temp', key: 'min', dir: -1, color: '#0369a1', unit: '°' },
+  pluja: { t1: 'La pluja', short: 'Pluja', icon: 'rain', key: 'rain', dir: 1, color: '#1d4ed8', unit: 'mm' },
+  ratxa: { t1: 'Les ratxes', short: 'Ratxes', icon: 'wind', key: 'gust', dir: 1, color: '#b45309', unit: 'km/h' },
   // Temperatura d'ara (la darrera lectura): de més calor a més fred o al revés
-  ara: { t1: 'La temperatura', key: 't', dir: 1, color: '#c2410c', unit: '°' },
-  arafred: { t1: 'La temperatura', key: 't', dir: -1, color: '#0369a1', unit: '°' },
+  ara: { t1: 'La temperatura', short: 'Temperatura', icon: 'temp', key: 't', dir: 1, color: '#c2410c', unit: '°' },
+  arafred: { t1: 'La temperatura', short: 'Temperatura', icon: 'temp', key: 't', dir: -1, color: '#0369a1', unit: '°' },
 };
 // Variables de temperatura (xifra en graus i barres que comencen més avall de zero) i les que es dibuixen amb punts
 // sobre una escala (de més fred a més calor: una barra més llarga per a la temperatura més baixa confon)
@@ -430,12 +432,13 @@ function rowSub(ctx, r, cat, x, y, maxW, size, key) {
 
 // Peu de la llista: deixa clar de quina xarxa són les estacions (al costat del mapa de Catalunya a X).
 // total: a Catalunya, quantes estacions tenien dades (n són les que surten)
-function networkCaption(ctx, n, x, y, size, sp, align = 'left', total = null) {
+// extra: un tros més al final ("FINS A LES 10:06", a la versió neta)
+function networkCaption(ctx, n, x, y, size, sp, align = 'left', total = null, extra = '') {
   const cat = total != null;
   const a = cat ? 'XARXA DEL METEOCAT' : 'XARXA METEOCADÍ';
-  const b = !cat
+  const b = (!cat
     ? ` · ${n} ${n === 1 ? 'ESTACIÓ' : 'ESTACIONS'} DEL BERGUEDÀ`
-    : total > n ? ` · LES ${n} PRIMERES DE ${total} ESTACIONS` : ` · ${n} ${n === 1 ? 'ESTACIÓ' : 'ESTACIONS'}`;
+    : total > n ? ` · LES ${n} PRIMERES DE ${total} ESTACIONS` : ` · ${n} ${n === 1 ? 'ESTACIÓ' : 'ESTACIONS'}`) + (extra ? ` · ${extra.toLocaleUpperCase('ca')}` : '');
   ctx.textBaseline = 'middle';
   font(ctx, 'mono', size);
   const wa = spacedWidth(ctx, a, sp);
@@ -548,17 +551,84 @@ function rankLayout(fmt, cat) {
   return { post: false, H, top: TOP, k: 1, foot: FOOT_Y, legend: 1580, limit: 1552, sent: 30, lh: 42, gapA: 14, gapB: 30, capGap: 38, lines: cat ? 4 : 3, axis: 52, rowMax: cat ? 100 : 88, leg: { sw: 22, fs: 17, cs: 16 } };
 }
 
+// Versió neta del rànquing (Oriol, 20 d'octubre del 2026: "sigue saliendo con mucho texto", com abans els mapes): una
+// sola línia de títol amb icona ("Pluja del 17 al 20 d'octubre", el període en color), sense la data a sobre, sense
+// frase i sense l'escala de colors, la llista més gran i, a sota, els crèdits en petit i meteocadi.cat. Les mateixes
+// mides que les imatges netes dels mapes (mapa-imatge.js): títol a 90 px a la 4:5 i a 290 px a la vertical, per
+// sota de la zona que tapen les Stories.
+function rankLayoutNet(fmt, cat) {
+  if (fmt === 'post') return { post: true, H: POST.H, head: 92, hs: 40, cap: 150, capGap: 24, limit: 1228, credits: 1262, foot: 1306, axis: 44, rowMax: cat ? 92 : 96 };
+  return { post: false, H, head: 290, hs: 50, cap: 360, capGap: 28, limit: 1600, credits: 1640, foot: 1692, axis: 52, rowMax: cat ? 112 : 116 };
+}
+
+// Títol d'una línia: icona en un cercle suau, el que es classifica i el període en color. Si no hi cap i es pot
+// (horitzontal), en dues línies. Retorna on acaba.
+function netTitle(ctx, { x0, head, hs, colR, t1, t2, icon, accent, two = false }) {
+  const iconS = Math.round(hs * 0.92);
+  const tx = x0 + iconS + Math.round(hs * 0.42);
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'alphabetic';
+  tracking(ctx, -0.02 * hs);
+  let s = hs;
+  font(ctx, 'head', s, 800);
+  const one = () => ctx.measureText(t1).width + ctx.measureText(t2).width;
+  const split = two && one() > colR - tx;
+  if (split) { while (Math.max(ctx.measureText(t1).width, ctx.measureText(t2.trim()).width) > colR - tx && s > hs * 0.6) font(ctx, 'head', --s, 800); }
+  else { while (one() > colR - tx && s > hs * 0.6) font(ctx, 'head', --s, 800); }
+  iconBadge(ctx, icon, x0 + iconS / 2, head - s * 0.36, iconS * 0.92, accent);
+  ctx.fillStyle = L.ink;
+  ctx.fillText(t1, tx, head);
+  ctx.fillStyle = accent;
+  if (split) ctx.fillText(t2.trim(), tx, head + s * 1.12);
+  else ctx.fillText(t2, tx + ctx.measureText(t1).width, head);
+  tracking(ctx, 0);
+  return head + (split ? s * 1.12 : 0) + s * 0.3;
+}
+
+// Peu de la versió neta: crèdits en petit (si n'hi ha), meteocadi.cat i la franja de colors
+function netFooter(ctx, { x0, credits, foot, colR, W: ww, H: hh, credit }) {
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  if (credit) {
+    font(ctx, 'ui', 15);
+    ctx.fillStyle = L.mut;
+    const lines = wrap(ctx, credit, colR - x0);
+    lines.forEach((l, i) => ctx.fillText(l, x0, credits - (lines.length - 1 - i) * 21));
+  }
+  tracking(ctx, -0.3);
+  font(ctx, 'head', 30, 800);
+  ctx.fillStyle = L.ink;
+  ctx.fillText('meteocadi.cat', x0, foot);
+  tracking(ctx, 0);
+  const sw = ww / 4;
+  STRIP.forEach((c, i) => {
+    ctx.fillStyle = c;
+    ctx.fillRect(i * sw, hh - 8, sw + 1, 8);
+  });
+}
+
+// "fins a les 10:06" al peu de la llista neta, quan el període arriba a ara (no a la temperatura d'ara, que ja ho diu)
+const upTo = (d) => (d.time && ['avui', 'range', '24h'].includes(d.kind) && d.variable !== 'ara' && d.variable !== 'arafred' ? `fins a les ${d.time}` : '');
+const CAT_CREDIT_NET = 'Dades: Servei Meteorològic de Catalunya (XEMA), dades obertes de la Generalitat.';
+
 // d: { date, when: "d'ahir" | "d'avui" | "del 25 de setembre", variable, rows, sentence, net, kind, time, fmt: 'story' | 'post' }
 export function drawRanking(ctx, d) {
   const cat = d.net === 'cat';
-  const F = rankLayout(d.fmt, cat);
+  const clean = !!d.clean;
+  const F = clean ? rankLayoutNet(d.fmt, cat) : rankLayout(d.fmt, cat);
   background(ctx, false);
   const cfg = RANK_VARS[d.variable];
   const all = rankRows(d.rows, d.variable);
   const list = cat ? all.slice(0, CAT_TOP) : all;
   // Columnes: nom (des de NX) i barres (des de BX). A Catalunya els noms són més llargs i les barres, més curtes.
   const NX = 120, BX = cat ? 500 : 450, BAR = cat ? 330 : 380;
-  let y = header(ctx, rankEyebrow(d), cfg.t1, d.when, L.blue, L.ink, cfg.color, F.top, F.k);
+  let y;
+  if (clean) {
+    netTitle(ctx, { x0: X0, head: F.head, hs: F.hs, colR: X1, t1: cfg.short, t2: ` ${d.when}`, icon: cfg.icon, accent: cfg.color });
+    networkCaption(ctx, list.length, X0, F.cap, F.post ? 17 : 19, 2, 'left', cat ? all.length : null, upTo(d));
+    y = F.cap + F.capGap;
+  } else {
+  y = header(ctx, rankEyebrow(d), cfg.t1, d.when, L.blue, L.ink, cfg.color, F.top, F.k);
 
   y += F.gapA;
   const sentence = nbsp(d.sentence);
@@ -575,6 +645,7 @@ export function drawRanking(ctx, d) {
   y += F.gapB;
   networkCaption(ctx, list.length, X0, y + 11, 20, 2.2, 'left', cat ? all.length : null);
   y += F.capGap;
+  }
   hline(ctx, X0, X1, y, L.ink, 2);
   const vals = list.map((r) => r.v);
   const temp = isTemp(d.variable);
@@ -687,6 +758,10 @@ export function drawRanking(ctx, d) {
     y += RH;
     hline(ctx, X0, X1, y, L.line);
   });
+  if (clean) {
+    netFooter(ctx, { x0: X0, credits: F.credits, foot: F.foot, colR: X1, W, H: F.H, credit: cat ? CAT_CREDIT_NET : '' });
+    return;
+  }
   drawScale(ctx, d.variable, X0, X1, F.legend, { ...F.leg, max: Math.max(0, ...vals) });
   footer(ctx, false, '', cat ? CAT_CREDIT : '', F.foot, F.H);
 }
@@ -703,7 +778,13 @@ export function drawRankingWide(ctx, d) {
   const cat = d.net === 'cat';
   const all = rankRows(d.rows, d.variable);
   const list = cat ? all.slice(0, CAT_TOP) : all;
+  const clean = !!d.clean;
 
+  if (clean) {
+    // Versió neta: icona i títol (en dues línies si cal) a dalt a l'esquerra, i a baix els crèdits i meteocadi.cat
+    netTitle(ctx, { x0: LX0, head: 100, hs: 48, colR: LX1, t1: cfg.short, t2: ` ${d.when}`, icon: cfg.icon, accent: cfg.color, two: true });
+    netFooter(ctx, { x0: LX0, credits: 772, foot: 836, colR: LX1, W: WW, H: HH, credit: cat ? CAT_CREDIT_NET : '' });
+  } else {
   // Columna esquerra: data, títol de dues línies (la segona en color) i frase
   ctx.textBaseline = 'middle';
   const eb = rankEyebrow(d).toLocaleUpperCase('ca');
@@ -744,13 +825,14 @@ export function drawRankingWide(ctx, d) {
     ctx.fillStyle = c;
     ctx.fillRect(i * sw, HH - 8, sw + 1, 8);
   });
+  }
 
   // Columna dreta: la llista
   const vals = list.map((r) => r.v);
   const temp = isTemp(d.variable);
   const dots = isDots(d.variable) && list.length > 0;
   // Títol de la llista a l'altura de la data de l'esquerra
-  networkCaption(ctx, list.length, RX0, 92, 18, 2.2, 'left', cat ? all.length : null);
+  networkCaption(ctx, list.length, RX0, 92, 18, 2.2, 'left', cat ? all.length : null, clean ? upTo(d) : '');
   let y = 118;
   const NX = RX0 + 62, BX = RX0 + (cat ? 450 : 420), BAR = cat ? 270 : 300;
   let sc = null;
