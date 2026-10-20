@@ -15,10 +15,16 @@ const span = (a, b) => Math.round((Date.parse(`${b}T12:00:00Z`) - Date.parse(`${
 
 export default async function handler(req, res) {
   const url = new URL(req.url || '/', 'https://www.meteocadi.cat');
-  const periode = decodeURIComponent(url.pathname.split('/').filter(Boolean).pop() || '');
+  let periode;
+  try {
+    periode = decodeURIComponent(url.pathname.split('/').filter(Boolean).pop() || '');
+  } catch {
+    periode = ''; // camí mal codificat: no coincidirà amb res (404)
+  }
   const clean = `/api/xema/${periode}`;
   // Vercel pot afegir el segment com a paràmetre ("periode"); qualsevol altre es redirigeix
-  if ([...url.searchParams.keys()].some((k) => k !== 'periode')) {
+  // (un "periode" diferent del camí també: seria una entrada nova a la CDN)
+  if ([...url.searchParams].some(([k, v]) => k !== 'periode' || v !== periode)) {
     res.statusCode = 308;
     res.setHeader('Location', clean);
     res.setHeader('Cache-Control', 'public, s-maxage=86400');

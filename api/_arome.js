@@ -87,7 +87,7 @@ function parseId(id) {
 let caps = null;
 async function capabilities(tried) {
   if (caps && Date.now() - caps.at < 15 * MIN) return caps.list;
-  const r = await wcs('GetCapabilities', { base: { language: 'eng' } }, 15000);
+  const r = await wcs('GetCapabilities', { base: { language: 'eng' } }, 12000);
   const text = await r.text();
   if (!r.ok) {
     tried?.push({ op: 'GetCapabilities', status: r.status, text: text.replace(/\s+/g, ' ').slice(0, 200) });
@@ -98,6 +98,9 @@ async function capabilities(tried) {
   caps = { at: Date.now(), list };
   return list;
 }
+
+// Les 3 passades més noves (les que l'índex pot fer servir)
+const newestRuns = (list) => [...new Set(list.filter((c) => VAR.temp.find[0].test(c.ind)).map((c) => c.run.getTime()))].sort((a, b) => b - a).slice(0, 3);
 
 // Per a cada variable, l'indicador i el període que es fan servir (dins d'una passada)
 function choose(list, run) {
@@ -111,7 +114,9 @@ function choose(list, run) {
       const ints = [...new Set(cands.filter((c) => c.ind === ind).map((c) => c.interval))];
       // El període preferit; si no hi és, l'instantani o el més curt
       const interval = ints.includes(v.interval) ? v.interval : ints.includes('') ? '' : ints.sort((a, b) => hoursOf(a) - hoursOf(b))[0];
-      if (interval && hoursOf(interval) > 3) continue; // acumulats de més de 3 hores: no serveixen per a un mapa hora a hora
+      // Acumulats de més de 3 hores no serveixen per a un mapa hora a hora; i la pluja i la neu (mm/h, cm/h), només d'una
+      // hora: un acumulat de 3 hores amb la llegenda per hora triplicaria la intensitat
+      if (interval && hoursOf(interval) > (v.unit.endsWith('/h') ? 1 : 3)) continue;
       out[v.key] = { ind, interval, id: `${ind}___${runId(run)}${interval ? `_${interval}` : ''}` };
       break;
     }
@@ -123,7 +128,7 @@ function choose(list, run) {
 const described = new Map();
 async function describe(id, tried) {
   if (described.has(id)) return described.get(id);
-  const r = await wcs('DescribeCoverage', { base: { coverageid: id } }, 10000);
+  const r = await wcs('DescribeCoverage', { base: { coverageid: id } }, 8000);
   const text = await r.text();
   if (!r.ok) {
     tried?.push({ op: 'DescribeCoverage', id, status: r.status, text: text.replace(/\s+/g, ' ').slice(0, 200) });
@@ -149,7 +154,7 @@ export async function aromeIndex(now = new Date()) {
   if (!key()) return { error: 'no-key', message: 'Falta la clau METEOFRANCE_API_KEY a Vercel.' };
   try {
     const list = await capabilities(tried);
-    const runs = [...new Set(list.filter((c) => VAR.temp.find[0].test(c.ind)).map((c) => c.run.getTime()))].sort((a, b) => b - a).slice(0, 3);
+    const runs = newestRuns(list);
     for (const t of runs) {
       const run = new Date(t);
       const pick = choose(list, run);
@@ -185,14 +190,18 @@ export async function aromeIndex(now = new Date()) {
 
 // Una imatge: variable k, passada run (Date), hora valid (Date) → { png, min, max } o null si no hi és
 export async function aromeImage(k, run, valid) {
-  const v = VAR[k];
+  const v = Object.hasOwn(VAR, k) ? VAR[k] : null;
   if (!v || !key()) return null;
   const list = await capabilities();
+  // Només les passades més noves (cada adreça vàlida costa una crida a Météo-France: així n'hi ha poques)
+  if (!newestRuns(list).includes(run.getTime())) return null;
   const pick = choose(list, run)[k];
   if (!pick) return null;
   const subset = [`time(${iso(valid)})`, `lat(${BOX.lat0},${BOX.lat1})`, `long(${BOX.lng0},${BOX.lng1})`];
+  // I només les hores que té la cobertura
+  const d = await describe(pick.id);
+  if (d?.times.length && !d.times.includes((valid.getTime() - run.getTime()) / 1000)) return null;
   if (v.height != null) {
-    const d = await describe(pick.id);
     // Si la cobertura no té aquesta alçada, la primera que tingui
     const hs = d?.heights || [];
     if (!hs.length || hs.includes(v.height)) subset.push(`height(${v.height})`);

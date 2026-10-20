@@ -3,13 +3,23 @@
 // /api/capes/radar: les imatges del radar de les dues últimes hores, una cada 10 minuts (JSON, 1 minut a la CDN)
 // /api/capes/radar-AAAAMMDDHHMM: una imatge del radar (PNG de paleta en Web Mercator; l'hora és UTC). Les imatges ja no
 //   canvien: un any a la CDN, i cada una es fa una sola vegada per a tothom.
+// /api/capes/pluja: les hores de pluja del radar (acumulació d'una hora, OPERA ACRR) de les darreres 24 hores (JSON)
+// /api/capes/pluja-AAAAMMDDHH00: la pluja d'una hora (la que acaba a aquesta hora UTC) a la graella del mapa de color
+//   (JSON amb les dades comprimides; un any a la CDN)
 // /api/capes/arome: la passada més nova del model AROME, les variables que té i les hores (JSON, 10 minuts)
 // /api/capes/arome-<variable>-AAAAMMDDHH-AAAAMMDDHH: una variable (temp, pluja, neu, vent, ratxa, cota) d'una passada a
 //   una hora (UTC), en PNG de paleta en Web Mercator; set dies a la CDN (una passada ja no canvia).
+// /api/capes/aca i /api/capes/aca-24h: la pluja d'avui i de les darreres 24 hores als pluviòmetres de l'Agència
+//   Catalana de l'Aigua (JSON, 5 minuts a la CDN; api/_aca.js)
+// /api/capes/aca-AAAA-MM-DD: la d'un dia anterior dels darrers 90 (una setmana a la CDN quan ja és sencer)
 // Les dades i com es fan les imatges: api/_opera.js. Com les altres funcions, qualsevol paràmetre es redirigeix a
 // l'adreça neta (perquè no se salti la CDN) i l'hora de la imatge va dins del camí.
 import { listFrames, radarFrame, stamp, fromStamp, BOUNDS, LEVELS, COLORS, W, H } from '../_opera.js';
 import { aromeIndex, aromeImage, VAR, hstamp, fromHstamp } from '../_arome.js';
+import { listProduct } from '../_opera.js';
+import { accHour, FW, FH } from '../_pluja.js';
+import { acaRain, SOURCE as ACA_SOURCE } from '../_aca.js';
+import { ymdMadrid } from '../_xema.js';
 
 // Una imatge cada 10 minuts (les de les hores en punt, i 10, 20…): les composicions intermèdies (…5) solen arribar
 // sense una part dels radars d'AEMET, que en fan una cada 10 minuts, i l'animació faria pampallugues
@@ -54,9 +64,10 @@ async function radarIndex(res) {
 async function radarImage(res, t) {
   const d = fromStamp(t);
   const age = Date.now() - d.getTime();
-  // Només hores de veritat, cada 5 minuts, de les darreres 24 hores (les que guarda el dipòsit d'OPERA)
+  // Només hores de veritat, cada 5 minuts, de les darreres 24 hores (les que guarda el dipòsit d'OPERA). Una hora que
+  // encara ha d'arribar, amb un 404 curt: si la CDN el guardés una hora, quan la imatge ja hi fos no es veuria
   if (isNaN(d) || stamp(d) !== t || d.getUTCMinutes() % 5 || age < -60e3 || age > 25 * 3600e3) {
-    send404(res, 'Imatge: radar-AAAAMMDDHHMM (UTC, cada 5 minuts, de les darreres 24 hores).');
+    send404(res, 'Imatge: radar-AAAAMMDDHHMM (UTC, cada 5 minuts, de les darreres 24 hores).', !isNaN(d) && age < 0 ? 60 : 3600);
     return;
   }
   try {
@@ -100,8 +111,8 @@ async function aromeList(res) {
 async function aromeImg(res, k, r, t) {
   const run = fromHstamp(r), valid = fromHstamp(t);
   const hrs = (valid - run) / 3600e3;
-  if (!VAR[k] || hstamp(run) !== r || hstamp(valid) !== t || hrs < 0 || hrs > 54 || Date.now() - run.getTime() > 3 * 864e5 || run.getTime() > Date.now()) {
-    send404(res, 'Imatge: arome-<variable>-AAAAMMDDHH (passada)-AAAAMMDDHH (hora), en UTC.');
+  if (!Object.hasOwn(VAR, k) || hstamp(run) !== r || hstamp(valid) !== t || hrs < 0 || hrs > 54 || Date.now() - run.getTime() > 3 * 864e5 || run.getTime() > Date.now()) {
+    send404(res, 'Imatge: arome-<variable>-AAAAMMDDHH (passada)-AAAAMMDDHH (hora), en UTC.', run.getTime() > Date.now() ? 60 : 3600);
     return;
   }
   try {
@@ -111,8 +122,8 @@ async function aromeImg(res, k, r, t) {
       return;
     }
     res.setHeader('Content-Type', 'image/png');
-    // Una passada ja no canvia
-    res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=604800, immutable');
+    // Una passada ja no canvia; si la imatge no té cap valor (una hora que encara no hi és del tot), 5 minuts
+    res.setHeader('Cache-Control', f.min == null ? 'public, s-maxage=300' : 'public, max-age=3600, s-maxage=604800, immutable');
     if (f.min != null) res.setHeader('X-Arome-Min', String(f.min));
     if (f.max != null) res.setHeader('X-Arome-Max', String(f.max));
     res.status(200).send(f.png);
@@ -123,11 +134,97 @@ async function aromeImg(res, k, r, t) {
   }
 }
 
+// ------------------------------------------------------------------ pluja del radar per hores (api/_pluja.js)
+async function plujaList(res) {
+  const now = new Date();
+  try {
+    const all = await listProduct('ACRR', new Date(now.getTime() - 26 * 3600e3), now);
+    const hours = all.filter((t) => t.endsWith('00'));
+    res.setHeader('Cache-Control', 'public, s-maxage=120, stale-while-revalidate=300');
+    res.status(200).json({ updated: now.toISOString(), source: SOURCE, w: FW, h: FH, hours: hours.map((t) => ({ t, end: fromStamp(t).toISOString(), url: `/api/capes/pluja-${t}` })) });
+  } catch (e) {
+    console.error('[capes/pluja]', String(e));
+    res.setHeader('Cache-Control', 'public, s-maxage=60');
+    res.status(200).json({ updated: now.toISOString(), error: 'pluja', message: String(e), hours: [] });
+  }
+}
+
+async function plujaHour(res, t) {
+  const d = fromStamp(t);
+  const age = Date.now() - d.getTime();
+  if (isNaN(d) || stamp(d) !== t || d.getUTCMinutes() !== 0 || age < 0 || age > 25 * 3600e3) {
+    send404(res, 'Hora: pluja-AAAAMMDDHH00 (UTC, en punt, de les darreres 24 hores).', !isNaN(d) && age < 0 ? 60 : 3600);
+    return;
+  }
+  try {
+    const h = await accHour(t);
+    if (!h) {
+      send404(res, 'Aquesta hora encara no hi és.', 60);
+      return;
+    }
+    res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=31536000, immutable');
+    res.status(200).json({ t, end: d.toISOString(), ...h });
+  } catch (e) {
+    console.error('[capes/pluja]', t, String(e));
+    res.setHeader('Cache-Control', 'public, s-maxage=30');
+    res.status(502).json({ error: 'pluja', message: String(e) });
+  }
+}
+
+// ------------------------------------------------------------------ pluviòmetres de l'ACA (api/_aca.js)
+// Darrera resposta bona de cada període (mentre la instància segueix activa): si l'ACA falla, se serveix aquesta
+// marcada amb stale, si és de fa menys d'una hora
+const acaMemo = {};
+async function acaList(res, kind) {
+  const now = new Date();
+  try {
+    const body = await acaRain(kind, now);
+    acaMemo[kind] = { at: Date.now(), body };
+    res.setHeader('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+    res.status(200).json(body);
+  } catch (e) {
+    console.error('[capes/aca]', kind, String(e));
+    res.setHeader('Cache-Control', 'public, s-maxage=60');
+    const m = acaMemo[kind];
+    if (m && Date.now() - m.at < 3600e3) {
+      res.status(200).json({ ...m.body, stale: true });
+      return;
+    }
+    res.status(200).json({ updated: now.toISOString(), error: 'aca', message: String(e), source: ACA_SOURCE, stations: [] });
+  }
+}
+
+// Un dia anterior (l'ACA en guarda uns tres mesos)
+async function acaDay(res, date) {
+  const ms = Date.parse(`${date}T12:00:00Z`);
+  if (isNaN(ms) || new Date(ms).toISOString().slice(0, 10) !== date || date >= ymdMadrid() || Date.now() - ms > 91 * 864e5) {
+    send404(res, 'Dia: aca-AAAA-MM-DD (un dia anterior a avui, dels darrers 90).', !isNaN(ms) && date >= ymdMadrid() ? 60 : 3600);
+    return;
+  }
+  try {
+    const body = await acaRain('day', new Date(), fetch, date);
+    // Un dia sencer ja no canvia; si encara hi falten les darreres lectures (just després de mitjanit), 10 minuts
+    res.setHeader('Cache-Control', body.complete ? 'public, s-maxage=604800, stale-while-revalidate=86400' : 'public, s-maxage=600');
+    res.status(200).json(body);
+  } catch (e) {
+    console.error('[capes/aca]', date, String(e));
+    res.setHeader('Cache-Control', 'public, s-maxage=60');
+    res.status(200).json({ updated: new Date().toISOString(), error: 'aca', message: String(e), source: ACA_SOURCE, stations: [] });
+  }
+}
+
 export default async function handler(req, res) {
   const url = new URL(req.url || '/', 'https://www.meteocadi.cat');
-  const capa = decodeURIComponent(url.pathname.split('/').filter(Boolean).pop() || '');
-  // Vercel pot afegir el segment com a paràmetre ("capa"); qualsevol altre es redirigeix
-  if ([...url.searchParams.keys()].some((k) => k !== 'capa')) {
+  let capa;
+  try {
+    capa = decodeURIComponent(url.pathname.split('/').filter(Boolean).pop() || '');
+  } catch {
+    send404(res, 'Capa desconeguda.');
+    return;
+  }
+  // Vercel pot afegir el segment com a paràmetre ("capa"). Qualsevol altre paràmetre, o un "capa" que no sigui el del
+  // camí, es redirigeix a l'adreça neta: cada variant seria una entrada nova a la CDN i una crida nova a les fonts
+  if ([...url.searchParams].some(([k, v]) => k !== 'capa' || v !== capa)) {
     res.statusCode = 308;
     res.setHeader('Location', `/api/capes/${encodeURIComponent(capa)}`);
     res.setHeader('Cache-Control', 'public, s-maxage=86400');
@@ -137,8 +234,15 @@ export default async function handler(req, res) {
   if (capa === 'radar') return radarIndex(res);
   const m = /^radar-(\d{12})$/.exec(capa);
   if (m) return radarImage(res, m[1]);
+  if (capa === 'pluja') return plujaList(res);
+  const pl = /^pluja-(\d{12})$/.exec(capa);
+  if (pl) return plujaHour(res, pl[1]);
   if (capa === 'arome') return aromeList(res);
   const a = /^arome-([a-z]+)-(\d{10})-(\d{10})$/.exec(capa);
   if (a) return aromeImg(res, a[1], a[2], a[3]);
-  send404(res, 'Capes: radar, radar-AAAAMMDDHHMM, arome i arome-<variable>-AAAAMMDDHH-AAAAMMDDHH.');
+  if (capa === 'aca') return acaList(res, 'today');
+  if (capa === 'aca-24h') return acaList(res, '24h');
+  const ad = /^aca-(\d{4}-\d{2}-\d{2})$/.exec(capa);
+  if (ad) return acaDay(res, ad[1]);
+  send404(res, 'Capes: radar, radar-AAAAMMDDHHMM, pluja, pluja-AAAAMMDDHH00, arome, arome-<variable>-AAAAMMDDHH-AAAAMMDDHH, aca, aca-24h i aca-AAAA-MM-DD.');
 }

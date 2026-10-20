@@ -64,7 +64,7 @@ const CARDS = [
   import CONTORN from '../lib/catalunya-contorn.json';
   import { loadAra } from '../scripts/live.js';
   import { STATIONS } from '../lib/stations.js';
-  import { FB, computeField, outlineMask, toCanvas, fieldColor } from '../scripts/camp.js';
+  import { FB, computeField, outlineMask, toCanvas, fieldColor, lowSun } from '../scripts/camp.js';
   import { tempColorLight, num, hourMadrid, todayMadrid } from '../lib/format.js';
 
   const HIDDEN = new Set(['IBAG65', 'IBAG72']);
@@ -203,7 +203,7 @@ const CARDS = [
     }
     if (!list.length) return;
     const pts = list.filter((s) => s.t != null).map((s) => ({ lat: s.lat, lng: s.lng, alt: s.alt ?? 0, v: s.t }));
-    const f = xemaOk ? computeField(pts, 't', { mask: outlineMask(), dem }) : null;
+    const f = xemaOk ? computeField(pts, 't', { mask: outlineMask(), dem, inversion: lowSun(x?.latest ? new Date(x.latest) : new Date()) }) : null;
     base(ctx);
     if (f) {
       const [ax, ay] = P(FB.lng0, FB.lat1);

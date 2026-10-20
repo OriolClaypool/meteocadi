@@ -86,24 +86,117 @@ const S2 = 2 * 2;
 // maskHi: la màscara a HI vegades la resolució (comarquesMask(geo, HI)) per a les variables per classes; si no n'hi
 // ha, s'amplia la de la graella.
 // min: per sota d'aquest valor no es pinta (la pluja l'adapta al màxim del mapa, vegeu rainClasses)
-export function computeField(pts, key, { mask, maskHi = null, dem = null, alpha = null, min = null }) {
+// Temperatura segons l'altitud (la "tendència" que es treu abans d'interpolar i es torna a sumar amb el relleu):
+// - Un sol gradient, ajustat amb les mateixes estacions, entre -9,8 i -2 °C/km.
+// - O dos trams que s'ajunten a l'alçada h: el de baix pot ser més suau o fins i tot pujar (inversió tèrmica: les
+//   valls i els plans més freds que els vessants), el de dalt, entre -9,8 i -2 °C/km. Es fa servir quan redueix
+//   l'error de l'ajust un 25 % o més i el tram de baix és clarament diferent; cada tram ha de tenir 6 estacions.
+// Provat deixant fora cada estació (20/10/2026): a les mínimes de les 12 estacions de la xarxa en 460 dies, l'error
+// mitjà passa d'1,12 a 1,07 °C, i els 230 matins amb inversió (les de la vall més fredes que el Rebost, a 1.650 m),
+// d'1,89 a 1,57 °C; a les màximes, igual (0,94 i 0,93). Amb les 184 estacions de la XEMA d'un dia de pluja (19/10)
+// no s'activa i el mapa queda igual. La posició al relleu (fons de vall o carena) no millorava res: la graella del
+// relleu (4 km) és massa grossa per a les valls estretes.
+// Els dos trams només per a la mínima i per a la temperatura d'ara amb el sol baix (inversion: true, vegeu lowSun): a
+// les tardes d'estiu, la marinada refresca la costa i l'ajust ho prendria per una inversió (la costa, a 0 m, més freda
+// que la plana de Lleida) i pintaria les serres de la costa més calentes que la costa mateixa.
+function solve3(X, y) {
+  const A = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
+  for (let i = 0; i < X.length; i++) for (let a = 0; a < 3; a++) { A[a][3] += X[i][a] * y[i]; for (let c = 0; c < 3; c++) A[a][c] += X[i][a] * X[i][c]; }
+  for (let i = 0; i < 3; i++) {
+    let mx = i;
+    for (let r = i + 1; r < 3; r++) if (Math.abs(A[r][i]) > Math.abs(A[mx][i])) mx = r;
+    [A[i], A[mx]] = [A[mx], A[i]];
+    if (Math.abs(A[i][i]) < 1e-9) return null;
+    for (let r = 0; r < 3; r++) if (r !== i) { const f = A[r][i] / A[i][i]; for (let c = i; c < 4; c++) A[r][c] -= f * A[i][c]; }
+  }
+  return A.map((row, i) => row[3] / row[i]);
+}
+export function altTrend(pts, twoSegments = true) {
+  const n = pts.length;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const mz = pts.reduce((a, p) => a + p.alt, 0) / n, mv = pts.reduce((a, p) => a + p.v, 0) / n;
+  const sxx = pts.reduce((a, p) => a + (p.alt - mz) ** 2, 0);
+  const b = clamp(sxx > 0 ? pts.reduce((a, p) => a + (p.alt - mz) * (p.v - mv), 0) / sxx : -0.0065, -0.0098, -0.002);
+  const lin = { f: (z) => b * z, b };
+  if (!twoSegments) return lin;
+  const rss0 = pts.reduce((a, p) => a + (p.v - mv - b * (p.alt - mz)) ** 2, 0);
+  let best = null;
+  for (let h = 300; h <= 2000; h += 100) {
+    let lo = 0;
+    for (const p of pts) if (p.alt < h) lo++;
+    if (lo < 6 || n - lo < 6) continue;
+    const c = solve3(pts.map((p) => [1, Math.min(p.alt, h), Math.max(p.alt - h, 0)]), pts.map((p) => p.v));
+    if (!c) continue;
+    const b1 = clamp(c[1], -0.0098, 0.025), b2 = clamp(c[2], -0.0098, -0.002);
+    let rss = 0;
+    for (const p of pts) rss += (p.v - c[0] - b1 * Math.min(p.alt, h) - b2 * Math.max(p.alt - h, 0)) ** 2;
+    if (!best || rss < best.rss) best = { h, b1, b2, rss };
+  }
+  if (!best || best.rss > rss0 * 0.75 || best.b1 < best.b2 + 0.002) return lin;
+  const { h, b1, b2 } = best;
+  return { f: (z) => b1 * Math.min(z, h) + b2 * Math.max(z - h, 0), b: b2, h, b1 };
+}
+
+// radar (només la pluja): la pluja del radar a la mateixa graella (FW × FH, mm; NaN on no n'hi ha), per fer-ne la
+// fusió condicional amb els pluviòmetres: a cada punt, la interpolació de les estacions més la diferència entre el
+// radar en aquell punt i el radar interpolat de la mateixa manera des de les estacions (tot en log(1 + mm)). Així, a
+// cada estació queda el que ha mesurat i, entre estacions, la forma de la pluja és la del radar.
+function sampleGrid(grid, lat, lng) {
+  const [x, y] = toPx(lng, lat);
+  const c = Math.floor(x - 0.5), r = Math.floor(y - 0.5), tx = x - 0.5 - c, ty = y - 0.5 - r;
+  const at = (cc, rr) => (cc < 0 || rr < 0 || cc >= FW || rr >= FH ? NaN : grid[rr * FW + cc]);
+  const a = at(c, r), b = at(c + 1, r), d = at(c, r + 1), e = at(c + 1, r + 1);
+  if (a !== a || b !== b || d !== d || e !== e) return at(Math.round(x - 0.5), Math.round(y - 0.5));
+  return (a * (1 - tx) + b * tx) * (1 - ty) + (d * (1 - tx) + e * tx) * ty;
+}
+
+// Sol baix al centre de Catalunya, quan hi pot haver inversió tèrmica a les valls: de nit, al matí fins que el sol és a
+// 20° (a l'hivern, cap a les 11; les inversions triguen a desfer-se) i al vespre per sota de 5° (abans, a l'estiu, encara
+// hi pot haver marinada)
+export function lowSun(date = new Date(), lat = 41.8, lng = 1.6) {
+  const rad = Math.PI / 180;
+  const d = date.getTime() / 864e5 - 10957.5; // dies des del 2000-01-01 12:00 UTC
+  const g = rad * ((357.529 + 0.98560028 * d) % 360);
+  const q = (280.459 + 0.98564736 * d) % 360;
+  const L = rad * ((q + 1.915 * Math.sin(g) + 0.02 * Math.sin(2 * g)) % 360);
+  const e = rad * (23.439 - 0.00000036 * d);
+  const ra = Math.atan2(Math.cos(e) * Math.sin(L), Math.cos(L));
+  const dec = Math.asin(Math.sin(e) * Math.sin(L));
+  const gmst = (18.697374558 + 24.06570982441908 * d) % 24;
+  const ha = rad * (gmst * 15 + lng) - ra;
+  const el = Math.asin(Math.sin(rad * lat) * Math.sin(dec) + Math.cos(rad * lat) * Math.cos(dec) * Math.cos(ha)) / rad;
+  const morning = Math.sin(ha) < 0; // angle horari negatiu: abans del migdia solar
+  return el < 5 || (morning && el < 20);
+}
+
+export function computeField(pts, key, { mask, maskHi = null, dem = null, alpha = null, min = null, radar = null, inversion = false }) {
   const cfg = FIELD[key] && min != null ? { ...FIELD[key], min } : FIELD[key];
   if (!cfg || !mask || pts.length < 5) return null;
-  let slope = 0;
   const useDem = !!cfg.dem && !!dem;
-  if (useDem) {
-    const n = pts.length, mx = pts.reduce((a, p) => a + p.alt, 0) / n, my = pts.reduce((a, p) => a + p.v, 0) / n;
-    const sxx = pts.reduce((a, p) => a + (p.alt - mx) ** 2, 0);
-    slope = sxx > 0 ? pts.reduce((a, p) => a + (p.alt - mx) * (p.v - my), 0) / sxx : -0.0065;
-    slope = Math.max(-0.0098, Math.min(-0.002, slope));
-  }
+  const trend = useDem ? altTrend(pts, inversion) : null;
   const n = pts.length;
   const PX = new Float64Array(n), PY = new Float64Array(n), PR = new Float64Array(n);
   pts.forEach((p, j) => {
     PX[j] = p.lng;
     PY[j] = p.lat;
-    PR[j] = cfg.log ? Math.log1p(Math.max(0, p.v)) : p.v - slope * p.alt;
+    PR[j] = cfg.log ? Math.log1p(Math.max(0, p.v)) : trend ? p.v - trend.f(p.alt) : p.v;
   });
+  // Radar a cada estació (log(1 + mm); NaN si no n'hi ha). Només si s'assembla prou al que han recollit les estacions
+  // (correlació de 0,4 o més amb 20 estacions com a mínim): un radar desfasat, buit o amb ecos falsos no hi entra
+  let RS = radar && cfg.log && radar.length === FW * FH ? Float64Array.from(pts, (p) => { const r = sampleGrid(radar, p.lat, p.lng); return r === r ? Math.log1p(Math.max(0, r)) : NaN; }) : null;
+  let radarCorr = null;
+  if (RS) {
+    const idx = [];
+    for (let j = 0; j < n; j++) if (RS[j] === RS[j]) idx.push(j);
+    if (idx.length >= 20) {
+      const ma = idx.reduce((a, j) => a + PR[j], 0) / idx.length, mb = idx.reduce((a, j) => a + RS[j], 0) / idx.length;
+      let sab = 0, saa = 0, sbb = 0;
+      for (const j of idx) { sab += (PR[j] - ma) * (RS[j] - mb); saa += (PR[j] - ma) ** 2; sbb += (RS[j] - mb) ** 2; }
+      radarCorr = saa > 0 && sbb > 0 ? sab / Math.sqrt(saa * sbb) : null;
+    }
+    if (!(radarCorr >= 0.4)) RS = null;
+  }
+  const useRadar = !!RS;
   const kk = Math.min(K, n - 1);
   // Les kk + 1 estacions més properes del punt, ordenades per distància (bd: km², bi: índex de l'estació)
   const bd = new Float64Array(kk + 1), bi = new Int32Array(kk + 1);
@@ -144,21 +237,24 @@ export function computeField(pts, key, { mask, maskHi = null, dem = null, alpha 
       prev.set(bi);
       warm = true;
       const R2 = bd[kk];
-      let sw = 0, sv = 0;
+      let sw = 0, sv = 0, rw = 0, rv = 0;
       for (let q = 0; q < kk; q++) {
         const t = 1 - bd[q] / R2;
         const x = bd[q] + S2;
         const w = (t * t) / (x * Math.sqrt(Math.sqrt(x))); // 1 / (d² + S²)^1,25 = potència 2,5 de la distància
         sw += w;
         sv += w * PR[bi[q]];
+        if (RS && RS[bi[q]] === RS[bi[q]]) { rw += w; rv += w * RS[bi[q]]; }
       }
       let v = sw > 0 ? sv / sw : PR[bi[0]];
+      // Fusió amb el radar (on n'hi ha al punt i a les estacions del voltant)
+      if (RS && rw > 0 && radar[i] === radar[i]) v = Math.max(0, v + Math.log1p(Math.max(0, radar[i])) - rv / rw);
       if (step) {
         if (bd[0] <= maxD2) G[i] = v;
         continue;
       }
       if (cfg.log) v = Math.expm1(v);
-      if (useDem) v += slope * elevAt(dem, lat, lng);
+      if (trend) v += trend.f(elevAt(dem, lat, lng));
       if ((cfg.min != null && v < cfg.min) || bd[0] > maxD2) continue;
       const c = ramp(cfg.stops, v, cfg.step);
       const k = i * 4;
@@ -169,8 +265,8 @@ export function computeField(pts, key, { mask, maskHi = null, dem = null, alpha 
       web.data[k + 3] = Math.round(inside * (alpha ?? cfg.alpha));
     }
   }
-  if (step) return { ...paintClasses(G, cfg, mask, maskHi, alpha ?? cfg.alpha), useDem, alpha: cfg.alpha };
-  return { raw, web, useDem, alpha: cfg.alpha };
+  if (step) return { ...paintClasses(G, cfg, mask, maskHi, alpha ?? cfg.alpha), useDem, useRadar, radarCorr, alpha: cfg.alpha };
+  return { raw, web, useDem, alpha: cfg.alpha, inversion: trend?.h != null ? { h: trend.h, below: trend.b1 } : null };
 }
 
 // Pinta per classes a HI × la graella: interpolació bilineal del valor (en l'escala d'interpolació) i classificació

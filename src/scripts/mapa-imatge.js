@@ -27,6 +27,7 @@ const NOTES = {
   dem: "El color és una estimació entre estacions que té en compte l'altitud del terreny.",
   wind: "El color és una estimació entre estacions i només orientativa: el vent canvia molt d'un lloc a l'altre.",
   plain: 'El color és una estimació entre estacions.',
+  radar: "El color és una estimació entre estacions amb la forma de la pluja del radar (OPERA d'EUMETNET, CC BY 4.0).",
 };
 
 // Versió neta: head = [x, y] de la línia del títol; hs = mida del títol; x1 = amplada de la columna de text (horitzontal)

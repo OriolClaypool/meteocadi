@@ -12,6 +12,7 @@ const ld = [
 ];
 const CONT = 'M-200 -20C-190 -140 -40 -190 80 -160C200 -130 260 -40 230 60C200 160 60 190 -60 170C-170 150 -210 80 -200 -20Z';
 const contours = [...Array(10).keys()].map((j) => `translate(1180 260) rotate(${-8 + 3 * j}) scale(${(0.35 + 0.34 * j + 0.03 * j * j).toFixed(2)})`);
+import { modelsReady } from '../lib/models.js';
 ---
 <Base
   title="Estacions meteorològiques del Cadí-Moixeró en directe | Meteocadí"
@@ -48,6 +49,7 @@ const contours = [...Array(10).keys()].map((j) => `translate(1180 260) rotate(${
         <h2 style="margin-top:0;">Com funciona la xarxa</h2>
         <p>Les estacions són automàtiques i envien una lectura cada pocs minuts a Weather Underground. Meteocadí les agrupa, les mostra juntes i n'arxiva cada nit el resum del dia: màxima, mínima, ratxa de vent, pluja i humitat.</p>
         <p>Les estacions d'<strong>alta muntanya</strong> s'han instal·lat en col·laboració amb el Parc Natural del Cadí-Moixeró. Les de <strong>vall i Prepirineu</strong> són de Meteocadí i de col·laboradors del territori.</p>
+        {modelsReady() && <p>Cada dia les fem servir per comprovar <a href="/models">quin model meteorològic encerta més al Cadí</a>.</p>}
       </div>
       <div class="prose">
         <h2 style="margin-top:0;">Vols afegir-hi la teva estació?</h2>
