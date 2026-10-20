@@ -593,28 +593,33 @@ export function startRadar() {
   // Cada 2 minuts, mira si ja hi ha una imatge nova
   setInterval(async () => {
     if (!st.frames.length) return;
+    // Si mentrestant s'ha canviat de font o de producte (loadSeq), la resposta ja no serveix
+    const seq = loadSeq;
     if (st.src === 'opera') {
-      const ix = await fetch('/api/capes/radar').then((r) => (r.ok ? r.json() : null)).catch(() => null);
       const lastT = st.frames[st.frames.length - 1].t;
+      const ix = await fetch('/api/capes/radar').then((r) => (r.ok ? r.json() : null)).catch(() => null);
       const fresh = (ix?.frames || []).filter((f) => f.t > lastT);
-      if (!fresh.length || st.src !== 'opera') return;
+      if (!fresh.length || seq !== loadSeq) return;
       const got = (await Promise.all(fresh.map((f) => loadOperaFrame(f, cv.width, cv.height)))).filter(Boolean);
-      if (!got.length || st.src !== 'opera') return;
+      if (!got.length || seq !== loadSeq || !st.frames.length) return;
       const atEnd = st.i === st.frames.length - 1;
       st.frames.push(...got);
-      while (st.frames.length > 13) st.frames.shift();
-      show(atEnd ? st.frames.length - 1 : Math.max(0, st.i - got.length));
+      // Les que surten pel principi: la que es mirava (aturada) es queda a la mateixa imatge
+      let dropped = 0;
+      while (st.frames.length > 13) { st.frames.shift(); dropped++; }
+      show(atEnd ? st.frames.length - 1 : Math.max(0, st.i - dropped));
       return;
     }
     const last = st.frames[st.frames.length - 1].date;
     const next = new Date(last.getTime() + STEP * 60e3);
     if (Date.now() - next.getTime() < 60e3) return;
     const f = await loadFrame(st.prod, next, st.cors);
-    if (!f) return;
+    if (!f || seq !== loadSeq || !st.frames.length) return;
     const atEnd = st.i === st.frames.length - 1;
     st.frames.push(f);
-    if (st.frames.length > FRAMES) st.frames.shift();
-    show(atEnd ? st.frames.length - 1 : Math.max(0, st.i - 1));
+    let dropped = 0;
+    if (st.frames.length > FRAMES) { st.frames.shift(); dropped = 1; }
+    show(atEnd ? st.frames.length - 1 : Math.max(0, st.i - dropped));
   }, 120e3);
 
   // ------------------------------------------------ animació

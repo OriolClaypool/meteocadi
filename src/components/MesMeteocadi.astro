@@ -108,7 +108,7 @@ const smalls = (best ? 1 : 0) + (ep ? 1 : 0) + 2;
           <span class="mm-ic" set:html={icon('ep')} />
           <h3>Episodis</h3>
           <p>Pluja intensa, vent fort, calor, fred i glaçades, explicats amb les dades de la xarxa.</p>
-          <span class="mm-hook"><b>{ep.label}</b> · {cap(ep.rangeText)}: {ep.headline.v} {ep.headline.u} a {ep.headline.where}</span>
+          <span class="mm-hook"><b>{ep.label}</b> · {cap(ep.rangeText)}: {ep.headline.v} {ep.headline.u} {ep.headline.a}</span>
           <span class="mm-go">Tots els episodis <Fragment set:html={ARROW} /></span>
         </a>
       )}

@@ -335,11 +335,12 @@ const { internal = false } = Astro.props;
   let fluxOn = true;
   try { fluxOn = localStorage.getItem(K_FLUX) !== '0'; } catch {}
   const flux = createFlux(map, L, RINGS);
-  const FLUX_CREDIT = 'vent: <a href="https://meteofrance.com/">Météo-France</a> (AROME-PI)';
+  // El crèdit diu el model que ha donat el vent (AROME-PI o, si no hi és, AROME)
+  const fluxCreditOf = (w: any) => `vent: <a href="https://meteofrance.com/">Météo-France</a> (${w?.model === 'AROME' ? 'AROME' : 'AROME-PI'})`;
   let wind: any = null;
   let windState: 'idle' | 'loading' | 'ok' | 'error' = 'idle';
   let windTimer = 0;
-  let fluxCredit = false;
+  let fluxCredit = '';
   const fluxVar = () => cur.key === 'wind' || cur.key === 'gust';
   const fluxCan = () => period.kind === 'today' && fluxVar();
   function loadWind() {
@@ -363,10 +364,11 @@ const { internal = false } = Astro.props;
     // Blanc sobre el mapa de color; blau fosc sobre el mapa clar
     flux.tone(fieldLayer ? 'light' : 'dark');
     flux.show(show);
-    if (show !== fluxCredit) {
-      if (show) map.attributionControl?.addAttribution(FLUX_CREDIT);
-      else map.attributionControl?.removeAttribution(FLUX_CREDIT);
-      fluxCredit = show;
+    const credit = show ? fluxCreditOf(wind) : '';
+    if (credit !== fluxCredit) {
+      if (fluxCredit) map.attributionControl?.removeAttribution(fluxCredit);
+      if (credit) map.attributionControl?.addAttribution(credit);
+      fluxCredit = credit;
     }
     // Mentre es veu, el vent es torna a demanar cada 15 minuts
     if (show && !windTimer) windTimer = window.setInterval(() => { windState = 'idle'; loadWind(); }, 15 * 60 * 1000);

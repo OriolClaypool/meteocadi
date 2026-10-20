@@ -3,7 +3,7 @@
 // que /models (src/lib/models.js, calculades en compilar). El dibuix és a src/scripts/estudi/models.js.
 import Base from '../../layouts/Base.astro';
 import EstudiTop from '../../components/EstudiTop.astro';
-import { verify } from '../../lib/models.js';
+import { verify, modelsReady } from '../../lib/models.js';
 
 const DATA = {};
 for (const n of [30, 90])
@@ -12,7 +12,8 @@ for (const n of [30, 90])
       const v = verify({ n, lead, group: group === 'totes' ? null : group });
       DATA[`${n}-${lead}-${group}`] = v && v.rows.length ? v : null;
     }
-const ready = !!DATA['30-1-totes'];
+// Com a /models: 7 dies i 3 models al rànquing (amb menys, la imatge no diria res)
+const ready = modelsReady(DATA['30-1-totes'] ?? undefined);
 const has90 = !!DATA['90-1-totes'] && DATA['90-1-totes'].days > DATA['30-1-totes']?.days;
 ---
 <Base
@@ -67,7 +68,7 @@ const has90 = !!DATA['90-1-totes'] && DATA['90-1-totes'].days > DATA['30-1-totes
         </div>
         <button type="button" class="md-dl" id="mdDl" disabled={!ready}>Descarrega la imatge</button>
       </div>
-      {!ready && <p class="md-note">Encara no hi ha prou dies de previsions dels models: cada nit, l'arxiu en desa i la primera nit ja en recupera un mes. Amb 7 dies, aquí sortirà la imatge (i /models, al peu del web).</p>}
+      {!ready && <p class="md-note">Encara no hi ha prou dies de previsions dels models: cada nit, l'arxiu en desa i la primera nit ja en recupera un mes. Amb 7 dies, aquí sortirà la imatge (i /models, al menú i al peu del web).</p>}
       <div class="md-stage"><canvas id="mdCanvas" width="1080" height="1350" aria-label="Previsualització de la imatge"></canvas></div>
       <p class="md-small">Les mateixes dades que la pàgina <a href="/models">/models</a>: error mitjà de la màxima i la mínima de cada dia (temperatura) o dies que encerta si plou o no (pluja, a partir d'1 mm), amb el control de qualitat de l'arxiu. Un model amb poques dades no hi surt.</p>
     </div>

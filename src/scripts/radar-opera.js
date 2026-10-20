@@ -232,8 +232,9 @@ export function startRadarPage() {
   try { windOn = localStorage.getItem(K_WIND) !== '0'; } catch {}
   const flux = createFlux(map, L, [[[39.9, -1.2], [39.9, 4.6], [43.4, 4.6], [43.4, -1.2]]]);
   flux.tone('dark');
-  const WIND_CREDIT = 'vent: <a href="https://meteofrance.com/" target="_blank" rel="noopener">Météo-France</a> (AROME-PI)';
-  let wind = null, windState = 'idle', windTimer = 0, windCredit = false;
+  // El crèdit diu el model que ha donat el vent (AROME-PI o, si no hi és, AROME)
+  const creditOf = (w) => `vent: <a href="https://meteofrance.com/" target="_blank" rel="noopener">Météo-France</a> (${w?.model === 'AROME' ? 'AROME' : 'AROME-PI'})`;
+  let wind = null, windState = 'idle', windTimer = 0, windCredit = '';
   function loadWind() {
     if (windState === 'loading') return;
     windState = 'loading';
@@ -252,10 +253,11 @@ export function startRadarPage() {
     if (windOn && windState === 'idle') loadWind();
     const show = windOn && windState === 'ok';
     flux.show(show);
-    if (show !== windCredit) {
-      if (show) map.attributionControl?.addAttribution(WIND_CREDIT);
-      else map.attributionControl?.removeAttribution(WIND_CREDIT);
-      windCredit = show;
+    const credit = show ? creditOf(wind) : '';
+    if (credit !== windCredit) {
+      if (windCredit) map.attributionControl?.removeAttribution(windCredit);
+      if (credit) map.attributionControl?.addAttribution(credit);
+      windCredit = credit;
     }
     // Mentre es veu, es torna a demanar cada 15 minuts
     if (show && !windTimer) windTimer = setInterval(() => { windState = 'idle'; loadWind(); }, 15 * 60e3);
@@ -263,7 +265,9 @@ export function startRadarPage() {
     const b = $('rpWind');
     if (b) b.setAttribute('aria-pressed', String(windOn));
     const n = $('rpWindNote');
-    if (n) n.textContent = show && wind?.valid ? `Vent: ${wind.model} de Météo-France, previsió per a les ${hourMadrid(new Date(wind.valid))}.` : windOn && windState === 'error' ? 'El vent ara no està disponible.' : '';
+    // "per a les 9:45", però "per a la 1:15"
+    const wh = wind?.valid ? hourMadrid(new Date(wind.valid)).replace(/^0(?=\d)/, '') : '';
+    if (n) n.textContent = show && wh ? `Vent: ${wind.model} de Météo-France, previsió per a ${wh.startsWith('1:') ? 'la' : 'les'} ${wh}.` : windOn && windState === 'error' ? 'El vent ara no està disponible.' : '';
   }
   $('rpWind')?.addEventListener('click', () => {
     windOn = !windOn;

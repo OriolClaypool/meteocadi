@@ -61,11 +61,22 @@ async function getImg(url) {
 }
 
 // Una imatge Web Mercator amb límits [[sud, oest], [nord, est]]
+const okBounds = (b) => Array.isArray(b) && b.length === 2 && b.every((p) => Array.isArray(p) && p.length === 2 && p.every(Number.isFinite));
 function drawMerc(ctx, P, img, bounds) {
   const [[s, w], [n, e]] = bounds;
   const [x0, y0] = P(w, n), [x1, y1] = P(e, s);
   ctx.drawImage(img, x0, y0, x1 - x0, y1 - y0);
 }
+
+// "15:00" i "de les 15:00", però "1:05" i "de la 1:05"
+const hh = (d) => hourMadrid(d).replace(/^0(?=\d)/, '');
+const prep = (t, la, les) => `${t.startsWith('1:') ? la : les} ${t}`;
+// L'endemà d'un dia "AAAA-MM-DD", pel calendari (no sumant 24 hores: els dies del canvi d'hora en tenen 23 o 25)
+const nextDay = (iso) => {
+  const d = new Date(`${iso}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + 1);
+  return d.toISOString().slice(0, 10);
+};
 
 function capitals(ctx, P, dark) {
   ctx.font = "600 22px 'Geist Variable', system-ui, sans-serif";
@@ -102,8 +113,8 @@ function whenText(iso) {
   const d = new Date(iso);
   const day = todayMadrid(d);
   const today = todayMadrid();
-  const tomorrow = todayMadrid(new Date(Date.now() + 864e5));
-  const at = `a les ${hourMadrid(d)}`;
+  const tomorrow = nextDay(today);
+  const at = prep(hh(d), 'a la', 'a les');
   if (day === today) return `avui ${at}`;
   if (day === tomorrow) return `demà ${at}`;
   return `${new Intl.DateTimeFormat('ca-ES', { timeZone: 'Europe/Madrid', weekday: 'long' }).format(d)} ${at}`;
@@ -134,7 +145,7 @@ async function radar(cv, G) {
     shot = await getImg(fr.url);
     if (shot) { f = fr; break; }
   }
-  if (!f || !shot) {
+  if (!f || !shot || !okBounds(ix.bounds)) {
     setText('[data-mp-when="radar"]', 'El radar no respon ara mateix');
     return;
   }
@@ -143,10 +154,11 @@ async function radar(cv, G) {
   drawMerc(ctx, G.P, shot.img, ix.bounds);
   ctx.imageSmoothingEnabled = true;
   top();
-  const h = hourMadrid(new Date(f.time));
+  const h = hh(new Date(f.time));
   setText('[data-mp-pill="radar"]', h);
+  // El mateix llindar que el radar (/radar): menys del 0,05 % de Catalunya amb eco
   const wet = shot.headers.get('x-radar-pluja');
-  setText('[data-mp-when="radar"]', `Imatge de les ${h}${wet != null && Number(wet) < 0.002 ? ' · ara no plou a Catalunya' : ''}`);
+  setText('[data-mp-when="radar"]', `Imatge ${prep(h, 'de la', 'de les')}${wet != null && Number(wet) < 0.0005 ? ' · ara no plou a Catalunya' : ''}`);
 }
 
 // L'hora de la previsió: avui a les 15:00 si encara és d'hora; si no, demà a les 15:00 (si la passada hi arriba; si
@@ -156,7 +168,7 @@ function pickHour(times) {
   const future = times.filter((t) => Date.parse(t.time) > now);
   if (!future.length) return null;
   const hNow = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Madrid', hour: '2-digit', hourCycle: 'h23' }).format(new Date()));
-  const want = todayMadrid(new Date(now + (hNow < 12 ? 0 : 864e5)));
+  const want = hNow < 12 ? todayMadrid() : nextDay(todayMadrid());
   const at15 = future.find((t) => todayMadrid(new Date(t.time)) === want && hourMadrid(new Date(t.time)) === '15:00');
   return at15 || future[future.length - 1];
 }
@@ -184,7 +196,7 @@ async function arome(cv, G) {
   ctx.fill(G.land, 'evenodd');
   top();
   const ix = await getJson('/api/capes/arome');
-  const v = ix && !ix.error ? (ix.vars || []).find((x) => x.key === 'temp') : null;
+  const v = ix && !ix.error && okBounds(ix.bounds) ? (ix.vars || []).find((x) => x.key === 'temp') : null;
   const t = v ? pickHour(ix.times || []) : null;
   const shot = t ? await getImg(`/api/capes/arome-temp-${ix.r}-${t.t}`) : null;
   if (!shot) {
@@ -214,9 +226,9 @@ function xarxa(j) {
     el.setAttribute('fill', ok ? tempColor(d.temp) : '#7d8fa6');
   });
   if (j?.updated) {
-    const h = hourMadrid(new Date(j.updated));
+    const h = hh(new Date(j.updated));
     setText('[data-mp-pill="xarxa"]', h);
-    setText('[data-mp-when="xarxa"]', `Temperatura de les ${h}`);
+    setText('[data-mp-when="xarxa"]', `Temperatura ${prep(h, 'de la', 'de les')}`);
   }
 }
 
@@ -231,9 +243,13 @@ export function startMapesPortada() {
     const G = projection();
     const rc = sec.querySelector('[data-mp="radar"]');
     const ac = sec.querySelector('[data-mp="arome"]');
-    if (rc) radar(rc, G);
-    if (ac) arome(ac, G);
-    loadAra().then((j) => j && xarxa(j));
+    // Si una imatge no es pot dibuixar, la targeta es queda amb el contorn i ho diu
+    if (rc) radar(rc, G).catch(() => setText('[data-mp-when="radar"]', 'El radar no respon ara mateix'));
+    if (ac) arome(ac, G).catch(() => setText('[data-mp-when="arome"]', 'La previsió no respon ara mateix'));
+    loadAra().then((j) => {
+      if (j?.stations) xarxa(j);
+      else if (!document.querySelector('[data-mp-pill="xarxa"]')?.textContent?.match(/\d/)) setText('[data-mp-when="xarxa"]', 'Les estacions no responen ara mateix');
+    });
   };
   if (!('IntersectionObserver' in window)) return go();
   const io = new IntersectionObserver((es) => {

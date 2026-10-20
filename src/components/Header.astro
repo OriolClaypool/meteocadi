@@ -61,7 +61,7 @@ const CHEV = '<svg class="nav__chev" width="12" height="12" viewBox="0 0 24 24" 
           <button type="button" class="nav__dd" aria-expanded="false" aria-controls={`nav-dd-${n}`}>{e.label}<Fragment set:html={CHEV} /></button>
           <div class="nav__panel" id={`nav-dd-${n}`}>
             {e.items.map((i) => (
-              <a href={i.href} aria-current={isHere(i.href) ? 'page' : undefined}><b>{i.label}</b>{i.sub && <small>{i.sub}</small>}</a>
+              <a href={i.href} aria-current={here === i.href ? 'page' : isHere(i.href) ? 'true' : undefined}><b>{i.label}</b>{i.sub && <small>{i.sub}</small>}</a>
             ))}
           </div>
         </div>
@@ -78,40 +78,55 @@ const CHEV = '<svg class="nav__chev" width="12" height="12" viewBox="0 0 24 24" 
 </header>
 
 <script>
-  // Desplegables: a l'escriptori s'obren en passar-hi per sobre (CSS) o en clicar-los (també amb el teclat); es tanquen
-  // en clicar fora, amb Esc o quan el focus en surt. Al mòbil, dins del menú, s'obren i es tanquen tocant-los.
+  // Desplegables. A l'escriptori (més de 1200 px): amb el ratolí s'obren en passar-hi per sobre i es tanquen en sortir-ne;
+  // amb el teclat o el dit, en clicar el títol, i es tanquen en tocar fora, amb Esc o quan el focus en surt. Al mòbil,
+  // dins del menú, cada grup s'obre i es tanca tot sol (si en tancar-ne un altre la llista pugés, el toc cauria fora).
+  const nav = document.getElementById('menu');
+  nav?.classList.add('is-js');
   const groups = Array.from(document.querySelectorAll<HTMLElement>('.nav__grp'));
-  // Al mòbil cada grup s'obre i es tanca tot sol: si en tancar un altre grup la llista pugés, el toc cauria fora
-  const desk = matchMedia('(min-width: 1201px)');
-  const closeAll = (except?: HTMLElement) =>
-    groups.forEach((g) => {
-      if (g === except) return;
-      g.classList.remove('is-open');
-      g.querySelector('.nav__dd')?.setAttribute('aria-expanded', 'false');
-    });
+  const desk = matchMedia('(min-width: 1200.02px)');
+  const setOpen = (g: HTMLElement, open: boolean) => {
+    g.classList.toggle('is-open', open);
+    g.querySelector('.nav__dd')?.setAttribute('aria-expanded', String(open));
+  };
+  const closeAll = (except?: HTMLElement) => groups.forEach((g) => g !== except && setOpen(g, false));
   groups.forEach((g) => {
     const b = g.querySelector<HTMLButtonElement>('.nav__dd');
+    g.addEventListener('pointerenter', (e) => {
+      if (e.pointerType !== 'mouse' || !desk.matches) return;
+      closeAll(g);
+      setOpen(g, true);
+    });
+    g.addEventListener('pointerleave', (e) => {
+      if (e.pointerType === 'mouse' && desk.matches) setOpen(g, false);
+    });
     b?.addEventListener('click', () => {
-      const open = !g.classList.contains('is-open');
+      // Amb el ratolí a sobre ja és obert: el clic no el tanca
+      const open = desk.matches && g.matches(':hover') ? true : !g.classList.contains('is-open');
       if (desk.matches) closeAll(g);
-      g.classList.toggle('is-open', open);
-      b.setAttribute('aria-expanded', String(open));
+      setOpen(g, open);
     });
+    // El focus se'n va a un altre lloc (amb el teclat): es tanca. Un clic dins, en un lloc no enfocable, no el tanca
     g.addEventListener('focusout', (e) => {
-      if (desk.matches && !g.contains(e.relatedTarget as Node | null)) {
-        g.classList.remove('is-open');
-        b?.setAttribute('aria-expanded', 'false');
-      }
+      const to = e.relatedTarget as Node | null;
+      if (desk.matches && to && !g.contains(to)) setOpen(g, false);
     });
   });
-  document.addEventListener('click', (e) => {
-    if (!(e.target as HTMLElement).closest?.('.nav__grp')) closeAll();
-  });
+  // Un toc o un clic fora. En captura i amb pointerdown: a l'iPad, Safari no fa arribar els tocs en llocs no clicables
+  // al document, i els controls dels mapes aturen els clics
+  document.addEventListener(
+    'pointerdown',
+    (e) => {
+      if (desk.matches && !(e.target as HTMLElement).closest?.('.nav__grp')) closeAll();
+    },
+    true,
+  );
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Escape') return;
     const open = groups.find((g) => g.classList.contains('is-open'));
     if (!open) return;
+    const inside = open.contains(document.activeElement);
     closeAll();
-    open.querySelector<HTMLButtonElement>('.nav__dd')?.focus();
+    if (inside) open.querySelector<HTMLButtonElement>('.nav__dd')?.focus({ preventScroll: true });
   });
 </script>
