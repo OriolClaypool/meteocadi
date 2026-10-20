@@ -349,6 +349,16 @@
       "source": "/previsio.html",
       "destination": "/estudi",
       "permanent": false
+    },
+    {
+      "source": "/esqui",
+      "destination": "/neu",
+      "permanent": true
+    },
+    {
+      "source": "/esqui.html",
+      "destination": "/neu",
+      "permanent": true
     }
   ],
   "headers": [

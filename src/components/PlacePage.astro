@@ -15,6 +15,7 @@ import { localize, esPath, caPath } from '../lib/places-es.js';
 import { fetchMountain, mountainText, lowerCommon } from '../lib/mountain.js';
 import { fetchSki, skiCardsHTML, skiHeadHTML, skiChartSVG, inSeason } from '../lib/ski.js';
 import { BY_ID, fmtAlt } from '../lib/stations.js';
+import { NEU_BY_SLUG } from '../lib/neu/estacions.js';
 import { stationRecords } from '../lib/archive.js';
 import { dailyForecast } from '../lib/forecast-build.js';
 import { wmoText } from '../lib/wmo.js';
@@ -38,7 +39,7 @@ const dist = main ? distanceKm(p, main) : 0;
 const distTxt = dist >= 0.5 ? `, a ${dist < 1 ? (es ? 'menos de 1 km' : "menys d'1 km") : `${num(dist, 1)} km`}` : '';
 const path = es ? esPath(p.slug) : caPath(p.slug);
 const base = es ? '/es/tiempo/' : '/temps/';
-const skiPath = es ? '/es/esqui' : '/esqui';
+const skiPath = es ? '/es/esqui' : '/neu';
 const hubPath = p.ski ? skiPath : hub ? (es ? '/es/montana' : '/muntanya') : `${base}${region.slug}`;
 const hubName = p.ski ? (es ? 'Nieve y esquí' : 'Neu i esquí') : hub ? (es ? 'Montaña' : 'Muntanya') : region.name;
 const listPath = es ? '/es/tiempo' : '/temps';
@@ -197,6 +198,7 @@ const skiFacts = p.ski
           <p class="skilinks">
             <a href={p.ski.web} rel="noopener" target="_blank">{es ? 'Web oficial de la estación' : "Web oficial de l'estació"}</a>
             {p.ski.webcams && <a href={p.ski.webcams} rel="noopener" target="_blank">Webcams</a>}
+            {!es && NEU_BY_SLUG[p.slug] && <a href={`/neu/${p.slug}`}>Aquesta estació a Meteocadí Neu →</a>}
             <a href={skiPath}>{es ? 'Todas las estaciones de esquí' : "Totes les estacions d'esquí"} →</a>
           </p>
           <p class="skifacts__note">{es
