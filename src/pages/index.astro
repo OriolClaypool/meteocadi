@@ -4,8 +4,8 @@ import WindLines from '../components/WindLines.astro';
 import Icon from '../components/Icons.astro';
 import StationTable from '../components/StationTable.astro';
 import Forecast from '../components/Forecast.astro';
-import Explora from '../components/Explora.astro';
-import Perfil from '../components/Perfil.astro';
+import MapesPortada from '../components/MapesPortada.astro';
+import MesMeteocadi from '../components/MesMeteocadi.astro';
 import SkiHome from '../components/SkiHome.astro';
 import CatalunyaAra from '../components/CatalunyaAra.astro';
 import { STATIONS, fmtAlt } from '../lib/stations.js';
@@ -32,7 +32,7 @@ const contours = [...Array(10).keys()].map((j) => `translate(1180 260) rotate(${
 ---
 <Base
   title="El temps a Catalunya i al Cadí-Moixeró en directe | Meteocadí"
-  description={`El temps en directe a totes les estacions automàtiques de Catalunya, la previsió dels pobles i les pistes del Pirineu i la xarxa Meteocadí: ${STATIONS.length} estacions pròpies entre Bagà, Gósol, el Pedraforca i el Coll de Pal.`}
+  description={`El temps en directe a totes les estacions automàtiques de Catalunya, el radar de pluja, la previsió dels pobles i les pistes del Pirineu i la xarxa Meteocadí: ${STATIONS.length} estacions pròpies entre Bagà, Gósol, el Pedraforca i el Coll de Pal.`}
   path="/"
   header="overlay"
   preload="/imatges/portada-1600.webp"
@@ -50,11 +50,10 @@ const contours = [...Array(10).keys()].map((j) => `translate(1180 260) rotate(${
       <div class="hero__text a-rise">
         <span class="kicker">Catalunya i Pirineu · dades en directe</span>
         <h1>El temps a Catalunya,<br /><em>de la vall al cim.</em></h1>
-        <p class="hero__lead">Les estacions automàtiques de tot Catalunya en un sol mapa, la previsió dels pobles i les pistes del Pirineu i la xarxa Meteocadí: {STATIONS.length} estacions pròpies al Cadí-Moixeró, dels {altLo} als {altHi}&nbsp;metres.</p>
+        <p class="hero__lead">Les estacions automàtiques de tot Catalunya en un sol mapa, el radar de pluja en directe, la previsió hora a hora i la xarxa Meteocadí: {STATIONS.length} estacions pròpies al Cadí-Moixeró, dels {altLo} als {altHi}&nbsp;metres.</p>
         <div class="hero__btns">
           <a href="/mapa/catalunya" class="btn btn--light">El mapa de Catalunya <Fragment set:html={ARROW} /></a>
-          <a href="/estacions" class="btn btn--ghost">La xarxa Meteocadí</a>
-          <a href="/cap-de-setmana" class="btn" style="color:#fff;text-decoration:underline;text-underline-offset:5px;text-decoration-color:rgba(255,255,255,.5);padding:0 8px;font-weight:600;">Aquest cap de setmana</a>
+          <a href="/radar" class="btn btn--ghost">Radar de pluja</a>
         </div>
       </div>
       {ex && (
@@ -129,6 +128,8 @@ const contours = [...Array(10).keys()].map((j) => `translate(1180 260) rotate(${
 
   <CatalunyaAra />
 
+  <MapesPortada />
+
   <section class="sec sec--dark" id="estacions">
     <svg class="contours" viewBox="0 0 1440 900" aria-hidden="true"><g fill="none" stroke="#3db8ff" stroke-opacity="0.07">{contours.map((t) => <path vector-effect="non-scaling-stroke" transform={t} d={CONT}></path>)}</g></svg>
     <div class="wrap" style="position:relative;">
@@ -158,8 +159,7 @@ const contours = [...Array(10).keys()].map((j) => `translate(1180 260) rotate(${
 
   {!skiSeason && <SkiHome />}
 
-  <Explora />
-  <Perfil />
+  <MesMeteocadi />
 </Base>
 
 <script>

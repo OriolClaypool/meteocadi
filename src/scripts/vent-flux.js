@@ -56,6 +56,8 @@ export function createFlux(map, L, rings) {
   // Per sobre del mapa de color (350) i per sota dels límits comarcals (400), la marca d'aigua i les etiquetes
   pane.style.zIndex = '380';
   pane.style.pointerEvents = 'none';
+  // Amagat fins que es demana (show)
+  pane.style.display = 'none';
   const cv = L.DomUtil.create('canvas', 'cm-flux', pane);
   const ctx = cv.getContext('2d');
   const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)');

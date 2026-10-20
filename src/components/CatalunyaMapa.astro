@@ -329,7 +329,8 @@ const { internal = false } = Astro.props;
 
   // ---------------------------------------------------------------- vent animat (src/scripts/vent-flux.js)
   // Partícules que avancen amb el vent de l'AROME-PI de Météo-France (/api/vent, el quart d'hora en curs), per sobre del
-  // mapa de color. Només amb les dades d'ara (període "Avui"). Encès per defecte; si s'apaga, es recorda.
+  // mapa de color. Només amb les dades d'ara (període "Avui") i amb el vent o la ratxa: sobre la temperatura o la pluja
+  // no hi pega (Oriol, 20/10/2026; on més es veu és al radar, /radar). Encès per defecte; si s'apaga, es recorda.
   const K_FLUX = 'meteocadi-mapa-vent';
   let fluxOn = true;
   try { fluxOn = localStorage.getItem(K_FLUX) !== '0'; } catch {}
@@ -339,7 +340,8 @@ const { internal = false } = Astro.props;
   let windState: 'idle' | 'loading' | 'ok' | 'error' = 'idle';
   let windTimer = 0;
   let fluxCredit = false;
-  const fluxCan = () => period.kind === 'today';
+  const fluxVar = () => cur.key === 'wind' || cur.key === 'gust';
+  const fluxCan = () => period.kind === 'today' && fluxVar();
   function loadWind() {
     if (windState === 'loading') return;
     windState = 'loading';
@@ -371,6 +373,8 @@ const { internal = false } = Astro.props;
     if (!show && windTimer) { window.clearInterval(windTimer); windTimer = 0; }
     const btn = document.getElementById('cmFluxBtn') as HTMLButtonElement | null;
     if (btn) {
+      // El botó només surt amb el vent i la ratxa
+      btn.hidden = !fluxVar();
       btn.disabled = !fluxCan();
       btn.setAttribute('aria-pressed', String(fluxOn && fluxCan()));
       btn.title = fluxCan() ? 'Partícules que avancen amb el vent previst per a ara' : "Només amb les dades d'ara";

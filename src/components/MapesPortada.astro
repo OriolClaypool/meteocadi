@@ -1,0 +1,140 @@
+---
+// Portada · "Més mapes, en directe" (Oriol, 20/10/2026: "la landing se queda un poco atrás"): una targeta per a cada
+// mapa nou amb una vista prèvia real — la darrera imatge del radar, la previsió AROME de la temperatura i les estacions
+// de la xarxa amb la temperatura d'ara. Les imatges es demanen quan la secció s'acosta a la pantalla
+// (src/scripts/mapes-portada.js); si una font no respon, la targeta es queda amb el contorn i ho diu.
+import { STATIONS, shortName } from '../lib/stations.js';
+
+const ARROW = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg>';
+
+// La xarxa: les estacions al seu lloc (les tres de Bagà, com una), amb el nom curt i la temperatura d'ara. Les
+// etiquetes es col·loquen aquí, en compilar: a la dreta, a l'esquerra, a sobre o a sota, la primera que no en trepitgi
+// cap altra ni cap punt.
+const HIDE = new Set(['IBAG65', 'IBAG72']);
+const SHORT = { IBAG67: 'Rebost', ISANTJ138: 'Forcat', ISANTJ53: 'Cerdanyola', ILANOU4: 'La Nou', IBARCELO40: 'La Pobla', IBAG73: 'Bagà' };
+const VW = 380, VH = 285;
+const list = STATIONS.filter((s) => !HIDE.has(s.id));
+const lat0 = Math.min(...list.map((s) => s.lat)), lat1 = Math.max(...list.map((s) => s.lat));
+const lng0 = Math.min(...list.map((s) => s.lng)), lng1 = Math.max(...list.map((s) => s.lng));
+const cos = Math.cos((((lat0 + lat1) / 2) * Math.PI) / 180);
+const MX = 58, MT = 40, MB = 52;
+const k = Math.min((VW - 2 * MX) / ((lng1 - lng0) * cos), (VH - MT - MB) / (lat1 - lat0));
+const ox = (VW - (lng1 - lng0) * cos * k) / 2, oy = MT + (VH - MT - MB - (lat1 - lat0) * k) / 2;
+const pts = list.map((s) => ({ s, name: SHORT[s.id] || shortName(s), x: ox + (s.lng - lng0) * cos * k, y: oy + (lat1 - s.lat) * k }));
+// Mides aproximades del text (Geist 12,5 px i Geist Mono 13 px)
+const LH = 18, TW = 40;
+const wOf = (p) => p.name.length * 6.7 + 6 + TW;
+const hit = (a, b) => !(a[2] <= b[0] || a[0] >= b[2] || a[3] <= b[1] || a[1] >= b[3]);
+// Zona reservada: l'hora, a baix a l'esquerra
+const placed = [[0, VH - 36, 92, VH], ...pts.map((p) => [p.x - 6, p.y - 6, p.x + 6, p.y + 6])];
+// Primer les de més amunt (són les que es miren), després la resta
+const labels = [];
+for (const p of [...pts].sort((a, b) => b.s.alt - a.s.alt)) {
+  const w = wOf(p);
+  const cand = [
+    { a: 'start', tx: p.x + 10, ty: p.y, r: [p.x + 8, p.y - LH / 2, p.x + 10 + w, p.y + LH / 2] },
+    { a: 'end', tx: p.x - 10, ty: p.y, r: [p.x - 10 - w, p.y - LH / 2, p.x - 8, p.y + LH / 2] },
+    { a: 'middle', tx: p.x, ty: p.y - 17, r: [p.x - w / 2, p.y - 8 - LH, p.x + w / 2, p.y - 7] },
+    { a: 'middle', tx: p.x, ty: p.y + 18, r: [p.x - w / 2, p.y + 8, p.x + w / 2, p.y + 9 + LH] },
+    { a: 'start', tx: p.x + 4, ty: p.y - 17, r: [p.x + 2, p.y - 8 - LH, p.x + 6 + w, p.y - 7] },
+    { a: 'end', tx: p.x - 4, ty: p.y - 17, r: [p.x - 6 - w, p.y - 8 - LH, p.x - 2, p.y - 7] },
+    { a: 'start', tx: p.x + 4, ty: p.y + 18, r: [p.x + 2, p.y + 8, p.x + 6 + w, p.y + 9 + LH] },
+    { a: 'end', tx: p.x - 4, ty: p.y + 18, r: [p.x - 6 - w, p.y + 8, p.x - 2, p.y + 9 + LH] },
+  ];
+  const own = [p.x - 6, p.y - 6, p.x + 6, p.y + 6];
+  const c = cand.find((c) => c.r[0] >= 4 && c.r[2] <= VW - 4 && c.r[1] >= 4 && c.r[3] <= VH - 4 && !placed.some((b) => b !== own && !(b[0] === own[0] && b[1] === own[1]) && hit(c.r, b)));
+  if (!c) continue;
+  placed.push(c.r);
+  labels.push({ p, ...c });
+}
+// Corbes de nivell decoratives al voltant de la carena (com les seccions fosques del web)
+const CONT = 'M-200 -20C-190 -140 -40 -190 80 -160C200 -130 260 -40 230 60C200 160 60 190 -60 170C-170 150 -210 80 -200 -20Z';
+const ridge = pts.find((p) => p.s.id === 'IBAG67') || pts[0];
+const contours = [...Array(8).keys()].map((j) => `translate(${ridge.x.toFixed(0)} ${(ridge.y - 10).toFixed(0)}) rotate(${-14 + 3 * j}) scale(${(0.16 + 0.17 * j + 0.012 * j * j).toFixed(3)} ${(0.11 + 0.12 * j + 0.01 * j * j).toFixed(3)})`);
+---
+<section class="sec sec--pale mp" id="mapes">
+  <div class="wrap">
+    <div class="sec__head">
+      <div>
+        <span class="eyebrow" style="color:var(--muted);">RADAR · PREVISIÓ · XARXA</span>
+        <h2 class="h2">Més mapes, <em>en directe</em></h2>
+        <p class="sub" style="max-width:640px;">El radar de pluja cada deu minuts, la previsió hora a hora del model AROME i les estacions de la xarxa Meteocadí.</p>
+      </div>
+    </div>
+    <div class="mp-grid">
+      <a class="mp-card" href="/radar">
+        <div class="mp-vis mp-vis--dark">
+          <canvas data-mp="radar" width="840" height="630" aria-hidden="true"></canvas>
+          <span class="mp-pill" data-mp-pill="radar">Radar</span>
+        </div>
+        <div class="mp-txt">
+          <h3>Radar de pluja</h3>
+          <p>On plou ara mateix i cap on va, amb els radars d'AEMET i Météo-France i el vent a sobre.</p>
+          <span class="mp-when" data-mp-when="radar">&nbsp;</span>
+          <span class="mp-go">Obre el radar <Fragment set:html={ARROW} /></span>
+        </div>
+      </a>
+      <a class="mp-card" href="/mapa/previsio">
+        <div class="mp-vis">
+          <canvas data-mp="arome" width="840" height="630" aria-hidden="true"></canvas>
+          <span class="mp-pill" data-mp-pill="arome">Previsió</span>
+        </div>
+        <div class="mp-txt">
+          <h3>Previsió hora a hora</h3>
+          <p>Temperatura, pluja, neu i vent per a les pròximes 48 hores amb el model AROME de Météo-France.</p>
+          <span class="mp-when" data-mp-when="arome">&nbsp;</span>
+          <span class="mp-go">Obre la previsió <Fragment set:html={ARROW} /></span>
+        </div>
+      </a>
+      <a class="mp-card" href="/mapa">
+        <div class="mp-vis mp-vis--dark">
+          <svg viewBox={`0 0 ${VW} ${VH}`} aria-hidden="true">
+            <g fill="none" stroke="#3db8ff" stroke-opacity="0.12">{contours.map((t) => <path vector-effect="non-scaling-stroke" transform={t} d={CONT}></path>)}</g>
+            {pts.map((p) => <circle cx={p.x.toFixed(1)} cy={p.y.toFixed(1)} r="5" fill="#7d8fa6" stroke="#0b1d35" stroke-width="2" data-mp-dot={p.s.id}></circle>)}
+            {labels.map((l) => (
+              <text x={l.tx.toFixed(1)} y={(l.ty + 4.5).toFixed(1)} text-anchor={l.a} class="mp-lab"><tspan class="mp-lab__n">{l.p.name}</tspan> <tspan class="mp-lab__t" data-mp-t={l.p.s.id}>—</tspan></text>
+            ))}
+          </svg>
+          <span class="mp-pill" data-mp-pill="xarxa">Xarxa</span>
+        </div>
+        <div class="mp-txt">
+          <h3>La xarxa al mapa</h3>
+          <p>Les {STATIONS.length} estacions Meteocadí, del fons de la vall a la carena del Cadí, amb totes les lectures.</p>
+          <span class="mp-when" data-mp-when="xarxa">&nbsp;</span>
+          <span class="mp-go">Obre el mapa de la xarxa <Fragment set:html={ARROW} /></span>
+        </div>
+      </a>
+    </div>
+  </div>
+</section>
+
+<style is:global>
+  .mp-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+  .mp-card { display: flex; flex-direction: column; border-radius: 18px; background: #fff; color: var(--ink); overflow: hidden; box-shadow: 0 1px 2px rgba(16, 35, 59, 0.06), 0 0 0 1px rgba(16, 35, 59, 0.05); transition: transform 0.25s ease, box-shadow 0.25s ease; }
+  .mp-card:hover { color: var(--ink); transform: translateY(-4px); box-shadow: 0 22px 48px rgba(16, 35, 59, 0.16), 0 0 0 1px rgba(16, 35, 59, 0.05); }
+  .mp-vis { position: relative; aspect-ratio: 4 / 3; background: #e9eef3; }
+  .mp-vis--dark { background: #0b1d35; }
+  .mp-vis canvas, .mp-vis svg { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+  .mp-pill { position: absolute; left: 12px; bottom: 12px; padding: 4px 10px; border-radius: 999px; background: rgba(255, 255, 255, 0.92); color: var(--ink); font-family: var(--f-mono); font-size: 12px; font-weight: 500; letter-spacing: 0.02em; box-shadow: 0 1px 3px rgba(16, 35, 59, 0.18); }
+  .mp-txt { display: flex; flex-direction: column; gap: 8px; padding: 20px 22px 22px; flex: 1; }
+  .mp-txt h3 { font-size: 23px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
+  .mp-txt p { font-size: 15px; line-height: 1.5; color: var(--ink2); }
+  .mp-when { font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.02em; color: var(--muted); min-height: 1.4em; }
+  .mp-go { margin-top: auto; padding-top: 6px; display: inline-flex; align-items: center; gap: 8px; font-weight: 700; color: var(--accent); }
+  .mp-lab { font-family: var(--f-ui); font-size: 12.5px; paint-order: stroke; stroke: #0b1d35; stroke-width: 3px; stroke-linejoin: round; }
+  .mp-lab__n { fill: #c3cfde; font-weight: 500; }
+  .mp-lab__t { fill: #93a3b8; font-family: var(--f-mono); font-size: 13px; font-weight: 600; }
+  @media (max-width: 1100px) {
+    .mp-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .mp-grid .mp-card:last-child { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  }
+  @media (max-width: 720px) {
+    .mp-grid { grid-template-columns: 1fr; gap: 18px; }
+    .mp-grid .mp-card:last-child { display: flex; }
+  }
+</style>
+
+<script>
+  import { startMapesPortada } from '../scripts/mapes-portada.js';
+  startMapesPortada();
+</script>

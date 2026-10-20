@@ -1,0 +1,165 @@
+---
+// Estudi · models (intern, no indexat): la imatge "Quin model encerta més al Cadí?" per a xarxes, amb les mateixes dades
+// que /models (src/lib/models.js, calculades en compilar). El dibuix és a src/scripts/estudi/models.js.
+import Base from '../../layouts/Base.astro';
+import EstudiTop from '../../components/EstudiTop.astro';
+import { verify } from '../../lib/models.js';
+
+const DATA = {};
+for (const n of [30, 90])
+  for (const lead of [1, 2])
+    for (const group of ['totes', 'alta', 'vall']) {
+      const v = verify({ n, lead, group: group === 'totes' ? null : group });
+      DATA[`${n}-${lead}-${group}`] = v && v.rows.length ? v : null;
+    }
+const ready = !!DATA['30-1-totes'];
+const has90 = !!DATA['90-1-totes'] && DATA['90-1-totes'].days > DATA['30-1-totes']?.days;
+---
+<Base
+  title="Estudi · Models | Meteocadí"
+  description="Eina interna de Meteocadí: la imatge de quin model encerta més al Cadí."
+  path="/estudi/models"
+  noindex
+  bare
+>
+  <div class="st">
+    <EstudiTop current="models" />
+    <div class="wrap md">
+      <div class="md-bar">
+        <div class="md-grp">
+          <span class="md-lab">Rànquing per</span>
+          <div class="md-seg" role="group" aria-label="Rànquing per">
+            <button type="button" data-by="temp" aria-pressed="true">Temperatura</button>
+            <button type="button" data-by="pluja" aria-pressed="false">Pluja</button>
+          </div>
+        </div>
+        <div class="md-grp">
+          <span class="md-lab">Període</span>
+          <div class="md-seg" role="group" aria-label="Període">
+            <button type="button" data-n="30" aria-pressed="true">30 dies</button>
+            <button type="button" data-n="90" aria-pressed="false" disabled={!has90} title={has90 ? '' : 'Encara no hi ha més de 30 dies'}>90 dies</button>
+          </div>
+        </div>
+        <div class="md-grp">
+          <span class="md-lab">Estacions</span>
+          <div class="md-seg" role="group" aria-label="Estacions">
+            <button type="button" data-g="totes" aria-pressed="true">Totes</button>
+            <button type="button" data-g="alta" aria-pressed="false">Alta muntanya</button>
+            <button type="button" data-g="vall" aria-pressed="false">Vall</button>
+          </div>
+        </div>
+        <div class="md-grp">
+          <span class="md-lab">Previsió</span>
+          <div class="md-seg" role="group" aria-label="Previsió feta">
+            <button type="button" data-lead="1" aria-pressed="true">Del dia abans</button>
+            <button type="button" data-lead="2" aria-pressed="false">De dos dies abans</button>
+          </div>
+        </div>
+      </div>
+      <div class="md-bar">
+        <div class="md-grp">
+          <span class="md-lab">Format</span>
+          <div class="md-seg" role="group" aria-label="Format">
+            <button type="button" data-f="post" aria-pressed="true">Publicació 4:5</button>
+            <button type="button" data-f="story" aria-pressed="false">Història 9:16</button>
+            <button type="button" data-f="wide" aria-pressed="false">Horitzontal 16:9</button>
+          </div>
+        </div>
+        <button type="button" class="md-dl" id="mdDl" disabled={!ready}>Descarrega la imatge</button>
+      </div>
+      {!ready && <p class="md-note">Encara no hi ha prou dies de previsions dels models: cada nit, l'arxiu en desa i la primera nit ja en recupera un mes. Amb 7 dies, aquí sortirà la imatge (i /models, al peu del web).</p>}
+      <div class="md-stage"><canvas id="mdCanvas" width="1080" height="1350" aria-label="Previsualització de la imatge"></canvas></div>
+      <p class="md-small">Les mateixes dades que la pàgina <a href="/models">/models</a>: error mitjà de la màxima i la mínima de cada dia (temperatura) o dies que encerta si plou o no (pluja, a partir d'1 mm), amb el control de qualitat de l'arxiu. Un model amb poques dades no hi surt.</p>
+    </div>
+  </div>
+  <dialog class="cm-dlg" id="cmDlg" aria-label="Imatge dels models">
+    <img id="cmDlgImg" alt="Imatge de quin model encerta més al Cadí" />
+    <div class="cm-dlg__bar">
+      <button type="button" id="cmDlgShare" hidden>Comparteix</button>
+      <a id="cmDlgSave" href="#" download="meteocadi-models.png">Descarrega</a>
+      <button type="button" id="cmDlgClose" class="is-ghost">Tanca</button>
+    </div>
+  </dialog>
+  <script type="application/json" id="mdData" set:html={JSON.stringify(DATA)}></script>
+</Base>
+<style is:global>
+  .md { display: flex; flex-direction: column; gap: 14px; padding-top: 18px; padding-bottom: 56px; }
+  .md-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; }
+  .md-grp { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .md-lab { font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--mut); }
+  .md-seg { display: flex; flex-wrap: wrap; gap: 3px; background: #e8eef4; padding: 3px; border-radius: 9px; }
+  .md-seg button { border: 0; background: none; padding: 6px 11px; border-radius: 7px; color: var(--ink2); font-weight: 600; font-size: 13.5px; cursor: pointer; white-space: nowrap; }
+  .md-seg button[aria-pressed='true'] { background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(16, 35, 59, 0.12); }
+  .md-seg button:disabled { opacity: 0.45; cursor: default; }
+  .md-dl { height: 38px; padding: 0 18px; border-radius: 999px; border: 0; background: #10233b; color: #fff; font-weight: 700; font-size: 14px; cursor: pointer; }
+  .md-dl:disabled { opacity: 0.4; cursor: default; }
+  .md-note { margin: 0; padding: 12px 14px; border-radius: 10px; background: #fff7ed; color: #9a3412; font-size: 14px; border: 1px solid #fed7aa; }
+  .md-stage { display: flex; justify-content: center; background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 18px; }
+  .md-stage canvas { display: block; width: auto; max-width: 100%; max-height: 72vh; border-radius: 6px; box-shadow: 0 1px 6px rgba(16, 35, 59, 0.12); }
+  .md-small { font-size: 12.5px; color: var(--mut); line-height: 1.55; max-width: 980px; margin: 0; }
+  .cm-dlg { border: 0; border-radius: 16px; padding: 16px; max-width: min(92vw, 960px); background: #fff; box-shadow: 0 20px 60px rgba(16, 35, 59, 0.35); }
+  .cm-dlg::backdrop { background: rgba(16, 35, 59, 0.6); }
+  .cm-dlg img { display: block; max-width: 100%; max-height: 72vh; width: auto; height: auto; margin: 0 auto; border-radius: 8px; border: 1px solid var(--line); }
+  .cm-dlg__bar { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+  .cm-dlg__bar a, .cm-dlg__bar button { height: 40px; padding: 0 18px; border-radius: 999px; border: 1px solid var(--ink); background: var(--ink); color: #fff; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; text-decoration: none; }
+  .cm-dlg__bar .is-ghost { background: #fff; color: var(--ink); border-color: var(--line); }
+</style>
+<script>
+  import { drawModels, FORMATS } from '../../scripts/estudi/models.js';
+  import { todayMadrid } from '../../lib/format.js';
+  const DATA = JSON.parse(document.getElementById('mdData')?.textContent || '{}');
+  const st = { by: 'temp', n: '30', g: 'totes', lead: '1', f: 'post' };
+  const cv = document.getElementById('mdCanvas') as HTMLCanvasElement;
+  const ctx = cv.getContext('2d')!;
+  const fontsReady = Promise.all([
+    "800 40px 'Schibsted Grotesk Variable'",
+    "700 30px 'Schibsted Grotesk Variable'",
+    "400 18px 'Geist Variable'",
+    "500 30px 'Geist Mono Variable'",
+  ].map((f) => document.fonts?.load(f).catch(() => null)));
+  function draw() {
+    const F = FORMATS[st.f as keyof typeof FORMATS];
+    cv.width = F.W;
+    cv.height = F.H;
+    const v = DATA[`${st.n}-${st.lead}-${st.g}`];
+    drawModels(ctx, { rows: v?.rows || [], days: v?.days || 0, from: v?.from, to: v?.to, lead: Number(st.lead), group: st.g === 'totes' ? null : st.g, by: st.by, fmt: st.f });
+  }
+  document.querySelectorAll<HTMLButtonElement>('.md-seg button').forEach((b) =>
+    b.addEventListener('click', () => {
+      const key = Object.keys(b.dataset)[0] as keyof typeof st;
+      if (!key) return;
+      (st as any)[key] = (b.dataset as any)[key];
+      b.parentElement!.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+      draw();
+    }),
+  );
+  fontsReady.then(draw);
+  draw();
+
+  const dlg = document.getElementById('cmDlg') as HTMLDialogElement;
+  const dlgImg = document.getElementById('cmDlgImg') as HTMLImageElement;
+  const dlgSave = document.getElementById('cmDlgSave') as HTMLAnchorElement;
+  const dlgShare = document.getElementById('cmDlgShare') as HTMLButtonElement;
+  let dlgFile: File | null = null;
+  let dlgUrl = '';
+  document.getElementById('cmDlgClose')?.addEventListener('click', () => dlg.close());
+  dlgShare?.addEventListener('click', async () => {
+    if (!dlgFile) return;
+    try { await navigator.share({ files: [dlgFile] }); } catch {}
+  });
+  document.getElementById('mdDl')?.addEventListener('click', async () => {
+    await fontsReady;
+    draw();
+    const blob: Blob | null = await new Promise((r) => cv.toBlob(r, 'image/png'));
+    if (!blob) return;
+    const name = `meteocadi-models-${st.by}-${st.n}dies-${todayMadrid()}${st.f === 'story' ? '-historia' : st.f === 'wide' ? '-horitzontal' : ''}.png`;
+    if (dlgUrl) URL.revokeObjectURL(dlgUrl);
+    dlgUrl = URL.createObjectURL(blob);
+    dlgFile = new File([blob], name, { type: 'image/png' });
+    dlgImg.src = dlgUrl;
+    dlgSave.href = dlgUrl;
+    dlgSave.download = name;
+    dlgShare.hidden = !(navigator.canShare && navigator.canShare({ files: [dlgFile] }));
+    dlg.showModal();
+  });
+</script>

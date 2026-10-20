@@ -1,6 +1,7 @@
 ---
 import Base from '../layouts/Base.astro';
 import StationTable from '../components/StationTable.astro';
+import Perfil from '../components/Perfil.astro';
 import { STATIONS, fmtAlt } from '../lib/stations.js';
 
 const ld = [
@@ -42,6 +43,9 @@ import { modelsReady } from '../lib/models.js';
       <p class="st-note">Dades via Weather Underground, actualitzades cada 15 minuts. La corba mostra la temperatura de les últimes hores.</p>
     </div>
   </section>
+
+  <!-- El perfil tèrmic (la màxima segons l'altitud) era a la portada fins al 20/10/2026 -->
+  <Perfil />
 
   <section class="sec">
     <div class="wrap grid2" style="align-items:start;">
