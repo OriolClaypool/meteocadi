@@ -4,6 +4,7 @@
 import { STATIONS, shortName } from '../../lib/stations.js';
 import { todayMadrid, hourMadrid, dayMonth, parseDay } from '../../lib/format.js';
 import { archiveFor } from '../arxiu-dades.js';
+import { periodRows } from './periode.js';
 import {
   loadFonts, loadIcons, drawResum, drawRanking, drawRankingWide, WIDE, POST, drawPrevisio, layoutPrevisio, rankSentence, capFirst, WEATHER, PHENOMENA,
 } from './draw.js';
@@ -201,9 +202,8 @@ export async function startEstudi() {
     return { date: to, from, to, kind: 'range', time, rows, note, net: 'cat' };
   }
 
-  // Diversos dies a la xarxa pròpia: els dies de l'arxiu i, si el període arriba a avui, el d'avui en directe. Una
-  // estació amb algun dia sense dades no hi surt; una variable descartada algun dia (dia incomplet, control de qualitat)
-  // no es dona per a tot el període (com al mapa de Catalunya).
+  // Diversos dies a la xarxa pròpia: els dies de l'arxiu i, si el període arriba a avui, el d'avui en directe. A una
+  // estació li pot faltar fins a un 10 % dels dies (i avui): hi surt amb una nota ("falta 1 dia"). Vegeu periode.js.
   async function rangeData() {
     if (catMode()) return xemaRangeData();
     const today = todayMadrid();
@@ -214,30 +214,9 @@ export async function startEstudi() {
     const lv = to === today ? await getLive() : null;
     const dates = [];
     for (let d = from; d <= to; d = addDays(d, 1)) dates.push(d);
-    const rows = [];
-    for (const s of STATIONS) {
-      let tmax = -Infinity, tmin = Infinity, gust = -Infinity, rain = 0, tOk = true, gOk = true, rOk = true, ok = true;
-      for (const d of dates) {
-        let v;
-        if (d === today) {
-          const x = lv?.stations?.[s.id];
-          if (!x || x.stale) { ok = false; break; }
-          v = [x.max ?? null, x.min ?? null, x.gustMax ?? x.gust ?? null, x.rain ?? null, false];
-        } else {
-          const day = byDate.get(d);
-          const x = day?.s?.[s.id];
-          if (!x) { ok = false; break; }
-          v = [...x, day.susp?.includes(s.id)];
-        }
-        if (v[0] == null || v[1] == null || v[4]) tOk = false; else { tmax = Math.max(tmax, v[0]); tmin = Math.min(tmin, v[1]); }
-        if (v[2] == null) gOk = false; else gust = Math.max(gust, v[2]);
-        if (v[3] == null) rOk = false; else rain += v[3];
-      }
-      if (!ok) continue;
-      rows.push({ id: s.id, name: shortName(s), alt: s.alt, max: tOk ? tmax : null, min: tOk ? tmin : null, gust: gOk ? gust : null, rain: rOk ? Math.round(rain * 10) / 10 : null, susp: !tOk });
-    }
+    const rows = periodRows({ stations: STATIONS, dates, today, byDate, live: lv, name: shortName });
     const time = to === today && lv?.updated ? hourMadrid(new Date(lv.updated)) : '';
-    const note = `${dates.length} dies: pluja total, la màxima més alta, la mínima més baixa i la ratxa més forta del període.${time ? ` Avui, fins a les ${time}.` : ''} Les estacions amb algun dia sense dades no hi surten.`;
+    const note = `${dates.length} dies: pluja total, la màxima més alta, la mínima més baixa i la ratxa més forta del període.${time ? ` Avui, fins a les ${time}.` : ''} Si a una estació li falta algun dia, hi surt marcada i el seu total pot quedar curt; si li'n falta més d'un 10 %, no hi surt.`;
     return { date: to, from, to, kind: 'range', time, rows, note };
   }
 

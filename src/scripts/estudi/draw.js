@@ -15,7 +15,7 @@ const X1 = 1016;
 
 const F = { head: "'Schibsted Grotesk Variable'", ui: "'Geist Variable'", mono: "'Geist Mono Variable'" };
 const A = { bg: '#060a12', cy: '#3db8ff', txt: '#e6edf6', txt2: '#c3cfde', mut: '#93a3b8', mut2: '#7d8fa6', gold: '#f6c664' };
-const L = { bg: '#eef3f8', ink: '#10233b', ink2: '#44556b', mut: '#56667a', blue: '#22477a', line: '#dfe6ee', rank: '#8a99ab' };
+const L = { bg: '#eef3f8', ink: '#10233b', ink2: '#44556b', mut: '#56667a', blue: '#22477a', line: '#dfe6ee', rank: '#8a99ab', warn: '#b45309' };
 const STRIP = ['#22477a', '#47a838', '#be282c', '#fbbd28'];
 
 export const WEATHER = { sol: 'Sol', solnuvol: 'Sol i núvols', solpluja: 'Ruixats', nuvol: 'Ennuvolat', pluja: 'Pluja', tempesta: 'Tempesta', neu: 'Neu', boira: 'Boira', vent: 'Vent' };
@@ -410,14 +410,22 @@ function fitName(ctx, name, maxW, size, min) {
   return `${t.trimEnd()}…`;
 }
 
-// Segona línia de cada fila: altitud (i comarca, a Catalunya), en lletra més petita si cal
-function rowSub(ctx, r, cat, x, y, maxW, size) {
+// Segona línia de cada fila: altitud (i comarca, a Catalunya), en lletra més petita si cal. key: la variable del
+// rànquing (max, min, gust, rain); si a l'estació li falta algun dia del període (r.falta, periode.js), la nota va
+// darrere de l'altitud en un altre color: "770 m · falta 1 dia".
+function rowSub(ctx, r, cat, x, y, maxW, size, key) {
   const t = cat && r.com ? `${altTxt(r.alt)} · ${r.com}` : altTxt(r.alt);
+  const extra = (key && r.falta?.[key]) || '';
+  const head = extra ? `${t} · ` : t;
   let s = size;
   font(ctx, 'mono', s);
-  while (s > 14 && ctx.measureText(t).width > maxW) font(ctx, 'mono', --s);
+  while (s > 14 && ctx.measureText(head + extra).width > maxW) font(ctx, 'mono', --s);
   ctx.fillStyle = L.mut;
-  ctx.fillText(t, x, y);
+  ctx.fillText(head, x, y);
+  if (extra) {
+    ctx.fillStyle = L.warn;
+    ctx.fillText(extra, x + ctx.measureText(head).width, y);
+  }
 }
 
 // Peu de la llista: deixa clar de quina xarxa són les estacions (al costat del mapa de Catalunya a X).
@@ -632,7 +640,7 @@ export function drawRanking(ctx, d) {
     const name = cat ? fitName(ctx, r.name, BX - NX - 24, ns, Math.round(20 * rs)) : (fitFont(ctx, 'head', ns, 700, r.name, 318, Math.round(24 * rs)), r.name);
     ctx.fillStyle = L.ink;
     ctx.fillText(name, NX, cy - 12 * rs);
-    rowSub(ctx, r, cat, NX, cy + 21 * rs, BX - NX - 24, Math.max(15, Math.round(19 * rs)));
+    rowSub(ctx, r, cat, NX, cy + 21 * rs, BX - NX - 24, Math.max(15, Math.round(19 * rs)), cfg.key);
     if (dots) {
       // Pista de l'escala i punt a la temperatura de l'estació
       ctx.strokeStyle = L.line;
@@ -790,7 +798,7 @@ export function drawRankingWide(ctx, d) {
     const name = cat ? fitName(ctx, r.name, BX - NX - 24, Math.min(28, RH * 0.42), 18) : (fitFont(ctx, 'head', Math.min(28, RH * 0.42), 700, r.name, BX - NX - 24, 18), r.name);
     ctx.fillStyle = L.ink;
     ctx.fillText(name, NX, cy - RH * 0.15);
-    rowSub(ctx, r, cat, NX, cy + RH * 0.22, BX - NX - 24, Math.floor(Math.min(17, RH * 0.26)));
+    rowSub(ctx, r, cat, NX, cy + RH * 0.22, BX - NX - 24, Math.floor(Math.min(17, RH * 0.26)), cfg.key);
     if (dots) {
       ctx.strokeStyle = L.line;
       ctx.lineWidth = 6;
