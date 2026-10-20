@@ -1,0 +1,165 @@
+---
+// Guia de compra d'estacions meteorològiques, amb enllaços d'afiliat d'Amazon (src/lib/afiliats.js: l'etiqueta és la
+// variable PUBLIC_AMAZON_TAG de Vercel). Idea de l'anàlisi de ToleMeteo (20/10/2026): ingressos sense publicitat i
+// encaixa amb la xarxa, que és de Weather Underground.
+import Base from '../layouts/Base.astro';
+import { amazon } from '../lib/afiliats.js';
+import { STATIONS } from '../lib/stations.js';
+
+const top = Math.max(...STATIONS.map((s) => s.alt));
+const low = Math.min(...STATIONS.map((s) => s.alt));
+const alt = (m: number) => `${String(m).replace(/\B(?=(\d{3})+(?!\d))/g, '.')} m`;
+
+const PICKS = [
+  {
+    tag: 'Per començar',
+    name: 'Ecowitt WS2910',
+    q: 'Ecowitt WS2910',
+    text: "Una estació completa amb pantalla: un sol sensor exterior amb vent, pluja, temperatura, humitat, radiació solar i UV, i una consola amb wifi que envia les dades a Weather Underground sense res més.",
+    good: ['Barata per a tot el que mesura', 'Envia a Weather Underground, Weathercloud i Ecowitt', 'Muntatge senzill: un sol pal'],
+    bad: ["El plàstic pateix amb els anys de sol i gel", "Amb sol fort i poc vent, la temperatura pot sortir alta"],
+    alt: { name: 'Bresser 7 en 1 o 5 en 1 amb wifi', q: 'Bresser estación meteorológica wifi 7 en 1' },
+  },
+  {
+    tag: 'Qualitat-preu',
+    name: 'Ecowitt Wittboy (WS90)',
+    q: 'Ecowitt Wittboy WS90',
+    text: "El sensor WS90 no té peces que es moguin: mesura el vent amb ultrasons i la pluja amb un sensor de vibració. Va amb un concentrador (GW2001 o GW3000) que es connecta a internet per wifi o per cable, i hi pots afegir més sensors.",
+    good: ['Sense cassoletes ni penell que es glacin o s’encallin', "Placa solar i piles de reserva: poc manteniment", 'Admet sensors de més (sòl, interior, aire)'],
+    bad: ["La pluja per vibració és menys exacta que un pluviòmetre de cassoleta", 'No mesura la neu (cap pluviòmetre sense escalfar no ho fa)'],
+  },
+  {
+    tag: 'Per a molts anys',
+    name: 'Davis Vantage Pro2',
+    q: 'Davis Vantage Pro2',
+    text: "La de referència dels aficionats exigents i de moltes xarxes: sensors robustos, un pluviòmetre de cassoleta de qualitat i peces de recanvi per a tot. La Vantage Vue és la germana compacta, una mica més senzilla.",
+    good: ['Aguanta anys de muntanya', 'Bona protecció solar (i opció amb ventilador)', 'Recanvis i accessoris oficials'],
+    bad: ['Cara', "Per penjar les dades a internet cal un accessori a part (WeatherLink Live o similar)"],
+    alt: { name: 'Davis Vantage Vue', q: 'Davis Vantage Vue' },
+  },
+  {
+    tag: 'Per a casa connectada',
+    name: 'Netatmo amb pluviòmetre i anemòmetre',
+    q: 'Netatmo estación meteorológica pluviómetro anemómetro',
+    text: "Molt fàcil d'instal·lar i amb una aplicació molt polida, pensada per a la casa connectada. Els mòduls de pluja i vent es compren a part.",
+    good: ['Aplicació i domòtica', 'Disseny discret', 'Instal·lació en pocs minuts'],
+    bad: ['El mòdul exterior no porta protecció solar', 'No envia les dades a Weather Underground per si sola', 'No és la més adequada per a la muntanya'],
+  },
+];
+---
+<Base
+  title="Quina estació meteorològica comprar? Guia per a casa i per a la muntanya | Meteocadí"
+  description="Quina estació meteorològica comprar i com instal·lar-la perquè les dades serveixin, explicat per la xarxa Meteocadí, que té estacions al Cadí-Moixeró: opcions per començar, de qualitat-preu, per a molts anys i per a casa connectada."
+  path="/quina-estacio-meteorologica-comprar"
+  current="estacions"
+>
+  <section class="phead" style="padding-bottom:36px;">
+    <div class="wrap">
+      <nav class="crumbs" aria-label="Ruta"><a href="/">Inici</a><span>›</span><a href="/estacions">Estacions</a><span>›</span><span>Quina estació comprar</span></nav>
+      <h1>Quina estació meteorològica <em>comprar?</em></h1>
+      <p>Ho expliquem des de la xarxa Meteocadí, que té estacions des de {alt(low)} fins a {alt(top)} al Cadí-Moixeró: quatre opcions segons el que vulguis, què has de mirar abans de comprar i, sobretot, com posar-la perquè les dades valguin la pena.</p>
+      <p class="eg-disc">Aquesta pàgina té enllaços d'afiliat d'Amazon: si hi compres, Meteocadí rep una petita comissió i a tu no et costa més. Ens ajuda a mantenir la xarxa.</p>
+    </div>
+  </section>
+
+  <section class="sec" style="padding:40px 0 24px;">
+    <div class="wrap">
+      <h2 class="eg-h2">Quatre opcions</h2>
+      <div class="eg-grid">
+        {PICKS.map((p) => (
+          <article class="card eg-card">
+            <span class="eg-tag">{p.tag}</span>
+            <h3>{p.name}</h3>
+            <p>{p.text}</p>
+            <ul class="eg-list eg-list--good" aria-label="A favor">{p.good.map((g) => <li>{g}</li>)}</ul>
+            <ul class="eg-list eg-list--bad" aria-label="En contra">{p.bad.map((g) => <li>{g}</li>)}</ul>
+            <div class="eg-cta">
+              <a class="btn btn--blue eg-btn" href={amazon(p.q)} rel="sponsored nofollow noopener" target="_blank">Mira-la a Amazon</a>
+              {p.alt && <a class="eg-alt" href={amazon(p.alt.q)} rel="sponsored nofollow noopener" target="_blank">o bé {p.alt.name}</a>}
+            </div>
+          </article>
+        ))}
+      </div>
+      <p class="eg-small">No hem cobrat de cap marca per sortir aquí. Els models canvien sovint de nom o de versió: els enllaços porten a la cerca d'Amazon de cada model.</p>
+    </div>
+  </section>
+
+  <section class="sec" style="padding:24px 0 72px;">
+    <div class="wrap prose eg-prose">
+      <h2>Què has de mirar abans de comprar</h2>
+      <ul>
+        <li><strong>Què mesura.</strong> Temperatura, humitat, pluja i vent són el mínim per a una estació d'exterior; la pressió acostuma a anar a la consola, i la radiació solar i l'UV són un plus.</li>
+        <li><strong>Si comparteix les dades.</strong> Que pugui enviar-les per wifi a Weather Underground (on hi ha la xarxa Meteocadí), Weathercloud o Meteoclimatic sense ordinador ni programes a part.</li>
+        <li><strong>La protecció solar del sensor de temperatura.</strong> És la peça que més compta: una garita blanca, de làmines i ben ventilada. Amb una de dolenta, un dia de sol i sense vent la temperatura pot sortir uns quants graus massa alta.</li>
+        <li><strong>El pluviòmetre.</strong> Els de cassoleta (bàscula) són els més fiables; mira'n la resolució (0,2 o 0,25 mm per basculada és normal) i que es pugui netejar.</li>
+        <li><strong>L'alimentació.</strong> Placa solar amb bateria o condensador, o piles; a la muntanya, piles de liti, que aguanten el fred.</li>
+        <li><strong>Recanvis.</strong> Al cap d'uns anys es trenca alguna cosa (el penell, l'anemòmetre, el sensor d'humitat): val la pena una marca que en vengui.</li>
+      </ul>
+
+      <h2>On posar-la: el que més importa</h2>
+      <p>Una estació barata ben posada dona millors dades que una de cara mal posada. Les distàncies són les que fan servir els serveis meteorològics; a casa s'hi acosta tant com puguis.</p>
+      <ul>
+        <li><strong>Temperatura i humitat:</strong> entre 1,5 i 2 metres de terra, sobre herba o terra (no sobre asfalt, grava o una teulada), lluny de parets, finestres i aparells d'aire condicionat, i a l'aire lliure, on corri el vent.</li>
+        <li><strong>Vent:</strong> com més alt i més lliure, millor. L'ideal són 10 metres en un lloc obert; en una casa, que sobresurti uns metres per sobre del carener i lluny d'arbres.</li>
+        <li><strong>Pluja:</strong> el pluviòmetre ben anivellat i lluny d'obstacles, com a mínim a una distància del doble de la seva alçada (millor el quàdruple): un arbre de 5 metres, a més de 10.</li>
+        <li><strong>Al balcó</strong> l'edifici escalfa i fa de paravent: serveix per tenir una idea del temps, però no per comparar-la amb altres estacions.</li>
+      </ul>
+
+      <h2>A la muntanya</h2>
+      <p>És on hi ha les nostres estacions més altes, i on es nota què aguanta i què no.</p>
+      <ul>
+        <li><strong>El pal, ben fort i ben ancorat</strong>, amb tensors si cal: el vent de la carena no perdona. I més alt que la neu que hi pot haver.</li>
+        <li><strong>La neu no la mesura cap pluviòmetre normal:</strong> s'hi acumula i es fon dies després, i la pluja surt quan no toca. Per mesurar-la cal un pluviòmetre escalfat o un sensor de gruix de neu.</li>
+        <li><strong>El gel</strong> pot aturar les cassoletes i el penell; els sensors d'ultrasons ho porten millor, però també es poden glaçar.</li>
+        <li><strong>El sol i la neu</strong> escalfen més la garita: amb una protecció ventilada la temperatura és molt més fiable.</li>
+        <li><strong>Hi has de poder pujar.</strong> Després d'un temporal toca revisar-la, i a l'hivern no sempre s'hi arriba.</li>
+      </ul>
+
+      <h2>Comparteix les dades (i uneix-te a Meteocadí)</h2>
+      <p>Si la teva estació envia les dades a <a href="https://www.wunderground.com/" rel="noopener" target="_blank">Weather Underground</a>, qualsevol persona les pot veure i es poden fer servir en xarxes com la nostra. Si vius al Berguedà, la Cerdanya, l'Alt Urgell o al voltant del Cadí-Moixeró i vols que la teva estació formi part de <a href="/estacions">la xarxa Meteocadí</a>, <a href="/contacte">escriu-nos</a>: et direm si hi encaixa i com deixar-la a punt.</p>
+
+      <h2>Preguntes freqüents</h2>
+      <details>
+        <summary>Una estació barata és prou precisa?</summary>
+        <p>Els sensors de temperatura i humitat de les estacions d'aficionat solen anar bé: d'unes dècimes de grau a un grau d'error, segons el model. Els errors grans gairebé sempre vénen d'on està posada i de la protecció solar, no del sensor.</p>
+      </details>
+      <details>
+        <summary>Necessito internet a l'exterior?</summary>
+        <p>No: els sensors envien les dades per ràdio a la consola o al concentrador, que són a dins de casa amb el wifi. A camp obert, la ràdio arriba a un centenar de metres o més; amb parets, menys.</p>
+      </details>
+      <details>
+        <summary>Cada quan s'ha de revisar?</summary>
+        <p>Neteja el pluviòmetre (fulles, insectes, pols) cada pocs mesos i mira que la garita estigui neta i ben subjectada. Si una lectura et sembla estranya, compara-la amb les estacions properes del <a href="/mapa/catalunya">mapa de Catalunya</a>.</p>
+      </details>
+      <details>
+        <summary>Per què Weather Underground?</summary>
+        <p>És la plataforma on publiquen la majoria d'estacions d'aficionat del món i on hi ha totes les de la xarxa Meteocadí. Hi pots enviar les dades de franc, i moltes estacions ho fan directament, sense ordinador.</p>
+      </details>
+
+      <p class="eg-small">Com a Afiliat d'Amazon, Meteocadí obté ingressos per les compres adscrites que compleixen els requisits aplicables.</p>
+    </div>
+  </section>
+</Base>
+<style>
+  .eg-disc { font-size: 15px !important; color: var(--muted) !important; margin-top: 14px !important; }
+  .eg-h2 { font-size: 30px; font-weight: 800; color: var(--ink); letter-spacing: -0.02em; margin-bottom: 18px; }
+  .eg-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+  .eg-card { display: flex; flex-direction: column; gap: 10px; }
+  .eg-card h3 { font-family: var(--f-head); font-size: 23px; font-weight: 800; letter-spacing: -0.02em; color: var(--ink); }
+  .eg-card p { font-size: 16px; line-height: 1.6; color: var(--ink2); }
+  .eg-tag { align-self: flex-start; font-family: var(--f-mono); font-size: 11.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .eg-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 15px; color: var(--ink2); }
+  .eg-list li { position: relative; padding-left: 22px; }
+  .eg-list li::before { position: absolute; left: 0; top: 0; font-weight: 800; }
+  .eg-list--good li::before { content: '+'; color: #15803d; }
+  .eg-list--bad li::before { content: '−'; color: #b45309; }
+  .eg-cta { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: auto; padding-top: 8px; }
+  .eg-btn { height: 44px; font-size: 15px; padding: 0 20px; }
+  .eg-alt { font-size: 14.5px; font-weight: 600; }
+  .eg-small { font-size: 13.5px; color: var(--muted); margin-top: 16px; }
+  .eg-prose details { border-top: 1px solid var(--line); padding: 12px 0; }
+  .eg-prose details:last-of-type { border-bottom: 1px solid var(--line); }
+  .eg-prose summary { cursor: pointer; font-weight: 700; color: var(--ink); }
+  .eg-prose details p { margin-top: 8px; }
+  @media (max-width: 760px) { .eg-grid { grid-template-columns: 1fr; } }
+</style>
