@@ -29,7 +29,7 @@ const { internal = false } = Astro.props;
 <div class="cm-out" id="cmBottom"></div>
 <slot name="after-map" />
 <p class="cm-note">
-  Dades: <a href="https://www.meteo.cat/" rel="noopener" target="_blank">Servei Meteorològic de Catalunya</a> (Xarxa d'Estacions Meteorològiques Automàtiques, a través de les <a href="https://analisi.transparenciacatalunya.cat/Medi-Ambient/Dades-meteorol-giques-de-la-XEMA/nzvn-apee" rel="noopener" target="_blank">dades obertes de la Generalitat</a>) i xarxa Meteocadí (voltades en negre). Límits comarcals: ICGC. Altitud del terreny: Mapzen Terrain Tiles (EU-DEM, fet amb dades de Copernicus finançades per la Unió Europea, i SRTM, de l'USGS). El mapa de color és una estimació entre estacions (a la temperatura, tenint en compte l'altitud del terreny): serveix per veure com es reparteix, no el valor exacte d'un punt, i al vent és només orientatiu, perquè canvia molt d'un lloc a l'altre. Amb el selector d'estacions pots veure-les totes, deixar-ne només una per capital de comarca o amagar-les; per defecte hi surten les que hi caben, i en apropar-te al mapa en van apareixent més. Són dades automàtiques sense validar: una lectura estranya pot ser un error del sensor. Quan les etiquetes no hi caben, algunes estacions es mostren com un punt: toca-les o apropa't per veure'n el valor.
+  Dades: <a href="https://www.meteo.cat/" rel="noopener" target="_blank">Servei Meteorològic de Catalunya</a> (Xarxa d'Estacions Meteorològiques Automàtiques, a través de les <a href="https://analisi.transparenciacatalunya.cat/Medi-Ambient/Dades-meteorol-giques-de-la-XEMA/nzvn-apee" rel="noopener" target="_blank">dades obertes de la Generalitat</a>) i xarxa Meteocadí (voltades en negre). Límits comarcals: ICGC. Altitud del terreny: Mapzen Terrain Tiles (EU-DEM, fet amb dades de Copernicus finançades per la Unió Europea, i SRTM, de l'USGS). Vent animat: previsió immediata del model AROME-PI de <a href="https://meteofrance.com/" rel="noopener" target="_blank">Météo-France</a> (Llicència Oberta 2.0) per al quart d'hora en curs; mostra cap on bufa i amb quina força, no és una mesura de les estacions. El mapa de color és una estimació entre estacions (a la temperatura, tenint en compte l'altitud del terreny): serveix per veure com es reparteix, no el valor exacte d'un punt, i al vent és només orientatiu, perquè canvia molt d'un lloc a l'altre. Amb el selector d'estacions pots veure-les totes, deixar-ne només una per capital de comarca o amagar-les; per defecte hi surten les que hi caben, i en apropar-te al mapa en van apareixent més. Són dades automàtiques sense validar: una lectura estranya pot ser un error del sensor. Quan les etiquetes no hi caben, algunes estacions es mostren com un punt: toca-les o apropa't per veure'n el valor.
 </p>
 <div class="cm-ext" id="cmExt" aria-live="polite"></div>
 
@@ -75,7 +75,11 @@ const { internal = false } = Astro.props;
   .cm-fl button, .cm-st button { height: 28px; padding: 0 10px; border-radius: 999px; border: 1px solid var(--line); background: #fff; color: var(--ink); font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
   .cm-fl button[aria-pressed='true'], .cm-st button[aria-pressed='true'] { background: var(--ink); border-color: var(--ink); color: #fff; }
   .cm-fl button:disabled { opacity: 0.45; cursor: default; }
-  .cm-fl span { font-size: 11.5px; color: var(--muted); max-width: 190px; line-height: 1.3; }
+  .cm-fl { flex-wrap: wrap; gap: 6px; }
+  .cm-fln { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; font-size: 11.5px; color: var(--muted); max-width: 250px; line-height: 1.3; }
+  .cm-fln span:empty { display: none; }
+  .cm-out .cm-fln { max-width: none; }
+  .cm-flux { position: absolute; left: 0; top: 0; pointer-events: none; }
   .cm-out:empty, .cm-ctl:empty { display: none; }
   .cm-out .cm-lg, .cm-out .cm-st { box-shadow: none; padding: 10px 12px; }
   /* Fora del mapa (mòbil) les caselles es reparteixen l'amplada: la pluja en té 14 */
@@ -137,6 +141,7 @@ const { internal = false } = Astro.props;
   import CONTORN from '../lib/catalunya-contorn.json';
   import { FB, FIELD, HI, computeField, comarquesMask, toCanvas, fieldColor } from '../scripts/camp.js';
   import { rainClasses } from '../lib/escales.js';
+  import { createFlux } from '../scripts/vent-flux.js';
   // Classes de pluja del mapa d'ara (es recalculen a cada dibuix segons el valor més alt)
   let rainScale = rainClasses(0);
   // Etiquetes i llegenda amb la mateixa escala que el mapa de color
@@ -320,6 +325,62 @@ const { internal = false } = Astro.props;
   const fieldOpacity = () => Math.min(1, ((FIELD as any)[cur.key]?.alpha ?? 0.6) * intensity);
   map.createPane('field').style.zIndex = '350';
 
+  // ---------------------------------------------------------------- vent animat (src/scripts/vent-flux.js)
+  // Partícules que avancen amb el vent de l'AROME-PI de Météo-France (/api/vent, el quart d'hora en curs), per sobre del
+  // mapa de color. Només amb les dades d'ara (període "Avui"). Encès per defecte; si s'apaga, es recorda.
+  const K_FLUX = 'meteocadi-mapa-vent';
+  let fluxOn = true;
+  try { fluxOn = localStorage.getItem(K_FLUX) !== '0'; } catch {}
+  const flux = createFlux(map, L, RINGS);
+  const FLUX_CREDIT = 'vent: <a href="https://meteofrance.com/">Météo-France</a> (AROME-PI)';
+  let wind: any = null;
+  let windState: 'idle' | 'loading' | 'ok' | 'error' = 'idle';
+  let windTimer = 0;
+  let fluxCredit = false;
+  const fluxCan = () => period.kind === 'today';
+  function loadWind() {
+    if (windState === 'loading') return;
+    windState = 'loading';
+    fetch('/api/vent')
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((j) => {
+        if (!j || j.error || !j.u) throw new Error('vent');
+        wind = j;
+        windState = 'ok';
+        flux.data(j);
+      })
+      .catch(() => { windState = wind ? 'ok' : 'error'; })
+      .finally(fluxUpdate);
+  }
+  function fluxUpdate() {
+    const want = fluxOn && fluxCan();
+    if (want && windState === 'idle') loadWind();
+    const show = want && windState === 'ok';
+    // Blanc sobre el mapa de color; blau fosc sobre el mapa clar
+    flux.tone(fieldLayer ? 'light' : 'dark');
+    flux.show(show);
+    if (show !== fluxCredit) {
+      if (show) map.attributionControl?.addAttribution(FLUX_CREDIT);
+      else map.attributionControl?.removeAttribution(FLUX_CREDIT);
+      fluxCredit = show;
+    }
+    // Mentre es veu, el vent es torna a demanar cada 15 minuts
+    if (show && !windTimer) windTimer = window.setInterval(() => { windState = 'idle'; loadWind(); }, 15 * 60 * 1000);
+    if (!show && windTimer) { window.clearInterval(windTimer); windTimer = 0; }
+    const btn = document.getElementById('cmFluxBtn') as HTMLButtonElement | null;
+    if (btn) {
+      btn.disabled = !fluxCan();
+      btn.setAttribute('aria-pressed', String(fluxOn && fluxCan()));
+      btn.title = fluxCan() ? 'Partícules que avancen amb el vent previst per a ara' : "Només amb les dades d'ara";
+    }
+    const note = document.getElementById('cmFluxNote');
+    if (note) {
+      note.textContent = show && wind?.valid
+        ? `Vent animat: ${wind.model} de Météo-France, ${hourMadrid(new Date(wind.valid))}`
+        : want && windState === 'error' ? 'Vent animat: ara no disponible' : '';
+    }
+  }
+
   // Sense les dades de Meteocat (el portal no respon o va endarrerit), el mapa de color sortiria de les poques
   // estacions de la xarxa pròpia i pintaria tot Catalunya amb els seus valors: no es dibuixa. Tampoc si de la variable
   // triada n'hi ha menys de 20 del Meteocat amb valor (per exemple, totes amb dades incompletes)
@@ -330,7 +391,7 @@ const { internal = false } = Astro.props;
     const cfg = (FIELD as any)[cur.key];
     const can = fieldOn && !!cfg && !xemaDown && !xemaFew();
     comLayer?.setStyle({ fillOpacity: can ? 0 : 0.35 });
-    if (!can) { fieldLayer?.remove(); fieldLayer = null; cmapEl?.classList.remove('has-field'); fieldNote(); return; }
+    if (!can) { fieldLayer?.remove(); fieldLayer = null; cmapEl?.classList.remove('has-field'); fieldNote(); fluxUpdate(); return; }
     if (cfg.dem && demState === 'idle') {
       demState = 'loading';
       fetch('/dem-catalunya.json').then((r) => (r.ok ? r.json() : Promise.reject())).then((j) => { dem = j; demState = 'ok'; field(); }).catch(() => { demState = 'error'; field(); });
@@ -351,6 +412,7 @@ const { internal = false } = Astro.props;
     const note = f.useDem ? 'dem' : cur.key === 'wind' || cur.key === 'gust' ? 'wind' : 'plain';
     fieldRaw = { canvas: toCanvas(f.raw), key: cur.key, alpha: Math.min(0.8, cfg.alpha + 0.1), note };
     fieldNote(cfg.dem && !f.useDem);
+    fluxUpdate();
   }
   const noteFor = (key: string) =>
     (FIELD as any)[key]?.dem ? "interpolada tenint en compte l'altitud" : key === 'wind' || key === 'gust' ? "orientatiu: el vent canvia molt d'un lloc a l'altre" : 'interpolada entre estacions';
@@ -389,9 +451,14 @@ const { internal = false } = Astro.props;
   function legend() {
     const el = document.getElementById('cmLegend');
     if (!el) return;
-    el.innerHTML = `<b>${legendOf(cur)}</b><div class="sw">${stepsOf(cur).map((s: number) => `<span><i style="background:${cur.color(s)}"></i>${num(s, s % 1 ? 1 : 0)}</span>`).join('')}</div><div class="cm-fl"><button type="button" id="cmFieldBtn" aria-pressed="${fieldOn}">Mapa de color</button><span id="cmFieldNote"></span></div><label class="cm-op">Intensitat<input type="range" id="cmOp" min="0.25" max="1.6" step="0.05" value="${intensity}" aria-label="Intensitat del mapa de color" /></label>`;
+    el.innerHTML = `<b>${legendOf(cur)}</b><div class="sw">${stepsOf(cur).map((s: number) => `<span><i style="background:${cur.color(s)}"></i>${num(s, s % 1 ? 1 : 0)}</span>`).join('')}</div><div class="cm-fl"><button type="button" id="cmFieldBtn" aria-pressed="${fieldOn}">Mapa de color</button><button type="button" id="cmFluxBtn" aria-pressed="${fluxOn && fluxCan()}">Vent animat</button></div><div class="cm-fln"><span id="cmFieldNote"></span><span id="cmFluxNote"></span></div><label class="cm-op">Intensitat<input type="range" id="cmOp" min="0.25" max="1.6" step="0.05" value="${intensity}" aria-label="Intensitat del mapa de color" /></label>`;
     L.DomEvent.disableClickPropagation(el);
     el.querySelector('#cmFieldBtn')?.addEventListener('click', () => { fieldOn = !fieldOn; field(); });
+    el.querySelector('#cmFluxBtn')?.addEventListener('click', () => {
+      fluxOn = !fluxOn;
+      try { localStorage.setItem(K_FLUX, fluxOn ? '1' : '0'); } catch {}
+      fluxUpdate();
+    });
     L.DomEvent.disableScrollPropagation(el);
     el.querySelector('#cmOp')?.addEventListener('input', (e) => {
       intensity = Number((e.target as HTMLInputElement).value);
@@ -399,6 +466,7 @@ const { internal = false } = Astro.props;
       try { localStorage.setItem(K_OP, String(intensity)); } catch {}
     });
     fieldNote();
+    fluxUpdate();
   }
 
   // Selector d'estacions: totes, una per capital de comarca o cap (només el mapa de color)
@@ -603,6 +671,7 @@ const { internal = false } = Astro.props;
     const hash = p.kind === 'today' ? '' : p.kind === '24h' ? '24h' : p.kind === 'day' ? p.date : `${p.from}..${p.to}`;
     try { history.replaceState(null, '', hash ? `#${hash}` : location.pathname + location.search); } catch {}
     varsForPeriod();
+    fluxUpdate();
     if (reload) load();
   }
   perEl.querySelectorAll<HTMLElement>('[data-p="today"], [data-p="24h"]').forEach((b) => b.addEventListener('click', () => setPeriod({ kind: b.dataset.p as 'today' | '24h' })));

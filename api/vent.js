@@ -1,5 +1,6 @@
 // Vent a 10 m de Météo-France sobre Catalunya i voltants (dades obertes amb la Licence Ouverte 2.0), en una graella
-// de 0,025° (valors en dècimes de m/s). Ús intern: /estudi/radar (fletxes i línies de convergència).
+// de 0,025° (valors en dècimes de m/s). El fan servir el vent animat del mapa de Catalunya (públic, src/scripts/vent-flux.js)
+// i /estudi/radar (fletxes i línies de convergència, amagades de moment).
 //
 // 1. AROME-PI ("prévision immédiate"): una passada nova cada hora i una previsió cada 15 minuts, per seguir el radar
 //    tan de prop com es pot. Cal estar subscrit a l'API "AROME-PI" al portal de Météo-France. Segons el que ofereixi,
