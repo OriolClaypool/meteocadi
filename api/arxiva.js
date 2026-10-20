@@ -325,9 +325,14 @@ export default async function handler(req, res) {
     const mod = await modelsP;
     for (const e of mod.errors) console.error('[arxiva] models:', e);
     if (Object.keys(mod.files).length) {
-      const sha = await commitFiles(mod.files, `dades: previsions dels models ${mod.days[0]}${mod.days.length > 1 ? `…${mod.days.at(-1)}` : ''}`, ghToken);
-      console.log(`[arxiva] models ${mod.days.join(', ')} → commit ${sha}`);
-      return res.status(200).json({ status: 'models', models: mod.days, errors: mod.errors });
+      try {
+        const sha = await commitFiles(mod.files, `dades: previsions dels models ${mod.days[0]}${mod.days.length > 1 ? `…${mod.days.at(-1)}` : ''}`, ghToken);
+        console.log(`[arxiva] models ${mod.days.join(', ')} → commit ${sha}`);
+        return res.status(200).json({ status: 'models', models: mod.days, errors: mod.errors });
+      } catch (e) {
+        console.error('[arxiva] models commit:', e?.message ?? e);
+        return res.status(200).json({ status: 'skipped', reason: 'already exists', modelErrors: [...mod.errors, String(e?.message ?? e)] });
+      }
     }
     console.log(`[arxiva] nothing to archive, all of ${targetDates.join(', ')} already exist`);
     return res.status(200).json({ status: 'skipped', dates: targetDates, reason: 'already exists', modelErrors: mod.errors });
@@ -438,6 +443,7 @@ export default async function handler(req, res) {
 
   const mod = await modelsP;
   for (const e of mod.errors) console.error('[arxiva] models:', e);
+  const archiveOnly = { ...files };
   Object.assign(files, mod.files);
 
   if (!Object.keys(files).length) {
@@ -445,7 +451,17 @@ export default async function handler(req, res) {
   }
   const archivedDates = toArchive.map(info => info.date);
   const what = archivedDates.length ? archivedDates.join(', ') : hoursDone.length ? `hores ${hoursDone.join(', ')}` : `previsions dels models ${mod.days.join(', ')}`;
-  const sha = await commitFiles(files, `dades: arxiva ${what}`, ghToken);
+  let sha;
+  try {
+    sha = await commitFiles(files, `dades: arxiva ${what}`, ghToken);
+  } catch (e) {
+    // Si el commit falla amb les previsions dels models, l'arxiu es desa igualment sense
+    if (!Object.keys(mod.files).length || !Object.keys(archiveOnly).length) throw e;
+    console.error('[arxiva] commit amb els models:', e?.message ?? e, '— es torna a provar sense');
+    for (const f of Object.keys(mod.files)) delete files[f];
+    mod.days = [];
+    sha = await commitFiles(archiveOnly, `dades: arxiva ${what}`, ghToken);
+  }
   for (const f of Object.keys(files)) console.log(`[arxiva] wrote ${f}`);
   console.log(`[arxiva] commit ${sha}`);
 

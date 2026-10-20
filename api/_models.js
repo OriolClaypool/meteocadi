@@ -34,7 +34,7 @@ export async function fetchModel(model, from, to, fetchFn = fetch) {
     start_date: from,
     end_date: addDays(to, 1), // la pluja de l'hora 00 de l'endemà és la de les 23-24 h del dia
   });
-  const r = await fetchFn(`${API}?${p}`, { signal: AbortSignal.timeout(20000) });
+  const r = await fetchFn(`${API}?${p}`, { signal: AbortSignal.timeout(12000) });
   const text = await r.text();
   if (!r.ok) throw new Error(`${model}: HTTP ${r.status} ${text.slice(0, 160)}`);
   let j = JSON.parse(text);
@@ -115,8 +115,9 @@ export async function modelsUpdate(ghJson, yesterday, fetchFn = fetch) {
   if (!spans.length) return { files: {}, days: [], errors: [] };
   const errors = [];
   const got = {};
-  for (const [from, to] of spans) {
-    const res = await Promise.allSettled(MODELS.map((m) => fetchModel(m, from, to, fetchFn)));
+  // Tots els trossos i tots els models alhora (l'arxiu té 60 segons en total)
+  const all = await Promise.all(spans.map(([from, to]) => Promise.allSettled(MODELS.map((m) => fetchModel(m, from, to, fetchFn)))));
+  for (const res of all)
     res.forEach((r, i) => {
       if (r.status === 'rejected') {
         errors.push(String(r.reason?.message ?? r.reason).slice(0, 200));
@@ -125,7 +126,6 @@ export async function modelsUpdate(ghJson, yesterday, fetchFn = fetch) {
       for (const [d, sts] of Object.entries(r.value))
         for (const [id, v] of Object.entries(sts)) ((got[d] ||= {})[id] ||= {})[MODELS[i]] = v;
     });
-  }
   const days = Object.keys(got).filter((d) => !have.has(d)).sort();
   const files = {};
   for (const d of days) {
