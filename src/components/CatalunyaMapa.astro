@@ -29,7 +29,7 @@ const { internal = false } = Astro.props;
 <div class="cm-out" id="cmBottom"></div>
 <slot name="after-map" />
 <p class="cm-note">
-  Dades: <a href="https://www.meteo.cat/" rel="noopener" target="_blank">Servei Meteorològic de Catalunya</a> (Xarxa d'Estacions Meteorològiques Automàtiques, a través de les <a href="https://analisi.transparenciacatalunya.cat/Medi-Ambient/Dades-meteorol-giques-de-la-XEMA/nzvn-apee" rel="noopener" target="_blank">dades obertes de la Generalitat</a>) i xarxa Meteocadí (voltades en negre). Límits comarcals: ICGC. Altitud del terreny: Mapzen Terrain Tiles (EU-DEM, fet amb dades de Copernicus finançades per la Unió Europea, i SRTM, de l'USGS). Vent animat: previsió immediata del model AROME-PI de <a href="https://meteofrance.com/" rel="noopener" target="_blank">Météo-France</a> (Llicència Oberta 2.0) per al quart d'hora en curs; mostra cap on bufa i amb quina força, no és una mesura de les estacions. El mapa de color és una estimació entre estacions (a la temperatura, tenint en compte l'altitud del terreny): serveix per veure com es reparteix, no el valor exacte d'un punt, i al vent és només orientatiu, perquè canvia molt d'un lloc a l'altre. Amb el selector d'estacions pots veure-les totes, deixar-ne només una per capital de comarca o amagar-les; per defecte hi surten les que hi caben, i en apropar-te al mapa en van apareixent més. Són dades automàtiques sense validar: una lectura estranya pot ser un error del sensor. Quan les etiquetes no hi caben, algunes estacions es mostren com un punt: toca-les o apropa't per veure'n el valor.
+  Dades: <a href="https://www.meteo.cat/" rel="noopener" target="_blank">Servei Meteorològic de Catalunya</a> (Xarxa d'Estacions Meteorològiques Automàtiques, a través de les <a href="https://analisi.transparenciacatalunya.cat/Medi-Ambient/Dades-meteorol-giques-de-la-XEMA/nzvn-apee" rel="noopener" target="_blank">dades obertes de la Generalitat</a>) i xarxa Meteocadí (voltades en negre). Límits comarcals: ICGC. Altitud del terreny: Mapzen Terrain Tiles (EU-DEM, fet amb dades de Copernicus finançades per la Unió Europea, i SRTM, de l'USGS). Vent animat: previsió immediata del model AROME-PI de <a href="https://meteofrance.com/" rel="noopener" target="_blank">Météo-France</a> (Llicència Oberta 2.0) per al quart d'hora en curs; mostra cap on bufa i amb quina força, no és una mesura de les estacions. Radar: la imatge més nova de la composició europea <a href="https://www.eumetnet.eu/observations/weather-radar-network/" rel="noopener" target="_blank">OPERA d'EUMETNET</a> (CC BY 4.0), la mateixa del <a href="/radar">radar de pluja</a>. El mapa de color és una estimació entre estacions (a la temperatura, tenint en compte l'altitud del terreny): serveix per veure com es reparteix, no el valor exacte d'un punt, i al vent és només orientatiu, perquè canvia molt d'un lloc a l'altre. Amb el selector d'estacions pots veure-les totes, deixar-ne només una per capital de comarca o amagar-les; per defecte hi surten les que hi caben, i en apropar-te al mapa en van apareixent més. Són dades automàtiques sense validar: una lectura estranya pot ser un error del sensor. Quan les etiquetes no hi caben, algunes estacions es mostren com un punt: toca-les o apropa't per veure'n el valor.
 </p>
 <div class="cm-ext" id="cmExt" aria-live="polite"></div>
 
@@ -80,6 +80,7 @@ const { internal = false } = Astro.props;
   .cm-fln span:empty { display: none; }
   .cm-out .cm-fln { max-width: none; }
   .cm-flux { position: absolute; left: 0; top: 0; pointer-events: none; }
+  .cm-radar { image-rendering: auto; }
   .cm-out:empty, .cm-ctl:empty { display: none; }
   .cm-out .cm-lg, .cm-out .cm-st { box-shadow: none; padding: 10px 12px; }
   /* Fora del mapa (mòbil) les caselles es reparteixen l'amplada: la pluja en té 14 */
@@ -379,6 +380,66 @@ const { internal = false } = Astro.props;
         ? `Vent animat: ${wind.model} de Météo-France, ${hourMadrid(new Date(wind.valid))}`
         : want && windState === 'error' ? 'Vent animat: ara no disponible' : '';
     }
+    // El radar canvia en els mateixos moments (període, llegenda)
+    radarUpdate();
+  }
+
+  // ---------------------------------------------------------------- radar (api/capes, OPERA)
+  // La imatge més nova del radar públic (/radar), per sobre del mapa de color i per sota del vent i dels límits. Només
+  // amb les dades d'ara (període "Avui"). Apagat per defecte; si s'encén, es recorda. Es torna a mirar cada 5 minuts.
+  const K_RAD = 'meteocadi-mapa-radar';
+  let radarOn = false;
+  try { radarOn = localStorage.getItem(K_RAD) === '1'; } catch {}
+  map.createPane('radar').style.zIndex = '365';
+  map.getPane('radar')!.style.pointerEvents = 'none';
+  const RADAR_CREDIT = 'radar: <a href="https://www.eumetnet.eu/observations/weather-radar-network/">EUMETNET OPERA</a> (CC BY 4.0)';
+  let radarLayer: any = null;
+  let radarFrame: any = null;
+  let radarState: 'idle' | 'loading' | 'ok' | 'error' = 'idle';
+  let radarTimer = 0;
+  let radarCredit = false;
+  const radarCan = () => period.kind === 'today';
+  function loadRadar() {
+    if (radarState === 'loading') return;
+    radarState = 'loading';
+    fetch('/api/capes/radar')
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((j) => {
+        const f = j?.frames?.[j.frames.length - 1];
+        if (!f || !j.bounds) throw new Error('radar');
+        if (radarFrame?.t !== f.t) {
+          radarFrame = f;
+          if (radarLayer) radarLayer.setUrl(f.url);
+          else radarLayer = L.imageOverlay(f.url, j.bounds, { pane: 'radar', interactive: false, className: 'cm-radar', opacity: 0.9 });
+        }
+        radarState = 'ok';
+      })
+      .catch(() => { radarState = radarFrame ? 'ok' : 'error'; })
+      .finally(radarUpdate);
+  }
+  function radarUpdate() {
+    const want = radarOn && radarCan();
+    if (want && radarState === 'idle') loadRadar();
+    const show = want && radarState === 'ok' && !!radarLayer;
+    if (radarLayer) {
+      if (show && !map.hasLayer(radarLayer)) radarLayer.addTo(map);
+      if (!show && map.hasLayer(radarLayer)) radarLayer.remove();
+    }
+    if (show !== radarCredit) {
+      if (show) map.attributionControl?.addAttribution(RADAR_CREDIT);
+      else map.attributionControl?.removeAttribution(RADAR_CREDIT);
+      radarCredit = show;
+    }
+    if (show && !radarTimer) radarTimer = window.setInterval(() => { radarState = 'idle'; loadRadar(); }, 5 * 60 * 1000);
+    if (!show && radarTimer) { window.clearInterval(radarTimer); radarTimer = 0; }
+    const btn = document.getElementById('cmRadarBtn') as HTMLButtonElement | null;
+    if (btn) {
+      btn.disabled = !radarCan();
+      btn.setAttribute('aria-pressed', String(want));
+      btn.title = radarCan() ? 'La imatge més nova del radar de precipitació' : "Només amb les dades d'ara";
+    }
+    const note = document.getElementById('cmRadarNote');
+    if (note) note.textContent = show && radarFrame ? `Radar: imatge de les ${hourMadrid(new Date(radarFrame.time))} (OPERA)` : want && radarState === 'error' ? 'Radar: ara no disponible' : '';
   }
 
   // Sense les dades de Meteocat (el portal no respon o va endarrerit), el mapa de color sortiria de les poques
@@ -451,13 +512,18 @@ const { internal = false } = Astro.props;
   function legend() {
     const el = document.getElementById('cmLegend');
     if (!el) return;
-    el.innerHTML = `<b>${legendOf(cur)}</b><div class="sw">${stepsOf(cur).map((s: number) => `<span><i style="background:${cur.color(s)}"></i>${num(s, s % 1 ? 1 : 0)}</span>`).join('')}</div><div class="cm-fl"><button type="button" id="cmFieldBtn" aria-pressed="${fieldOn}">Mapa de color</button><button type="button" id="cmFluxBtn" aria-pressed="${fluxOn && fluxCan()}">Vent animat</button></div><div class="cm-fln"><span id="cmFieldNote"></span><span id="cmFluxNote"></span></div><label class="cm-op">Intensitat<input type="range" id="cmOp" min="0.25" max="1.6" step="0.05" value="${intensity}" aria-label="Intensitat del mapa de color" /></label>`;
+    el.innerHTML = `<b>${legendOf(cur)}</b><div class="sw">${stepsOf(cur).map((s: number) => `<span><i style="background:${cur.color(s)}"></i>${num(s, s % 1 ? 1 : 0)}</span>`).join('')}</div><div class="cm-fl"><button type="button" id="cmFieldBtn" aria-pressed="${fieldOn}">Mapa de color</button><button type="button" id="cmFluxBtn" aria-pressed="${fluxOn && fluxCan()}">Vent animat</button><button type="button" id="cmRadarBtn" aria-pressed="${radarOn && radarCan()}">Radar</button></div><div class="cm-fln"><span id="cmFieldNote"></span><span id="cmFluxNote"></span><span id="cmRadarNote"></span></div><label class="cm-op">Intensitat<input type="range" id="cmOp" min="0.25" max="1.6" step="0.05" value="${intensity}" aria-label="Intensitat del mapa de color" /></label>`;
     L.DomEvent.disableClickPropagation(el);
     el.querySelector('#cmFieldBtn')?.addEventListener('click', () => { fieldOn = !fieldOn; field(); });
     el.querySelector('#cmFluxBtn')?.addEventListener('click', () => {
       fluxOn = !fluxOn;
       try { localStorage.setItem(K_FLUX, fluxOn ? '1' : '0'); } catch {}
       fluxUpdate();
+    });
+    el.querySelector('#cmRadarBtn')?.addEventListener('click', () => {
+      radarOn = !radarOn;
+      try { localStorage.setItem(K_RAD, radarOn ? '1' : '0'); } catch {}
+      radarUpdate();
     });
     L.DomEvent.disableScrollPropagation(el);
     el.querySelector('#cmOp')?.addEventListener('input', (e) => {
