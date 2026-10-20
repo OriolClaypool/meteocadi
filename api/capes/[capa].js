@@ -11,6 +11,7 @@
 //   una hora (UTC), en PNG de paleta en Web Mercator; set dies a la CDN (una passada ja no canvia).
 // /api/capes/aca i /api/capes/aca-24h: la pluja d'avui i de les darreres 24 hores als pluviòmetres de l'Agència
 //   Catalana de l'Aigua (JSON, 5 minuts a la CDN; api/_aca.js)
+// /api/capes/aca-AAAA-MM-DD: la d'un dia anterior dels darrers 90 (una setmana a la CDN quan ja és sencer)
 // Les dades i com es fan les imatges: api/_opera.js. Com les altres funcions, qualsevol paràmetre es redirigeix a
 // l'adreça neta (perquè no se salti la CDN) i l'hora de la imatge va dins del camí.
 import { listFrames, radarFrame, stamp, fromStamp, BOUNDS, LEVELS, COLORS, W, H } from '../_opera.js';
@@ -18,6 +19,7 @@ import { aromeIndex, aromeImage, VAR, hstamp, fromHstamp } from '../_arome.js';
 import { listProduct } from '../_opera.js';
 import { accHour, FW, FH } from '../_pluja.js';
 import { acaRain, SOURCE as ACA_SOURCE } from '../_aca.js';
+import { ymdMadrid } from '../_xema.js';
 
 // Una imatge cada 10 minuts (les de les hores en punt, i 10, 20…): les composicions intermèdies (…5) solen arribar
 // sense una part dels radars d'AEMET, que en fan una cada 10 minuts, i l'animació faria pampallugues
@@ -191,6 +193,25 @@ async function acaList(res, kind) {
   }
 }
 
+// Un dia anterior (l'ACA en guarda uns tres mesos)
+async function acaDay(res, date) {
+  const ms = Date.parse(`${date}T12:00:00Z`);
+  if (isNaN(ms) || new Date(ms).toISOString().slice(0, 10) !== date || date >= ymdMadrid() || Date.now() - ms > 91 * 864e5) {
+    send404(res, 'Dia: aca-AAAA-MM-DD (un dia anterior a avui, dels darrers 90).');
+    return;
+  }
+  try {
+    const body = await acaRain('day', new Date(), fetch, date);
+    // Un dia sencer ja no canvia; si encara hi falten les darreres lectures (just després de mitjanit), 10 minuts
+    res.setHeader('Cache-Control', body.complete ? 'public, s-maxage=604800, stale-while-revalidate=86400' : 'public, s-maxage=600');
+    res.status(200).json(body);
+  } catch (e) {
+    console.error('[capes/aca]', date, String(e));
+    res.setHeader('Cache-Control', 'public, s-maxage=60');
+    res.status(200).json({ updated: new Date().toISOString(), error: 'aca', message: String(e), source: ACA_SOURCE, stations: [] });
+  }
+}
+
 export default async function handler(req, res) {
   const url = new URL(req.url || '/', 'https://www.meteocadi.cat');
   const capa = decodeURIComponent(url.pathname.split('/').filter(Boolean).pop() || '');
@@ -213,5 +234,7 @@ export default async function handler(req, res) {
   if (a) return aromeImg(res, a[1], a[2], a[3]);
   if (capa === 'aca') return acaList(res, 'today');
   if (capa === 'aca-24h') return acaList(res, '24h');
-  send404(res, 'Capes: radar, radar-AAAAMMDDHHMM, pluja, pluja-AAAAMMDDHH00, arome, arome-<variable>-AAAAMMDDHH-AAAAMMDDHH, aca i aca-24h.');
+  const ad = /^aca-(\d{4}-\d{2}-\d{2})$/.exec(capa);
+  if (ad) return acaDay(res, ad[1]);
+  send404(res, 'Capes: radar, radar-AAAAMMDDHHMM, pluja, pluja-AAAAMMDDHH00, arome, arome-<variable>-AAAAMMDDHH-AAAAMMDDHH, aca, aca-24h i aca-AAAA-MM-DD.');
 }

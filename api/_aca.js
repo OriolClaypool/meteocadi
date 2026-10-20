@@ -120,24 +120,34 @@ async function readings(from, to, fetchFn) {
   return by;
 }
 
-// kind: 'today' (des de mitjanit, hora de Madrid) o '24h' (les darreres 24 hores). Retorna { updated, latest,
-// period, source, stations: [{ id, name, lat, lng, alt: null, com, mun, rain, rain1h, time, rinc? }] }.
+// kind: 'today' (des de mitjanit, hora de Madrid), '24h' (les darreres 24 hores) o 'day' (el dia sencer date,
+// 'AAAA-MM-DD'; l'ACA en guarda uns tres mesos). Retorna { updated, latest, period, source, complete (dia sencer: ja hi
+// són les lectures fins a mitjanit), stations: [{ id, name, lat, lng, alt: null, com, mun, rain, rain1h, time, rinc? }] }.
 // rinc: més de 2 hores sense lectures (com a la XEMA): el total quedaria curt i el mapa no el fa servir.
-export async function acaRain(kind, now = new Date(), fetchFn = fetch) {
+export async function acaRain(kind, now = new Date(), fetchFn = fetch, date = null) {
   const nowMs = now.getTime();
-  const start = kind === '24h' ? Math.floor(nowMs / STEP) * STEP - 24 * 3600e3 : midnightOf(ymdMadrid(now)).getTime();
-  const [cat, by] = await Promise.all([catalog(fetchFn), readings(start, nowMs, fetchFn)]);
+  let start, end;
+  if (kind === 'day') {
+    start = midnightOf(date).getTime();
+    end = midnightOf(ymdMadrid(new Date(start + 36 * 3600e3))).getTime();
+  } else {
+    start = kind === '24h' ? Math.floor(nowMs / STEP) * STEP - 24 * 3600e3 : midnightOf(ymdMadrid(now)).getTime();
+    end = nowMs;
+  }
+  const [cat, by] = await Promise.all([catalog(fetchFn), readings(start, end, fetchFn)]);
   // Fins on arriben les dades: la lectura més nova de tots els pluviòmetres
   let newest = 0;
-  for (const m of by.values()) for (const t of m.keys()) if (t > start && t <= nowMs && t > newest) newest = t;
-  const expected = newest ? Math.round((newest - start) / STEP) : 0;
+  for (const m of by.values()) for (const t of m.keys()) if (t > start && t <= end && t > newest) newest = t;
+  // D'un dia sencer s'esperen les lectures fins a mitjanit; d'avui i de les 24 hores, fins a la més nova
+  const until = kind === 'day' ? end : newest;
+  const expected = newest ? Math.round((until - start) / STEP) : 0;
   const stations = [];
   for (const g of cat) {
     const m = by.get(g.sensor);
     if (!m || !expected) continue;
     let n = 0, sum = 0, last = 0, hour = 0;
     for (const [t, v] of m) {
-      if (t <= start || t > newest || v < 0 || v > MAX_RATE) continue;
+      if (t <= start || t > until || v < 0 || v > MAX_RATE) continue;
       n++;
       sum += v / 12;
       if (t > newest - 3600e3) hour += v / 12;
@@ -161,7 +171,8 @@ export async function acaRain(kind, now = new Date(), fetchFn = fetch) {
   return {
     updated: now.toISOString(),
     latest: newest ? new Date(newest).toISOString() : null,
-    period: { kind, start: new Date(start).toISOString(), end: newest ? new Date(newest).toISOString() : null },
+    period: { kind, ...(date ? { date } : {}), start: new Date(start).toISOString(), end: kind === 'day' ? new Date(end).toISOString() : newest ? new Date(newest).toISOString() : null },
+    ...(kind === 'day' ? { complete: newest >= end - 15 * 60e3 } : {}),
     source: SOURCE,
     stations,
   };
