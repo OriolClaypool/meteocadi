@@ -1,53 +1,139 @@
 ---
+// Radar públic: la composició europea d'OPERA (EUMETNET, CC BY 4.0) feta a /api/capes/radar (api/_opera.js) i la
+// pluja d'avui a les estacions de la xarxa. La lògica del mapa és a src/scripts/radar-opera.js.
+// (El radar del Meteocat es fa servir només a l'estudi intern, /estudi/radar.)
 import Base from '../layouts/Base.astro';
 import { STATIONS } from '../lib/stations.js';
+import { PAL } from '../scripts/radar-pal.js';
 ---
 <Base
-  title="Radar de pluja en directe al Berguedà i el Cadí-Moixeró | Meteocadí"
-  description="Radar de precipitació del Meteocat en directe per al Berguedà, la Cerdanya i el Cadí-Moixeró, amb la pluja acumulada avui a cada estació de la xarxa Meteocadí."
+  title="Radar de pluja en directe a Catalunya i al Cadí-Moixeró | Meteocadí"
+  description="Radar de precipitació en directe sobre Catalunya, el Berguedà i el Cadí-Moixeró: les dues últimes hores, una imatge cada deu minuts, amb els radars d'AEMET i Météo-France. I la pluja d'avui a cada estació de la xarxa Meteocadí."
   path="/radar"
   card={{ variant: 'radar', lat: 42.16, lng: 1.86 }}
   current="radar"
 >
-  <section class="sec sec--dark" style="padding:40px 0 72px;">
-    <div class="wrap" style="display:flex;flex-direction:column;gap:24px;">
-      <div class="sec__head" style="margin:0;">
-        <div>
-          <span class="eyebrow">RADAR · METEOCAT</span>
-          <h1 class="h2">Radar de pluja</h1>
-          <p class="sub" style="max-width:640px;">Imatge del radar del Servei Meteorològic de Catalunya, actualitzada cada pocs minuts. Al costat, la pluja que han recollit avui les estacions de la xarxa.</p>
+  <section class="phead" style="padding-bottom:28px;">
+    <div class="wrap">
+      <nav class="crumbs" aria-label="Ruta"><a href="/">Inici</a><span>›</span><span>Radar</span></nav>
+      <h1>Radar de pluja, <em>en directe</em></h1>
+      <p>La precipitació que veuen els radars meteorològics sobre Catalunya, el Cadí-Moixeró i el Berguedà: les dues últimes hores, una imatge cada deu minuts. Al costat, la pluja que han recollit avui les estacions de la xarxa.</p>
+    </div>
+  </section>
+
+  <section class="sec" style="padding:28px 0 64px;">
+    <div class="wrap rp">
+      <div class="rp-bar">
+        <div class="rp-now">
+          <button type="button" id="rpPlay" class="rp-btn" aria-pressed="false" aria-label="Reprodueix les dues últimes hores" disabled>
+            <svg class="rp-ico rp-ico--play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" /></svg>
+            <svg class="rp-ico rp-ico--pause" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" /></svg>
+            <span>Reprodueix</span>
+          </button>
+          <div class="rp-time" aria-live="polite"><b id="rpTime">Carregant el radar…</b><span id="rpAge"></span></div>
         </div>
-        <span class="tag tag--soft">Aviat: llamps en directe</span>
+        <div class="rp-views" role="group" aria-label="Zona del mapa">
+          <button type="button" data-rp-view="cat" aria-pressed="true">Catalunya</button>
+          <button type="button" data-rp-view="cadi" aria-pressed="false">Cadí-Moixeró</button>
+        </div>
       </div>
-      <div class="radar-grid">
-        <div class="radar-frame">
-          <iframe src="https://static-m.meteo.cat/ginys/mapaRadar?language=ca&color=3db8ff" title="Radar de precipitació del Meteocat" loading="lazy"></iframe>
+      <input type="range" id="rpSlider" class="rp-slider" min="0" max="0" step="1" value="0" aria-label="Hora de la imatge del radar" disabled />
+
+      <div class="rp-grid">
+        <div class="rp-mapwrap">
+          <div id="radarMap" class="rp-map" tabindex="0" aria-label="Mapa del radar de precipitació. Amb Maj i les fletxes, imatge anterior o següent."></div>
+          <div class="rp-lg">
+            <b>Intensitat de la precipitació</b>
+            <div class="rp-lg__bar">{PAL.meteocadi.map((c) => <i style={`background:${c}`}></i>)}</div>
+            <div class="rp-lg__ticks"><span>Feble</span><span>Moderada</span><span>Forta</span><span>Calamarsa</span></div>
+          </div>
         </div>
-        <div class="panel" style="padding:22px 22px 12px;">
-          <span class="eyebrow">PLUJA AVUI A LA XARXA</span>
+        <aside class="card rp-side">
+          <span class="eyebrow">Pluja avui a la xarxa</span>
           <ul class="rain-list" data-rain-list>
             {STATIONS.map((s) => (
               <li data-rain-row={s.id}><a href={`/estacions/${s.slug}`}>{s.name.split(' - ')[0]}</a><span class="mono" data-rain-v>—</span></li>
             ))}
           </ul>
-        </div>
+          <p class="rp-side__note">Acumulada des de mitjanit.</p>
+        </aside>
       </div>
-      <p style="font-size:13px;color:#7d8fa6;">Radar: <a href="https://www.meteo.cat/" rel="noopener" target="_blank" style="color:#7fd0ff;">Meteocat</a>. Pluja de les estacions: acumulada des de mitjanit.</p>
+      <p class="rp-status" id="rpStatus" aria-live="polite"></p>
+      <p class="rp-note" id="rpNote" aria-live="polite"></p>
+      <p class="rp-credit">
+        Radar: composició europea <a href="https://www.eumetnet.eu/observations/weather-radar-network/" rel="noopener" target="_blank">OPERA d'EUMETNET</a> (llicència CC BY 4.0), feta amb els radars d'AEMET, de Météo-France i dels altres serveis meteorològics europeus. És la reflectivitat més alta de cada columna d'aire: els colors en donen la intensitat aproximada, i a la muntanya o lluny dels radars pot quedar-se curta. Relleu: Esri. Límits comarcals: ICGC. Pluja de les estacions: acumulada des de mitjanit.
+      </p>
     </div>
   </section>
 </Base>
 <style>
-  .radar-grid { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 24px; align-items: start; }
-  .radar-frame { border-radius: 16px; overflow: hidden; border: 1px solid rgba(61, 184, 255, 0.16); background: #0b1320; aspect-ratio: 4 / 3; }
-  .radar-frame iframe { width: 100%; height: 100%; border: 0; display: block; }
-  .rain-list { list-style: none; margin: 14px 0 0; padding: 0; }
-  .rain-list li { display: flex; justify-content: space-between; gap: 12px; padding: 11px 0; border-top: 1px solid rgba(255, 255, 255, 0.06); font-size: 15px; }
-  .rain-list a { color: #e6edf6; }
-  @media (max-width: 980px) { .radar-grid { grid-template-columns: 1fr; } .radar-frame { aspect-ratio: 1 / 1; } }
+  .rp { display: flex; flex-direction: column; gap: 14px; }
+  .rp-bar { display: flex; justify-content: space-between; align-items: center; gap: 12px 20px; flex-wrap: wrap; }
+  .rp-now { display: flex; align-items: center; gap: 14px; }
+  .rp-btn { display: inline-flex; align-items: center; gap: 8px; height: 42px; padding: 0 18px 0 14px; border-radius: 999px; border: 1px solid var(--ink); background: var(--ink); color: #fff; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer; }
+  .rp-btn:disabled { opacity: 0.45; cursor: default; }
+  .rp-ico { width: 18px; height: 18px; fill: currentColor; }
+  .rp-ico--pause, .rp-btn[aria-pressed='true'] .rp-ico--play { display: none; }
+  .rp-btn[aria-pressed='true'] .rp-ico--pause { display: block; }
+  .rp-time { display: flex; flex-direction: column; gap: 2px; }
+  .rp-time b { font-family: var(--f-head); font-size: 19px; font-weight: 800; letter-spacing: -0.01em; color: var(--ink); }
+  .rp-time span { font-family: var(--f-mono); font-size: 12.5px; color: var(--muted); }
+  .rp-views { display: flex; gap: 6px; }
+  .rp-views button { height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: #fff; color: var(--ink); font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
+  .rp-views button[aria-pressed='true'] { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .rp-slider { width: 100%; accent-color: #10233b; cursor: pointer; margin: 0; }
+  .rp-slider:disabled { opacity: 0.4; cursor: default; }
+  .rp-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
+  .rp-mapwrap { position: relative; }
+  .rp-map { width: 100%; height: min(76vh, 760px); min-height: 480px; border-radius: 16px; border: 1px solid var(--line); background: #e9eef3; overflow: hidden; }
+  .rp-map:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+  .rp-lg { position: absolute; left: 12px; bottom: 28px; z-index: 500; background: rgba(255, 255, 255, 0.94); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font-family: var(--f-ui); font-size: 12px; color: var(--ink2); box-shadow: 0 2px 8px rgba(16, 35, 59, 0.08); width: 270px; }
+  .rp-lg b { display: block; font-family: var(--f-mono); font-size: 10.5px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); font-weight: 500; margin-bottom: 6px; }
+  .rp-lg__bar { display: flex; height: 10px; border-radius: 3px; overflow: hidden; }
+  .rp-lg__bar i { flex: 1; }
+  .rp-lg__ticks { display: flex; justify-content: space-between; margin-top: 4px; font-size: 11px; }
+  .rp-side .eyebrow { color: var(--muted); }
+  .rain-list { list-style: none; margin: 10px 0 0; padding: 0; }
+  .rain-list li { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 15px; }
+  .rain-list li:first-child { border-top: 0; }
+  .rain-list a { color: var(--ink); font-weight: 500; }
+  .rain-list .mono { font-weight: 600; padding: 1px 8px; border-radius: 999px; background: var(--c, transparent); color: var(--ink); white-space: nowrap; }
+  .rp-side__note { margin-top: 8px; font-size: 12.5px; color: var(--muted); }
+  .rp-status:empty, .rp-note:empty { display: none; }
+  .rp-status, .rp-note { font-size: 14.5px; color: var(--ink2); }
+  .rp-credit { font-size: 13.5px; color: var(--muted); max-width: 980px; line-height: 1.55; }
+  @media (max-width: 980px) {
+    .rp-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 640px) {
+    .rp-map { height: 70vh; min-height: 420px; }
+    .rp-lg { position: static; width: auto; margin-top: 10px; box-shadow: none; }
+    .rp-time b { font-size: 17px; }
+    .rp-views button { height: 32px; padding: 0 12px; font-size: 13px; }
+  }
 </style>
+<style is:global>
+  .rp-map.leaflet-container { font-family: var(--f-ui); background: #e9eef3; }
+  .rp-map .leaflet-tile-pane { filter: saturate(0.2) contrast(0.85) brightness(1.06); opacity: 0.75; }
+  .rp-map .leaflet-control-attribution { font-size: 10px; }
+  /* Leaflet només ho treu a la capa d'objectes; les línies són en una capa pròpia */
+  .rp-map .leaflet-pane svg { max-width: none !important; max-height: none !important; }
+  .rp-cv { image-rendering: auto; }
+  .rp-place { width: 0 !important; height: 0 !important; }
+  .rp-place span { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); font-family: var(--f-ui); font-size: 12px; font-weight: 600; color: #22344b; white-space: nowrap; text-shadow: 0 0 3px #fff, 0 0 3px #fff, 0 0 5px #fff; letter-spacing: -0.01em; }
+  .rp-pin { width: 0 !important; height: 0 !important; }
+  .rp-pin span { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); width: 9px; height: 9px; border-radius: 50%; background: var(--c, #fff); box-shadow: 0 0 0 2px #10233b; font-size: 0; }
+  .rp-near .rp-pin span:not(:empty):not(.is-dot) { width: auto; height: auto; padding: 2px 7px; border-radius: 999px; font-family: var(--f-ui); font-size: 12px; font-weight: 700; color: #10233b; font-variant-numeric: tabular-nums; }
+</style>
+
 <script>
+  import { startRadarPage } from '../scripts/radar-opera.js';
   import { loadAra } from '../scripts/live.js';
   import { num, precipColor } from '../lib/format.js';
+  import 'leaflet/dist/leaflet.css';
+  const radar = startRadarPage();
+  // Per a les proves
+  (window as any).__radarPub = radar;
   loadAra().then((j: any) => {
     const list = document.querySelector('[data-rain-list]');
     if (!j || !list) return;
@@ -55,9 +141,9 @@ import { STATIONS } from '../lib/stations.js';
     rows.forEach((li) => {
       const d = j.stations?.[li.dataset.rainRow!];
       const v = li.querySelector<HTMLElement>('[data-rain-v]')!;
-      const r = d?.rain;
+      const r = d && !d.stale ? d.rain : null;
       v.textContent = r != null ? `${num(r)} mm` : '—';
-      v.style.color = precipColor(r);
+      if (r != null && r >= 0.1) v.style.setProperty('--c', precipColor(r));
       li.dataset.v = String(r ?? -1);
     });
     rows.sort((a, b) => Number(b.dataset.v) - Number(a.dataset.v)).forEach((li) => list.appendChild(li));
