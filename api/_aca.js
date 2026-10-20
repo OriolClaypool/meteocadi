@@ -10,14 +10,15 @@
 //            → { sensors: [{ sensor, observations: [{ value: "1.2", timestamp: "20/10/2026T11:35:00", time: <ms> }] }] }
 // Cada lectura és la intensitat de precipitació (mm/h) dels 5 minuts que acaben a l'hora de la lectura (UTC): la
 // pluja d'una lectura és la intensitat / 12 (els valors van de 1,2 en 1,2 mm/h: 0,1 mm cada 5 minuts). from i to
-// (dd/MM/yyyyTHH:mm:ss, UTC) hi entren tots dos; com a molt 200 lectures per sensor i petició, de la més nova a la més
-// antiga, i de vegades n'hi ha de repetides. Arriben amb uns 5-10 minuts de retard. Comprovat el 20/10/2026.
+// (dd/MM/yyyyTHH:mm:ss, UTC) hi entren tots dos; de tot el proveïdor, com a molt 50 lectures per sensor i petició (les
+// més noves de la finestra, encara que limit sigui més gran; d'un sol sensor, 200), i de vegades n'hi ha de repetides.
+// Arriben amb uns 5-10 minuts de retard. Comprovat el 20/10/2026 (amb el navegador: 50 lectures per sensor).
 import { midnightOf, ymdMadrid } from './_xema.js';
 
 const BASE = 'https://aplicacions.aca.gencat.cat/sdim2/apirest';
 const PROVIDER = 'PLUVIOMETREACA-EST';
 const STEP = 5 * 60e3;
-const CHUNK = 16 * 3600e3; // 193 lectures com a molt per petició (el màxim de l'API és 200)
+const CHUNK = 235 * 60e3; // 3 h 55 min: 48 lectures com a molt per sensor i petició (el màxim de l'API és 50)
 const MAX_RATE = 400; // mm/h ("Rang màxim" dels sensors): per sobre, és un error
 const HEADERS = { 'User-Agent': 'meteocadi.cat', Accept: 'application/json' };
 export const SOURCE = "Agència Catalana de l'Aigua (pluviòmetres, dades obertes en temps real)";
@@ -100,11 +101,12 @@ async function catalog(fetchFn) {
   }
 }
 
-// Les lectures de [from, to] de tots els pluviòmetres, en trossos de com a molt 16 hores → Map(sensor → Map(ms → mm/h))
+// Les lectures de [from, to] de tots els pluviòmetres, en trossos de menys de 4 hores (un dia sencer, 7 peticions alhora)
+// → Map(sensor → Map(ms → mm/h))
 async function readings(from, to, fetchFn) {
   const spans = [];
   for (let a = from; a < to; a += CHUNK) spans.push([a, Math.min(to, a + CHUNK)]);
-  const parts = await Promise.all(spans.map(([a, b]) => getJson(`${BASE}/data/${PROVIDER}?from=${fmtAca(a)}&to=${fmtAca(b)}&limit=200`, fetchFn)));
+  const parts = await Promise.all(spans.map(([a, b]) => getJson(`${BASE}/data/${PROVIDER}?from=${fmtAca(a)}&to=${fmtAca(b)}&limit=50`, fetchFn)));
   const by = new Map();
   for (const j of parts)
     for (const s of j?.sensors || []) {

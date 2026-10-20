@@ -79,6 +79,37 @@ export async function fetchModel(model, from, to, fetchFn = fetch) {
   return out;
 }
 
+// Open-Meteo no vol gaires peticions alhora: amb les 9 a la vegada, en respon alguna amb 429 "Too many concurrent
+// requests" (comprovat el 20/10/2026). Dues alhora i, amb un 429, es torna a provar (cada petició triga ~0,1-1 s)
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function fetchModelRetry(model, from, to, fetchFn) {
+  for (let k = 0; ; k++) {
+    try {
+      return await fetchModel(model, from, to, fetchFn);
+    } catch (e) {
+      if (k >= 2 || !/HTTP 429/.test(String(e?.message))) throw e;
+      await sleep(1500 * (k + 1));
+    }
+  }
+}
+// Com Promise.allSettled, però com a molt n tasques alhora
+async function pool(tasks, n) {
+  const out = new Array(tasks.length);
+  let next = 0;
+  const worker = async () => {
+    while (next < tasks.length) {
+      const k = next++;
+      try {
+        out[k] = { status: 'fulfilled', value: await tasks[k]() };
+      } catch (e) {
+        out[k] = { status: 'rejected', reason: e };
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(n, tasks.length) }, worker));
+  return out;
+}
+
 // Els dies que cal demanar: els que falten dels darrers BACK, dels més nous als més antics, en dos trossos de dies
 // seguits com a molt i CHUNK + 1 dies en total (ahir i un mes, la primera nit)
 export function plan(have, yesterday) {
@@ -119,17 +150,17 @@ export async function modelsUpdate(ghJson, yesterday, fetchFn = fetch) {
   if (!spans.length) return { files: {}, days: [], errors: [] };
   const errors = [];
   const got = {};
-  // Tots els trossos i tots els models alhora (l'arxiu té 60 segons en total)
-  const all = await Promise.all(spans.map(([from, to]) => Promise.allSettled(MODELS.map((m) => fetchModel(m, from, to, fetchFn)))));
-  for (const res of all)
-    res.forEach((r, i) => {
-      if (r.status === 'rejected') {
-        errors.push(String(r.reason?.message ?? r.reason).slice(0, 200));
-        return;
-      }
-      for (const [d, sts] of Object.entries(r.value))
-        for (const [id, v] of Object.entries(sts)) ((got[d] ||= {})[id] ||= {})[MODELS[i]] = v;
-    });
+  // Cada tros amb cada model, dues peticions alhora (l'arxiu té 60 segons en total i els models, 40)
+  const jobs = spans.flatMap(([from, to]) => MODELS.map((m) => ({ m, from, to })));
+  const res = await pool(jobs.map((j) => () => fetchModelRetry(j.m, j.from, j.to, fetchFn)), 2);
+  res.forEach((r, i) => {
+    if (r.status === 'rejected') {
+      errors.push(String(r.reason?.message ?? r.reason).slice(0, 200));
+      return;
+    }
+    for (const [d, sts] of Object.entries(r.value))
+      for (const [id, v] of Object.entries(sts)) ((got[d] ||= {})[id] ||= {})[jobs[i].m] = v;
+  });
   const days = Object.keys(got).filter((d) => !have.has(d)).sort();
   const files = {};
   for (const d of days) {
