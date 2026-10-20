@@ -133,7 +133,20 @@ export function altTrend(pts) {
   return { f: (z) => b1 * Math.min(z, h) + b2 * Math.max(z - h, 0), b: b2, h, b1 };
 }
 
-export function computeField(pts, key, { mask, maskHi = null, dem = null, alpha = null, min = null }) {
+// radar (només la pluja): la pluja del radar a la mateixa graella (FW × FH, mm; NaN on no n'hi ha), per fer-ne la
+// fusió condicional amb els pluviòmetres: a cada punt, la interpolació de les estacions més la diferència entre el
+// radar en aquell punt i el radar interpolat de la mateixa manera des de les estacions (tot en log(1 + mm)). Així, a
+// cada estació queda el que ha mesurat i, entre estacions, la forma de la pluja és la del radar.
+function sampleGrid(grid, lat, lng) {
+  const [x, y] = toPx(lng, lat);
+  const c = Math.floor(x - 0.5), r = Math.floor(y - 0.5), tx = x - 0.5 - c, ty = y - 0.5 - r;
+  const at = (cc, rr) => (cc < 0 || rr < 0 || cc >= FW || rr >= FH ? NaN : grid[rr * FW + cc]);
+  const a = at(c, r), b = at(c + 1, r), d = at(c, r + 1), e = at(c + 1, r + 1);
+  if (a !== a || b !== b || d !== d || e !== e) return at(Math.round(x - 0.5), Math.round(y - 0.5));
+  return (a * (1 - tx) + b * tx) * (1 - ty) + (d * (1 - tx) + e * tx) * ty;
+}
+
+export function computeField(pts, key, { mask, maskHi = null, dem = null, alpha = null, min = null, radar = null }) {
   const cfg = FIELD[key] && min != null ? { ...FIELD[key], min } : FIELD[key];
   if (!cfg || !mask || pts.length < 5) return null;
   const useDem = !!cfg.dem && !!dem;
@@ -145,6 +158,22 @@ export function computeField(pts, key, { mask, maskHi = null, dem = null, alpha 
     PY[j] = p.lat;
     PR[j] = cfg.log ? Math.log1p(Math.max(0, p.v)) : trend ? p.v - trend.f(p.alt) : p.v;
   });
+  // Radar a cada estació (log(1 + mm); NaN si no n'hi ha). Només si s'assembla prou al que han recollit les estacions
+  // (correlació de 0,4 o més amb 20 estacions com a mínim): un radar desfasat, buit o amb ecos falsos no hi entra
+  let RS = radar && cfg.log && radar.length === FW * FH ? Float64Array.from(pts, (p) => { const r = sampleGrid(radar, p.lat, p.lng); return r === r ? Math.log1p(Math.max(0, r)) : NaN; }) : null;
+  let radarCorr = null;
+  if (RS) {
+    const idx = [];
+    for (let j = 0; j < n; j++) if (RS[j] === RS[j]) idx.push(j);
+    if (idx.length >= 20) {
+      const ma = idx.reduce((a, j) => a + PR[j], 0) / idx.length, mb = idx.reduce((a, j) => a + RS[j], 0) / idx.length;
+      let sab = 0, saa = 0, sbb = 0;
+      for (const j of idx) { sab += (PR[j] - ma) * (RS[j] - mb); saa += (PR[j] - ma) ** 2; sbb += (RS[j] - mb) ** 2; }
+      radarCorr = saa > 0 && sbb > 0 ? sab / Math.sqrt(saa * sbb) : null;
+    }
+    if (!(radarCorr >= 0.4)) RS = null;
+  }
+  const useRadar = !!RS;
   const kk = Math.min(K, n - 1);
   // Les kk + 1 estacions més properes del punt, ordenades per distància (bd: km², bi: índex de l'estació)
   const bd = new Float64Array(kk + 1), bi = new Int32Array(kk + 1);
@@ -185,15 +214,18 @@ export function computeField(pts, key, { mask, maskHi = null, dem = null, alpha 
       prev.set(bi);
       warm = true;
       const R2 = bd[kk];
-      let sw = 0, sv = 0;
+      let sw = 0, sv = 0, rw = 0, rv = 0;
       for (let q = 0; q < kk; q++) {
         const t = 1 - bd[q] / R2;
         const x = bd[q] + S2;
         const w = (t * t) / (x * Math.sqrt(Math.sqrt(x))); // 1 / (d² + S²)^1,25 = potència 2,5 de la distància
         sw += w;
         sv += w * PR[bi[q]];
+        if (RS && RS[bi[q]] === RS[bi[q]]) { rw += w; rv += w * RS[bi[q]]; }
       }
       let v = sw > 0 ? sv / sw : PR[bi[0]];
+      // Fusió amb el radar (on n'hi ha al punt i a les estacions del voltant)
+      if (RS && rw > 0 && radar[i] === radar[i]) v = Math.max(0, v + Math.log1p(Math.max(0, radar[i])) - rv / rw);
       if (step) {
         if (bd[0] <= maxD2) G[i] = v;
         continue;
@@ -210,7 +242,7 @@ export function computeField(pts, key, { mask, maskHi = null, dem = null, alpha 
       web.data[k + 3] = Math.round(inside * (alpha ?? cfg.alpha));
     }
   }
-  if (step) return { ...paintClasses(G, cfg, mask, maskHi, alpha ?? cfg.alpha), useDem, alpha: cfg.alpha };
+  if (step) return { ...paintClasses(G, cfg, mask, maskHi, alpha ?? cfg.alpha), useDem, useRadar, radarCorr, alpha: cfg.alpha };
   return { raw, web, useDem, alpha: cfg.alpha, inversion: trend?.h != null ? { h: trend.h, below: trend.b1 } : null };
 }
 

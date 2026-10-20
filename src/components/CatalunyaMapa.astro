@@ -143,6 +143,7 @@ const { internal = false } = Astro.props;
   import { FB, FIELD, HI, computeField, comarquesMask, toCanvas, fieldColor } from '../scripts/camp.js';
   import { rainClasses } from '../lib/escales.js';
   import { createFlux } from '../scripts/vent-flux.js';
+  import { radarToday } from '../scripts/pluja-radar.js';
   // Classes de pluja del mapa d'ara (es recalculen a cada dibuix segons el valor més alt)
   let rainScale = rainClasses(0);
   // Etiquetes i llegenda amb la mateixa escala que el mapa de color
@@ -447,6 +448,9 @@ const { internal = false } = Astro.props;
   // triada n'hi ha menys de 20 del Meteocat amb valor (per exemple, totes amb dades incompletes)
   let xemaDown = false;
   const xemaFew = () => stations.filter((s) => !s.mc && val(s) != null).length < 20;
+  // Pluja d'avui: el radar (src/scripts/pluja-radar.js) dona la forma de la pluja entre estacions (camp.js, radar)
+  let rainRadar: any = null;
+  let rainRadarState: 'idle' | 'loading' | 'ok' | 'error' = 'idle';
   function field() {
     const cmapEl = document.getElementById('cmap');
     const cfg = (FIELD as any)[cur.key];
@@ -461,7 +465,14 @@ const { internal = false } = Astro.props;
     if (!mask) mask = comarquesMask(comarques);
     if (cfg.step && !maskHi) maskHi = comarquesMask(comarques, HI);
     const pts = stations.filter((s) => val(s) != null && s.lat != null).map((s) => ({ lat: s.lat, lng: s.lng, alt: s.alt ?? 0, v: val(s) as number }));
-    const f = computeField(pts, cur.key, { mask, maskHi, dem: demState === 'ok' ? dem : null, alpha: 1, min: cur.key === 'rain' ? rainScale.floor : null });
+    const wantRadar = cur.key === 'rain' && period.kind === 'today';
+    if (wantRadar && rainRadarState === 'idle') {
+      rainRadarState = 'loading';
+      radarToday(latest || new Date())
+        .then((r) => { rainRadar = r; rainRadarState = r ? 'ok' : 'error'; if (r && cur.key === 'rain' && period.kind === 'today') field(); })
+        .catch(() => { rainRadarState = 'error'; });
+    }
+    const f = computeField(pts, cur.key, { mask, maskHi, dem: demState === 'ok' ? dem : null, alpha: 1, min: cur.key === 'rain' ? rainScale.floor : null, radar: wantRadar && rainRadar ? rainRadar.grid : null });
     if (!f) return;
     const url = toCanvas(f.web).toDataURL();
     const bounds: any = [[FB.lat0, FB.lng0], [FB.lat1, FB.lng1]];
@@ -470,14 +481,14 @@ const { internal = false } = Astro.props;
     fieldLayer.getElement()?.classList.toggle('is-step', !!cfg.step);
     fieldLayer.setOpacity(fieldOpacity());
     cmapEl?.classList.add('has-field');
-    const note = f.useDem ? 'dem' : cur.key === 'wind' || cur.key === 'gust' ? 'wind' : 'plain';
+    const note = f.useDem ? 'dem' : cur.key === 'wind' || cur.key === 'gust' ? 'wind' : f.useRadar ? 'radar' : 'plain';
     fieldRaw = { canvas: toCanvas(f.raw), key: cur.key, alpha: Math.min(0.8, cfg.alpha + 0.1), note };
-    fieldNote(cfg.dem && !f.useDem);
+    fieldNote(cfg.dem && !f.useDem, !!f.useRadar);
     fluxUpdate();
   }
   const noteFor = (key: string) =>
     (FIELD as any)[key]?.dem ? "interpolada tenint en compte l'altitud" : key === 'wind' || key === 'gust' ? "orientatiu: el vent canvia molt d'un lloc a l'altre" : 'interpolada entre estacions';
-  function fieldNote(plain = false) {
+  function fieldNote(plain = false, radar = false) {
     const el = document.getElementById('cmFieldNote');
     if (!el) return;
     const can = !!(FIELD as any)[cur.key];
@@ -485,7 +496,7 @@ const { internal = false } = Astro.props;
     if (btn) { btn.disabled = !can; btn.setAttribute('aria-pressed', String(fieldOn && can)); }
     const op = document.getElementById('cmOp') as HTMLInputElement | null;
     if (op) op.disabled = !(fieldOn && can);
-    const t = !can ? 'no disponible per al gruix de neu' : !fieldOn ? '' : xemaDown || xemaFew() ? 'sense dades de Meteocat' : plain ? 'interpolada entre estacions' : noteFor(cur.key);
+    const t = !can ? 'no disponible per al gruix de neu' : !fieldOn ? '' : xemaDown || xemaFew() ? 'sense dades de Meteocat' : plain ? 'interpolada entre estacions' : radar ? 'entre estacions, amb la forma de la pluja del radar' : noteFor(cur.key);
     el.textContent = t ? t[0].toUpperCase() + t.slice(1) : '';
   }
 
@@ -1039,5 +1050,5 @@ const { internal = false } = Astro.props;
   }
   load();
   // Avui, les 24 hores i un període que arriba fins avui es refresquen sols; els dies anteriors ja no canvien
-  setInterval(() => { if (!past() || rangeToday()) load(true); }, 15 * 60 * 1000);
+  setInterval(() => { if (!past() || rangeToday()) { rainRadarState = 'idle'; load(true); } }, 15 * 60 * 1000);
 </script>

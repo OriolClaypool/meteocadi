@@ -3,6 +3,9 @@
 // /api/capes/radar: les imatges del radar de les dues últimes hores, una cada 10 minuts (JSON, 1 minut a la CDN)
 // /api/capes/radar-AAAAMMDDHHMM: una imatge del radar (PNG de paleta en Web Mercator; l'hora és UTC). Les imatges ja no
 //   canvien: un any a la CDN, i cada una es fa una sola vegada per a tothom.
+// /api/capes/pluja: les hores de pluja del radar (acumulació d'una hora, OPERA ACRR) de les darreres 24 hores (JSON)
+// /api/capes/pluja-AAAAMMDDHH00: la pluja d'una hora (la que acaba a aquesta hora UTC) a la graella del mapa de color
+//   (JSON amb les dades comprimides; un any a la CDN)
 // /api/capes/arome: la passada més nova del model AROME, les variables que té i les hores (JSON, 10 minuts)
 // /api/capes/arome-<variable>-AAAAMMDDHH-AAAAMMDDHH: una variable (temp, pluja, neu, vent, ratxa, cota) d'una passada a
 //   una hora (UTC), en PNG de paleta en Web Mercator; set dies a la CDN (una passada ja no canvia).
@@ -10,6 +13,8 @@
 // l'adreça neta (perquè no se salti la CDN) i l'hora de la imatge va dins del camí.
 import { listFrames, radarFrame, stamp, fromStamp, BOUNDS, LEVELS, COLORS, W, H } from '../_opera.js';
 import { aromeIndex, aromeImage, VAR, hstamp, fromHstamp } from '../_arome.js';
+import { listProduct } from '../_opera.js';
+import { accHour, FW, FH } from '../_pluja.js';
 
 // Una imatge cada 10 minuts (les de les hores en punt, i 10, 20…): les composicions intermèdies (…5) solen arribar
 // sense una part dels radars d'AEMET, que en fan una cada 10 minuts, i l'animació faria pampallugues
@@ -123,6 +128,43 @@ async function aromeImg(res, k, r, t) {
   }
 }
 
+// ------------------------------------------------------------------ pluja del radar per hores (api/_pluja.js)
+async function plujaList(res) {
+  const now = new Date();
+  try {
+    const all = await listProduct('ACRR', new Date(now.getTime() - 26 * 3600e3), now);
+    const hours = all.filter((t) => t.endsWith('00'));
+    res.setHeader('Cache-Control', 'public, s-maxage=120, stale-while-revalidate=300');
+    res.status(200).json({ updated: now.toISOString(), source: SOURCE, w: FW, h: FH, hours: hours.map((t) => ({ t, end: fromStamp(t).toISOString(), url: `/api/capes/pluja-${t}` })) });
+  } catch (e) {
+    console.error('[capes/pluja]', String(e));
+    res.setHeader('Cache-Control', 'public, s-maxage=60');
+    res.status(200).json({ updated: now.toISOString(), error: 'pluja', message: String(e), hours: [] });
+  }
+}
+
+async function plujaHour(res, t) {
+  const d = fromStamp(t);
+  const age = Date.now() - d.getTime();
+  if (isNaN(d) || stamp(d) !== t || d.getUTCMinutes() !== 0 || age < 0 || age > 25 * 3600e3) {
+    send404(res, 'Hora: pluja-AAAAMMDDHH00 (UTC, en punt, de les darreres 24 hores).');
+    return;
+  }
+  try {
+    const h = await accHour(t);
+    if (!h) {
+      send404(res, 'Aquesta hora encara no hi és.', 60);
+      return;
+    }
+    res.setHeader('Cache-Control', 'public, max-age=86400, s-maxage=31536000, immutable');
+    res.status(200).json({ t, end: d.toISOString(), ...h });
+  } catch (e) {
+    console.error('[capes/pluja]', t, String(e));
+    res.setHeader('Cache-Control', 'public, s-maxage=30');
+    res.status(502).json({ error: 'pluja', message: String(e) });
+  }
+}
+
 export default async function handler(req, res) {
   const url = new URL(req.url || '/', 'https://www.meteocadi.cat');
   const capa = decodeURIComponent(url.pathname.split('/').filter(Boolean).pop() || '');
@@ -137,8 +179,11 @@ export default async function handler(req, res) {
   if (capa === 'radar') return radarIndex(res);
   const m = /^radar-(\d{12})$/.exec(capa);
   if (m) return radarImage(res, m[1]);
+  if (capa === 'pluja') return plujaList(res);
+  const pl = /^pluja-(\d{12})$/.exec(capa);
+  if (pl) return plujaHour(res, pl[1]);
   if (capa === 'arome') return aromeList(res);
   const a = /^arome-([a-z]+)-(\d{10})-(\d{10})$/.exec(capa);
   if (a) return aromeImg(res, a[1], a[2], a[3]);
-  send404(res, 'Capes: radar, radar-AAAAMMDDHHMM, arome i arome-<variable>-AAAAMMDDHH-AAAAMMDDHH.');
+  send404(res, 'Capes: radar, radar-AAAAMMDDHHMM, pluja, pluja-AAAAMMDDHH00, arome i arome-<variable>-AAAAMMDDHH-AAAAMMDDHH.');
 }

@@ -111,10 +111,12 @@ const pad = (n) => String(n).padStart(2, '0');
 export const stamp = (d) => `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}`;
 export const fromStamp = (t) => new Date(Date.UTC(+t.slice(0, 4), +t.slice(4, 6) - 1, +t.slice(6, 8), +t.slice(8, 10), +t.slice(10, 12)));
 const dayDir = (t) => `${t.slice(0, 4)}/${t.slice(4, 6)}/${t.slice(6, 8)}/OPERA/COMP/`;
-const fileUrl = (t) => `${S3}/${dayDir(t)}OPERA@${t.slice(0, 8)}T${t.slice(8, 12)}@0@DBZH.tiff`;
+export const fileUrl = (t, prod = 'DBZH') => `${S3}/${dayDir(t)}OPERA@${t.slice(0, 8)}T${t.slice(8, 12)}@0@${prod}.tiff`;
 
 // Imatges DBZH disponibles a partir de 'since' (Date), de la més antiga a la més nova ('AAAAMMDDHHMM')
-export async function listFrames(since, now = new Date()) {
+export const listFrames = (since, now = new Date()) => listProduct('DBZH', since, now);
+// El mateix per a qualsevol producte de la composició (DBZH, RATE, ACRR)
+export async function listProduct(prod, since, now = new Date()) {
   const days = [...new Set([stamp(since), stamp(now)].map((t) => t.slice(0, 8)))];
   const lists = await Promise.all(
     days.map(async (day) => {
@@ -124,7 +126,7 @@ export async function listFrames(since, now = new Date()) {
       const r = await fetch(`${S3}?${qs}`, { signal: AbortSignal.timeout(8000) });
       if (!r.ok) throw new Error(`llista ${day}: HTTP ${r.status}`);
       const xml = await r.text();
-      return [...xml.matchAll(/<Key>[^<]*OPERA@(\d{8})T(\d{4})@0@DBZH\.tiff<\/Key>/g)].map((m) => m[1] + m[2]);
+      return [...xml.matchAll(new RegExp(`<Key>[^<]*OPERA@(\\d{8})T(\\d{4})@0@${prod}\\.tiff</Key>`, 'g'))].map((m) => m[1] + m[2]);
     }),
   );
   return [...new Set(lists.flat())].sort();
