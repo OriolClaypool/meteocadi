@@ -50,7 +50,9 @@ export const VARS = [
   { key: 'neu', label: 'Neu', unit: 'cm/h', find: [/^TOTAL_SNOW_PRECIPITATION__GROUND_OR_WATER_SURFACE$/, /^SNOW_PRECIPITATION__GROUND_OR_WATER_SURFACE$/, /SNOW.*PRECIPITATION/, /SNOW_?FALL/], interval: 'PT1H', conv: 'snow', scale: 'snow', min: 0.2 },
   { key: 'vent', label: 'Vent', unit: 'km/h', find: [/^WIND_SPEED__SPECIFIC_HEIGHT_LEVEL_ABOVE_GROUND$/], interval: '', height: 10, conv: 'kmh', scale: 'wind', min: -Infinity },
   { key: 'ratxa', label: 'Ratxes', unit: 'km/h', find: [/^WIND_SPEED_GUST__SPECIFIC_HEIGHT_LEVEL_ABOVE_GROUND$/, /^WIND_SPEED_GUST/, /^WIND_GUST/], interval: 'PT1H', height: 10, conv: 'kmh', scale: 'wind', min: -Infinity },
-  { key: 'cota', label: 'Cota de neu', unit: 'm', find: [/SNOW_?LEVEL/, /ISO.*WET_?BULB/, /WET_?BULB.*(ZERO|0_DEGREE|273)/, /ISO_?(0|ZERO)\b/, /(0|ZERO)_?DEGREE.*ISOTHERM|ISOTHERM.*(0|ZERO)/, /FREEZING_LEVEL/], interval: '', conv: 'alt', scale: 'alt', min: -Infinity },
+  // Cota de neu (aproximada): l'altitud on la temperatura pseudoadiabàtica potencial del termòmetre humit és d'1 °C
+  // (ALTITUDE_TPW…27415; per sobre, la precipitació sol ser de neu); si no hi és, la isoterma de 0 °C de l'aire
+  { key: 'cota', label: 'Cota de neu', unit: 'm', find: [/^ALTITUDE_TPW__ISOTHERMAL_LEVEL_27415$/, /^ALTITUDE_TEMPERATURE__ISOTHERMAL_LEVEL_27315$/, /SNOW_?LEVEL/, /ISO.*WET_?BULB/, /WET_?BULB.*(ZERO|0_DEGREE|273)/, /ISO_?(0|ZERO)\b/, /(0|ZERO)_?DEGREE.*ISOTHERM|ISOTHERM.*(0|ZERO)/, /FREEZING_LEVEL/], interval: '', conv: 'alt', scale: 'alt', min: -Infinity },
 ];
 export const VAR = Object.fromEntries(VARS.map((v) => [v.key, v]));
 
