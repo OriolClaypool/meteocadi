@@ -673,6 +673,11 @@ button { font: inherit; }
   .year__m { grid-column: 1; }
 }
 
+/* Mapes i vistes prèvies del web públic: sense desar, copiar ni arrossegar les imatges, i amagats en imprimir
+   (src/scripts/sense-desar.js) */
+.no-save, .no-save img, .no-save canvas { -webkit-user-select: none; user-select: none; -webkit-user-drag: none; -webkit-touch-callout: none; }
+@media print { .no-save { visibility: hidden !important; } }
+
 /* Mapes amb capes fetes al servidor (/radar, /mapa/previsio): src/scripts/mapa-base.js */
 .mb-map.leaflet-container { font-family: var(--f-ui); background: #e9eef3; }
 .mb-map .leaflet-tile-pane { filter: saturate(0.2) contrast(0.85) brightness(1.06); opacity: 0.75; }

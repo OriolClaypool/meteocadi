@@ -5,7 +5,9 @@
 // nostres estacions de l'arxiu diari, /estudi-dades.json) o diversos dies, fins a 31 (/api/xema/AAAA-MM-DD..AAAA-MM-DD,
 // amb l'arxiu i, si inclou avui, /api/ara). Es pot enllaçar amb #24h, #AAAA-MM-DD o #AAAA-MM-DD..AAAA-MM-DD.
 // Dues versions: la pública (/mapa/catalunya), només per consultar, amb marca d'aigua i sense desar la imatge,
-// i la interna (/estudi/mapa, internal), que exposa l'estat del mapa perquè la pàgina en faci les imatges per a xarxes.
+// i la interna (/estudi/mapa, internal), que exposa l'estat del mapa perquè la pàgina en faci les imatges per a xarxes
+// i té un període més, "Última hora" (#1h): la pluja de l'última hora amb la forma del radar del Meteocat
+// (src/scripts/pluja-meteocat.js), que només es fa servir a l'estudi.
 import { radarDays } from '../lib/radar-dies.js';
 interface Props { internal?: boolean }
 const { internal = false } = Astro.props;
@@ -18,6 +20,7 @@ const RADAR_DAYS = radarDays();
 </div>
 <div class="cm-per" role="group" aria-label="Període de les dades" id="cmPer">
   <span class="cm-per__lab">Període</span>
+  {internal && <button type="button" data-p="1h" aria-pressed="false" title="La pluja de l'última hora, amb la forma del radar del Meteocat">Última hora</button>}
   <button type="button" data-p="today" aria-pressed="true">Avui</button>
   <button type="button" data-p="24h" aria-pressed="false">Darreres 24 h</button>
   <label class="cm-per__day"><span>Un altre dia</span><input type="date" id="cmDay" aria-label="Un dia anterior" /></label>
@@ -28,13 +31,18 @@ const RADAR_DAYS = radarDays();
   </span>
 </div>
 <div class="cm-out" id="cmTop"></div>
-<div id="cmap" class:list={['cmap', { 'cmap--pub': !internal }]} data-internal={internal ? '1' : undefined} aria-label="Mapa de Catalunya amb les dades de les estacions"></div>
+<div id="cmap" class:list={['cmap', { 'no-save': !internal }]} data-internal={internal ? '1' : undefined} aria-label="Mapa de Catalunya amb les dades de les estacions"></div>
 <div class="cm-out" id="cmBottom"></div>
 <script type="application/json" id="cmRadarDays" set:html={JSON.stringify(RADAR_DAYS)}></script>
 <slot name="after-map" />
 <p class="cm-note">
   Dades: <a href="https://www.meteo.cat/" rel="noopener" target="_blank">Servei Meteorològic de Catalunya</a> (Xarxa d'Estacions Meteorològiques Automàtiques, a través de les <a href="https://analisi.transparenciacatalunya.cat/Medi-Ambient/Dades-meteorol-giques-de-la-XEMA/nzvn-apee" rel="noopener" target="_blank">dades obertes de la Generalitat</a>) i xarxa Meteocadí (voltades en negre). A la pluja (avui, les darreres 24 hores i els dies dels darrers tres mesos), també els pluviòmetres de l'<a href="https://aca.gencat.cat/" rel="noopener" target="_blank">Agència Catalana de l'Aigua</a> (dades obertes en temps real). Límits comarcals: ICGC. Altitud del terreny: Mapzen Terrain Tiles (EU-DEM, fet amb dades de Copernicus finançades per la Unió Europea, i SRTM, de l'USGS). Vent animat: previsió immediata del model AROME-PI de <a href="https://meteofrance.com/" rel="noopener" target="_blank">Météo-France</a> (Llicència Oberta 2.0) per al quart d'hora en curs; mostra cap on bufa i amb quina força, no és una mesura de les estacions. Pluja (avui, les darreres 24 hores i els dies anteriors que ja tenim desats): entre estacions, la forma la dona la composició europea de radars <a href="https://www.eumetnet.eu/observations/weather-radar-network/" rel="noopener" target="_blank">OPERA d'EUMETNET</a> (CC BY 4.0), la mateixa del <a href="/radar">radar de pluja</a>. El mapa de color és una estimació entre estacions (a la temperatura, tenint en compte l'altitud del terreny): serveix per veure com es reparteix, no el valor exacte d'un punt, i al vent és només orientatiu, perquè canvia molt d'un lloc a l'altre. Amb el selector d'estacions pots veure-les totes, deixar-ne només una per capital de comarca o amagar-les; per defecte hi surten les que hi caben, i en apropar-te al mapa en van apareixent més. Són dades automàtiques sense validar: una lectura estranya pot ser un error del sensor. Quan les etiquetes no hi caben, algunes estacions es mostren com un punt: toca-les o apropa't per veure'n el valor.
 </p>
+{internal && (
+  <p class="cm-note">
+    Última hora (només a l'estudi): la pluja de les lectures semihoràries de les estacions del Meteocat que acaben a la mateixa hora i la de la xarxa Meteocadí en aquella hora, amb la forma de la pluja del radar del <a href="https://www.meteo.cat/" rel="noopener" target="_blank">Servei Meteorològic de Catalunya</a> (una imatge cada 6 minuts; el seu servidor només en guarda les darreres 3 hores). Sense els pluviòmetres de l'ACA, que arriben a una altra hora.
+  </p>
+)}
 <div class="cm-ext" id="cmExt" aria-live="polite"></div>
 
 <style is:global>
@@ -117,11 +125,9 @@ const RADAR_DAYS = radarDays();
   .cm-ext li small { display: block; font-size: 12.5px; color: var(--muted); }
   .cm-ext li b { font-family: var(--f-mono); font-size: 17px; white-space: nowrap; }
   .cm-ext .mc { font-family: var(--f-mono); font-size: 10.5px; letter-spacing: 0.06em; color: #10233b; border: 1px solid #10233b; border-radius: 4px; padding: 0 4px; margin-left: 6px; vertical-align: 1px; }
-  /* Versió pública: marca d'aigua i sense desar ni imprimir el mapa */
+  /* Versió pública: marca d'aigua (i sense desar, copiar ni imprimir el mapa: noSave, global.css) */
   .cm-wm { position: absolute; left: 0; top: 0; background-size: 340px 200px; background-repeat: repeat; }
   .cm-mark { font-family: var(--f-head); font-size: 19px; font-weight: 800; letter-spacing: -0.02em; color: rgba(16, 35, 59, 0.62); text-shadow: 0 0 6px rgba(255, 255, 255, 0.9); pointer-events: none; margin: 8px 0 0 12px !important; }
-  .cmap--pub, .cmap--pub img { -webkit-user-select: none; user-select: none; -webkit-user-drag: none; -webkit-touch-callout: none; }
-  @media print { .cmap--pub { visibility: hidden; } }
   @media (max-width: 640px) {
     .cmap { height: 72vh; min-height: 440px; }
     .xp { font-size: 12px; padding: 2px 6px; }
@@ -147,6 +153,7 @@ const RADAR_DAYS = radarDays();
   import { rainClasses } from '../lib/escales.js';
   import { createFlux } from '../scripts/vent-flux.js';
   import { radarToday, radar24h, radarDays } from '../scripts/pluja-radar.js';
+  import { noSave } from '../scripts/sense-desar.js';
   // Classes de pluja del mapa d'ara (es recalculen a cada dibuix segons el valor més alt)
   let rainScale = rainClasses(0);
   // Etiquetes i llegenda amb la mateixa escala que el mapa de color
@@ -173,8 +180,12 @@ const RADAR_DAYS = radarDays();
   let cur = VARS[0];
 
   // ---------------------------------------------------------------- període: avui, darreres 24 h, un dia anterior o diversos dies
-  type Period = { kind: 'today' } | { kind: '24h' } | { kind: 'day'; date: string } | { kind: 'range'; from: string; to: string };
+  type Period = { kind: 'today' } | { kind: '1h' } | { kind: '24h' } | { kind: 'day'; date: string } | { kind: 'range'; from: string; to: string };
   let period: Period = { kind: 'today' };
+  // Versió interna (/estudi/mapa): imatges per a xarxes i el període "Última hora"
+  const INTERNAL = document.getElementById('cmap')?.dataset.internal === '1';
+  // Última hora: el final de l'hora (la lectura més nova de la XEMA o, sense, la darrera mitja hora); el posa load()
+  let hourEnd: Date | null = null;
   // "del 2 d'octubre", "de l'1 d'octubre"
   const dnum = (iso: string) => Number(iso.slice(8, 10));
   const deDia = (iso: string) => `${dnum(iso) === 1 || dnum(iso) === 11 ? "de l'" : 'del '}${dayMonth(iso)}`;
@@ -190,6 +201,7 @@ const RADAR_DAYS = radarDays();
   };
   const per = () =>
     period.kind === 'today' ? { leg: "d'avui", short: "d'avui", title: "d'avui" }
+    : period.kind === '1h' ? { leg: "de l'última hora", short: '(1 h)', title: "de l'última hora" }
     : period.kind === '24h' ? { leg: 'de les darreres 24 h', short: '(24 h)', title: 'de les darreres 24 hores' }
     : period.kind === 'range' ? { leg: delAl(period.from, period.to), short: '(període)', title: delAl(period.from, period.to) }
     : { leg: delAl(period.date, period.date), short: 'del dia', title: delAl(period.date, period.date) };
@@ -207,12 +219,14 @@ const RADAR_DAYS = radarDays();
     const h = hourMadrid(when);
     const title = !v.today ? [SHORT_NOW[v.key] ?? v.label, ` a les ${h}`]
       : period.kind === 'today' ? [`${v.noun} d'avui`, ` fins a les ${h}`]
+      : period.kind === '1h' ? [`${v.noun} de l'última hora`, ` fins a les ${h}`]
       : period.kind === '24h' ? [`${v.noun} de les darreres 24 h`, ` fins a les ${h}`]
       : period.kind === 'day' ? [v.noun, ` ${delAl(period.date, period.date)}`]
       : [v.noun, ` ${delAl(period.from, period.to)}${rangeToday() ? ` fins a les ${h}` : ''}`];
     return { title, icon: SHORT_ICON[v.key] ?? 'temp' };
   };
-  const allowed = (v: any) => !past() || !!v.today;
+  // Per a un dia anterior, només les variables del dia; per a l'última hora, només la pluja
+  const allowed = (v: any) => (period.kind === '1h' ? v.key === 'rain' : !past() || !!v.today);
   // Estacions de la xarxa que no es mostren en aquest mapa: a Bagà n'hi ha tres molt juntes i només hi deixem la del centre
   const HIDDEN_HERE = new Set(['IBAG65', 'IBAG72']);
 
@@ -321,7 +335,8 @@ const RADAR_DAYS = radarDays();
   let fieldOn = true;
   let fieldLayer: any = null;
   // Darrera capa calculada, sense retallar (per a la imatge descarregable, que la retalla amb el contorn vectorial)
-  let fieldRaw: { canvas: HTMLCanvasElement; key: string; alpha: number; note: string } | null = null;
+  // (per: el període, perquè no es desi el camp d'un altre període amb la mateixa variable)
+  let fieldRaw: { canvas: HTMLCanvasElement; key: string; per: string; alpha: number; note: string } | null = null;
   // Intensitat del mapa de color (control de la llegenda): multiplica l'opacitat per defecte de cada variable.
   // Es recorda en aquest navegador; també s'aplica a la imatge descarregada de /estudi/mapa.
   const K_OP = 'meteocadi-mapa-intensitat';
@@ -409,11 +424,18 @@ const RADAR_DAYS = radarDays();
     for (let t = Date.parse(`${a}T12:00:00Z`); t <= Date.parse(`${b}T12:00:00Z`); t += 864e5) out.push(new Date(t).toISOString().slice(0, 10));
     return out;
   };
-  function radarFor(p: Period): { key: string; load: () => Promise<any> } | null {
+  // src: d'on surt la forma de la pluja (OPERA o, a l'última hora de l'estudi, el Meteocat)
+  function radarFor(p: Period): { key: string; src: 'opera' | 'meteocat'; load: () => Promise<any> } | null {
     const until = () => latest || new Date();
-    if (p.kind === 'today') return { key: 'today', load: () => radarToday(until()) };
-    if (p.kind === '24h') return { key: '24h', load: () => radar24h(until()) };
-    if (p.kind === 'day') return RADAR_DAYS.has(p.date) ? { key: `day:${p.date}`, load: () => radarDays([p.date]) } : null;
+    if (p.kind === '1h') {
+      // Només a l'estudi; el mòdul del Meteocat es carrega només aquí
+      const end = hourEnd;
+      if (!INTERNAL || !end) return null;
+      return { key: `1h:${end.toISOString()}`, src: 'meteocat', load: () => import('../scripts/pluja-meteocat.js').then((m) => m.radarMeteocat(new Date(end.getTime() - 3600e3), end)) };
+    }
+    if (p.kind === 'today') return { key: 'today', src: 'opera', load: () => radarToday(until()) };
+    if (p.kind === '24h') return { key: '24h', src: 'opera', load: () => radar24h(until()) };
+    if (p.kind === 'day') return RADAR_DAYS.has(p.date) ? { key: `day:${p.date}`, src: 'opera', load: () => radarDays([p.date]) } : null;
     const today = todayMadrid();
     const days = dayList(p.from, p.to);
     const past = days.filter((d) => d < today);
@@ -421,6 +443,7 @@ const RADAR_DAYS = radarDays();
     if (!past.every((d) => RADAR_DAYS.has(d))) return null;
     return {
       key: `range:${p.from}..${p.to}`,
+      src: 'opera',
       load: async () => {
         const [a, b] = await Promise.all([past.length ? radarDays(past) : null, withToday ? radarToday(until()) : null]);
         if ((past.length && !a) || (withToday && !b)) return null;
@@ -455,8 +478,8 @@ const RADAR_DAYS = radarDays();
       if (st.state === 'idle') {
         st.state = 'loading';
         rf.load()
-          .then((r) => { st.data = r; st.state = r ? 'ok' : 'error'; if (r && cur.key === 'rain' && radarFor(period)?.key === rf.key) field(); })
-          .catch(() => { st.state = 'error'; });
+          .then((r) => { st.data = r; st.state = r ? 'ok' : 'error'; if (cur.key === 'rain' && radarFor(period)?.key === rf.key) field(); })
+          .catch(() => { st.state = 'error'; if (cur.key === 'rain' && radarFor(period)?.key === rf.key) field(); });
       }
     }
     const wantRadar = !!rr;
@@ -471,14 +494,18 @@ const RADAR_DAYS = radarDays();
     fieldLayer.getElement()?.classList.toggle('is-step', !!cfg.step);
     fieldLayer.setOpacity(fieldOpacity());
     cmapEl?.classList.add('has-field');
-    const note = f.useDem ? 'dem' : cur.key === 'wind' || cur.key === 'gust' ? 'wind' : f.useRadar ? 'radar' : 'plain';
-    fieldRaw = { canvas: toCanvas(f.raw), key: cur.key, alpha: Math.min(0.8, cfg.alpha + 0.1), note };
-    fieldNote(cfg.dem && !f.useDem, !!f.useRadar);
+    const src = f.useRadar ? rf?.src : null;
+    const note = f.useDem ? 'dem' : cur.key === 'wind' || cur.key === 'gust' ? 'wind' : src === 'meteocat' ? 'radar-meteocat' : src ? 'radar' : 'plain';
+    fieldRaw = { canvas: toCanvas(f.raw), key: cur.key, per: JSON.stringify(period), alpha: Math.min(0.8, cfg.alpha + 0.1), note };
+    // Última hora sense el radar del Meteocat: encara carrega, o no hi ha prou imatges
+    const why = rf?.src === 'meteocat' && !f.useRadar ? (rr?.state === 'loading' ? 'carregant el radar del Meteocat…' : rr?.state === 'error' ? 'sense el radar del Meteocat: no hi ha prou imatges' : 'el radar del Meteocat no s\'assembla prou a les estacions') : '';
+    fieldNote(cfg.dem && !f.useDem, src || false, why);
     fluxUpdate();
   }
   const noteFor = (key: string) =>
     (FIELD as any)[key]?.dem ? "interpolada tenint en compte l'altitud" : key === 'wind' || key === 'gust' ? "orientatiu: el vent canvia molt d'un lloc a l'altre" : 'interpolada entre estacions';
-  function fieldNote(plain = false, radar = false) {
+  // radar: d'on surt la forma de la pluja ('opera' o 'meteocat'); why: per què l'última hora va sense el radar
+  function fieldNote(plain = false, radar: string | false = false, why = '') {
     const el = document.getElementById('cmFieldNote');
     if (!el) return;
     const can = !!(FIELD as any)[cur.key];
@@ -486,7 +513,10 @@ const RADAR_DAYS = radarDays();
     if (btn) { btn.disabled = !can; btn.setAttribute('aria-pressed', String(fieldOn && can)); }
     const op = document.getElementById('cmOp') as HTMLInputElement | null;
     if (op) op.disabled = !(fieldOn && can);
-    const t = !can ? 'no disponible per al gruix de neu' : !fieldOn ? '' : xemaDown || xemaFew() ? 'sense dades de Meteocat' : plain ? 'interpolada entre estacions' : radar ? 'entre estacions, amb la forma de la pluja del radar' : noteFor(cur.key);
+    const t = !can ? 'no disponible per al gruix de neu' : !fieldOn ? '' : xemaDown || xemaFew() ? 'sense dades de Meteocat' : plain ? 'interpolada entre estacions'
+      : radar === 'meteocat' ? 'entre estacions, amb la forma de la pluja del radar del Meteocat'
+      : radar ? 'entre estacions, amb la forma de la pluja del radar'
+      : why ? `interpolada entre estacions (${why})` : noteFor(cur.key);
     el.textContent = t ? t[0].toUpperCase() + t.slice(1) : '';
   }
 
@@ -693,7 +723,7 @@ const RADAR_DAYS = radarDays();
     if (!allowed(cur)) cur = VARS.find((v) => v.key === 'rain')!;
     for (const [v, b] of varBtns) {
       b.disabled = !allowed(v);
-      b.title = allowed(v) ? '' : 'Només per a avui i les darreres 24 hores';
+      b.title = allowed(v) ? '' : period.kind === '1h' ? "Per a l'última hora, només la pluja" : 'Només per a avui i les darreres 24 hores';
       b.setAttribute('aria-pressed', String(v === cur));
     }
   }
@@ -730,13 +760,13 @@ const RADAR_DAYS = radarDays();
     perEl.classList.toggle('is-range', p.kind === 'range');
     dayIn.value = p.kind === 'day' ? p.date : '';
     if (p.kind === 'range') { fromIn.value = p.from; toIn.value = p.to; }
-    const hash = p.kind === 'today' ? '' : p.kind === '24h' ? '24h' : p.kind === 'day' ? p.date : `${p.from}..${p.to}`;
+    const hash = p.kind === 'today' ? '' : p.kind === '1h' ? '1h' : p.kind === '24h' ? '24h' : p.kind === 'day' ? p.date : `${p.from}..${p.to}`;
     try { history.replaceState(null, '', hash ? `#${hash}` : location.pathname + location.search); } catch {}
     varsForPeriod();
     fluxUpdate();
     if (reload) load();
   }
-  perEl.querySelectorAll<HTMLElement>('[data-p="today"], [data-p="24h"]').forEach((b) => b.addEventListener('click', () => setPeriod({ kind: b.dataset.p as 'today' | '24h' })));
+  perEl.querySelectorAll<HTMLElement>('[data-p="today"], [data-p="24h"], [data-p="1h"]').forEach((b) => b.addEventListener('click', () => setPeriod({ kind: b.dataset.p as 'today' | '24h' | '1h' })));
   // Diversos dies: per defecte, la darrera setmana (fins ara); si ja n'hi havia un, es manté
   perEl.querySelector('[data-p="range"]')!.addEventListener('click', () => {
     if (period.kind !== 'range') setPeriod(lastDays(7));
@@ -757,6 +787,7 @@ const RADAR_DAYS = radarDays();
     const m = /^(\d{4}-\d{2}-\d{2})\.\.(\d{4}-\d{2}-\d{2})$/.exec(h);
     const r = m ? rangeOf(m[1], m[2]) : null;
     if (h === '24h') setPeriod({ kind: '24h' }, false);
+    else if (h === '1h' && INTERNAL) setPeriod({ kind: '1h' }, false);
     else if (isDate(h) && h <= yesterday()) setPeriod({ kind: 'day', date: h }, false);
     else if (r) setPeriod(r, false);
   }
@@ -764,7 +795,7 @@ const RADAR_DAYS = radarDays();
   // ---------------------------------------------------------------- versió pública: marca d'aigua, sense desar la imatge
   let latest: Date | null = null;
   const cmapEl = document.getElementById('cmap')!;
-  const internal = cmapEl.dataset.internal === '1';
+  const internal = INTERNAL;
   if (!internal) {
     // Marca d'aigua en mosaic entre el mapa de color i les etiquetes; es queda quieta encara que el mapa es mogui
     const pane = map.createPane('wm');
@@ -808,8 +839,8 @@ const RADAR_DAYS = radarDays();
       },
     });
     new Mark().addTo(map);
-    // Sense menú de "desa la imatge" (ni la pulsació llarga del mòbil)
-    cmapEl.addEventListener('contextmenu', (e) => e.preventDefault());
+    // Sense desar, copiar, arrossegar ni imprimir el mapa (ni la pulsació llarga del mòbil)
+    noSave(cmapEl);
   } else {
     // Versió interna (/estudi/mapa): l'estat del mapa per fer-ne la imatge per a xarxes
     (window as any).__cmap = {
@@ -820,12 +851,16 @@ const RADAR_DAYS = radarDays();
           const v = val(s) as number, bg = cur.color(v);
           return { lat: s.lat, lng: s.lng, mc: !!s.mc, text: cur.fmt(v), bg, fg: ink(bg) };
         });
-        const hasField = fieldOn && !!(FIELD as any)[cur.key] && fieldRaw?.key === cur.key;
+        const hasField = fieldOn && !!(FIELD as any)[cur.key] && fieldRaw?.key === cur.key && fieldRaw.per === JSON.stringify(period) && !!fieldLayer;
+        const aca = stations.some((s) => s.aca && shown(s));
+        const radarSrc = !hasField ? '' : fieldRaw!.note === 'radar-meteocat' ? 'Servei Meteorològic de Catalunya' : fieldRaw!.note === 'radar' ? 'EUMETNET OPERA (CC BY 4.0)' : '';
         const vb = map.getBounds();
         const when = latest || new Date();
         // Capçalera de la imatge quan no és avui
         const day = todayMadrid(when);
-        const eyebrow = period.kind === '24h'
+        const eyebrow = period.kind === '1h'
+          ? `${dayName(day)} ${dayMonth(day)} · de les ${hourMadrid(new Date(when.getTime() - 3600e3))} a les ${hourMadrid(when)}`.toLocaleUpperCase('ca')
+          : period.kind === '24h'
           ? `Darreres 24 hores · fins ${dayName(day)} ${dayMonth(day)} a les ${hourMadrid(when)}`.toLocaleUpperCase('ca')
           : period.kind === 'day' ? `${longDate(period.date)} · dia sencer`.toLocaleUpperCase('ca')
           : period.kind === 'range' ? `Període de ${Math.round((Date.parse(period.to) - Date.parse(period.from)) / 864e5) + 1} dies${rangeToday() ? ` · fins avui a les ${hourMadrid(when)}` : ''}`.toLocaleUpperCase('ca') : undefined;
@@ -833,7 +868,7 @@ const RADAR_DAYS = radarDays();
           key: cur.key,
           when,
           eyebrow,
-          suffix: period.kind === '24h' ? '-24h' : period.kind === 'day' ? '-dia' : period.kind === 'range' ? `-des-${period.from}` : '',
+          suffix: period.kind === '1h' ? '-1h' : period.kind === '24h' ? '-24h' : period.kind === 'day' ? '-dia' : period.kind === 'range' ? `-des-${period.from}` : '',
           // La zona que es veu: si s'hi ha fet zoom, la imatge mostra aquesta zona
           view: { lat0: vb.getSouth(), lat1: vb.getNorth(), lng0: vb.getWest(), lng1: vb.getEast() },
           title: titleOf(cur),
@@ -842,13 +877,10 @@ const RADAR_DAYS = radarDays();
           today: !!(cur as any).today,
           stations: list,
           hideOverlap: mode === 'auto',
-          // Amb els pluviòmetres de l'ACA a la imatge, també als crèdits
-          ...(stations.some((s) => s.aca && shown(s))
-            ? {
-                credit: "Dades: Servei Meteorològic de Catalunya (XEMA, dades obertes de la Generalitat), pluviòmetres de l'Agència Catalana de l'Aigua i xarxa Meteocadí. Límits comarcals: ICGC.",
-                creditNet: "Dades: Servei Meteorològic de Catalunya (XEMA, dades obertes de la Generalitat), Agència Catalana de l'Aigua i xarxa Meteocadí. Límits: ICGC.",
-              }
-            : {}),
+          // Crèdits: amb els pluviòmetres de l'ACA si n'hi ha a la imatge i, a la neta (que no porta la nota del mapa de
+          // color), el radar que dona la forma de la pluja (OPERA, CC BY 4.0, o el del Meteocat)
+          credit: `Dades: Servei Meteorològic de Catalunya (XEMA, dades obertes de la Generalitat)${aca ? ", pluviòmetres de l'Agència Catalana de l'Aigua" : ''} i xarxa Meteocadí. Límits comarcals: ICGC.`,
+          creditNet: `Dades: Servei Meteorològic de Catalunya (XEMA, dades obertes de la Generalitat)${aca ? ", Agència Catalana de l'Aigua" : ''} i xarxa Meteocadí.${radarSrc ? ` Radar: ${radarSrc}.` : ''} Límits: ICGC.`,
           comarques,
           field: hasField ? { canvas: fieldRaw!.canvas, bounds: FB, alpha: Math.min(0.97, fieldRaw!.alpha * intensity), note: fieldRaw!.note } : null,
           legend: { title: cur.unit, steps: stepsOf(cur).map((s: number) => ({ color: cur.color(s), label: num(s, s % 1 ? 1 : 0) })) },
@@ -881,6 +913,24 @@ const RADAR_DAYS = radarDays();
     if (!any) return null;
     const fin = (v: number) => (Number.isFinite(v) ? Math.round(v * 10) / 10 : null);
     return { tmax: fin(tmax), tmin: fin(tmin), gust: fin(gust), rain: Math.round(rain * 10) / 10 };
+  }
+  // Pluja d'una estació nostra entre startMs i endMs amb la sèrie de /api/ara (el comptador, cada 15 minuts): els
+  // increments del comptador (si torna a zero, el que porta de nou). Cal una lectura a l'inici (o fins a 15 minuts
+  // abans) i que la sèrie arribi al final (o fins a 10 minuts abans); si no, no es dona cap valor.
+  function rainWindow(d: any, startMs: number, endMs: number) {
+    const s = d?.series;
+    if (!s?.t?.length || !s.rain?.length) return null;
+    let prev: number | null = null, first = -Infinity, last = -Infinity, sum = 0;
+    for (let i = 0; i < s.t.length; i++) {
+      const t = s.t[i] * 1000, r = s.rain[i];
+      if (r == null || t > endMs) continue;
+      if (t <= startMs) { prev = r; first = t; continue; }
+      if (prev != null) sum += r >= prev ? r - prev : r;
+      prev = r;
+      last = t;
+    }
+    if (first < startMs - 15 * 60e3 || last < endMs - 10 * 60e3) return null;
+    return Math.round(sum * 10) / 10;
   }
   // Darreres 24 hores d'una estació nostra amb l'arxiu hora a hora: les hores d'ahir des de l'inici de la finestra
   // (/estudi-hores.json, el darrer dia arxivat; l'hora on comença la finestra compta la part que hi entra) i el que porta
@@ -962,10 +1012,10 @@ const RADAR_DAYS = radarDays();
     const p = period;
     const when = document.getElementById('cmWhen');
     if (when) when.textContent = 'Carregant les dades…';
-    const xurl = p.kind === 'today' ? '/api/xema' : `/api/xema/${p.kind === '24h' ? '24h' : p.kind === 'day' ? p.date : `${p.from}..${p.to}`}`;
-    const needsAra = p.kind === 'today' || p.kind === '24h' || (p.kind === 'range' && p.to === todayMadrid());
+    const xurl = p.kind === 'today' || p.kind === '1h' ? '/api/xema' : `/api/xema/${p.kind === '24h' ? '24h' : p.kind === 'day' ? p.date : `${p.from}..${p.to}`}`;
+    const needsAra = p.kind === 'today' || p.kind === '1h' || p.kind === '24h' || (p.kind === 'range' && p.to === todayMadrid());
     // Pluviòmetres de l'ACA (només pluja): avui, les darreres 24 hores i un dia anterior dels darrers 90 (l'ACA en guarda
-    // uns tres mesos)
+    // uns tres mesos). A l'última hora no: la seva hora acaba a la lectura més nova de l'ACA, no a la de la XEMA
     const acaUrl = p.kind === 'today' ? '/api/capes/aca' : p.kind === '24h' ? '/api/capes/aca-24h'
       : p.kind === 'day' && Date.parse(todayMadrid()) - Date.parse(p.date) <= 90 * 864e5 ? `/api/capes/aca-${p.date}` : null;
     const [x, a, arx, hrs, aca] = await Promise.all([
@@ -979,10 +1029,23 @@ const RADAR_DAYS = radarDays();
     // El portal de dades obertes de vegades s'atura hores (8/10/2026: cap lectura des de la 1:00). Amb més de 3 hores
     // de retard, el que hi ha del Meteocat no és d'ara ni de tot el dia: avui i les 24 hores no en mostren res (el
     // mapa ho diu i hi deixa les estacions de la xarxa Meteocadí); un període de dies diu fins on arriba
-    const live = p.kind === 'today' || p.kind === '24h';
+    const live = p.kind === 'today' || p.kind === '24h' || p.kind === '1h';
     const behind = x?.lag != null && x.lag > 180 && !!x.latest;
     const list: St[] = (live && behind ? [] : x?.stations || []).map((s: any) => ({ ...s, mc: false }));
     xemaDown = !list.length;
+    // Última hora: acaba a la lectura més nova de la XEMA (si va endarrerida o no respon, a la darrera mitja hora acabada
+    // fa 10 minuts, només amb les estacions de la xarxa). De la XEMA, només les estacions amb les dues lectures d'aquesta
+    // hora (r1hEnd); la màxima, la mínima i la ratxa són del dia i aquí no hi van
+    if (p.kind === '1h') {
+      hourEnd = x?.latest && !behind ? new Date(x.latest) : new Date(Math.floor((Date.now() - 10 * 60e3) / 18e5) * 18e5);
+      const iso = hourEnd.toISOString();
+      for (const s of list as any[]) {
+        s.rain = s.r1hEnd === iso ? s.rain1h ?? null : null;
+        s.tmax = s.tmin = s.gust = null;
+        delete s.rinc;
+        delete s.inc;
+      }
+    }
     // Si el portal no respon (o només en tenim les darreres dades bones), es torna a provar al cap d'un minut; si va
     // endarrerit, cada 5 minuts (la resposta és a la memòria cau 15 minuts)
     if (xemaDown || x?.stale) retry = window.setTimeout(() => load(true), behind ? 5 * 60e3 : 60e3);
@@ -1010,6 +1073,12 @@ const RADAR_DAYS = radarDays();
       const d = ara[st.id];
       if (!d || d.stale) continue;
       const now = { t: d.temp ?? null, wind: d.wind ?? null, dir: d.dir ?? null, hr: d.hum ?? null };
+      if (p.kind === '1h') {
+        const end = hourEnd!.getTime();
+        list.push({ ...base, ...now, tmax: null, tmin: null, gust: null, rain: rainWindow(d, end - 3600e3, end) });
+        ours++;
+        continue;
+      }
       const l24 = p.kind === '24h' ? from24(st.id, d, hrs, start24) ?? last24(d, start24) : null;
       if (l24) ours24++;
       const day = p.kind === '24h'
@@ -1023,7 +1092,8 @@ const RADAR_DAYS = radarDays();
       list.push({ id: g.id, name: g.name, lat: g.lat, lng: g.lng, alt: null, com: g.com, mun: g.mun, mc: false, aca: true, t: null, tmax: null, tmin: null, wind: null, dir: null, gust: null, hr: null, snow: null, rain: g.rain, ...(g.rinc ? { rinc: true } : {}) });
     }
     stations = list;
-    latest = p.kind === 'day' || (p.kind === 'range' && !rangeToday())
+    latest = p.kind === '1h' ? hourEnd
+      : p.kind === 'day' || (p.kind === 'range' && !rangeToday())
       ? new Date(Date.parse(x?.period?.end || `${p.kind === 'day' ? p.date : p.to}T22:00:00Z`) - 60e3)
       : x?.latest && !(live && behind) ? new Date(x.latest) : (a as any)?.updated ? new Date((a as any).updated) : null;
     if (when) {
@@ -1035,6 +1105,11 @@ const RADAR_DAYS = radarDays();
         const txt = delAl(p.from, p.to);
         parts.push(txt[0].toUpperCase() + txt.slice(1) + (p.to === todayMadrid() && x?.latest ? `, fins a les ${hourMadrid(new Date(x.latest))}` : ''));
         if (behind) parts.push(`Les dades del Meteocat no s'actualitzen ${sinceOf(x.latest)}`);
+        if (!ours) parts.push('sense dades de la xarxa Meteocadí');
+      } else if (p.kind === '1h' && hourEnd) {
+        parts.push(`Pluja de les ${hourMadrid(new Date(hourEnd.getTime() - 3600e3))} a les ${hourMadrid(hourEnd)}`);
+        if (behind) parts.push(`Les dades del Meteocat no s'actualitzen ${sinceOf(x.latest)}: només hi surten les estacions de la xarxa Meteocadí`);
+        else if (x?.latest) parts.push(`${list.filter((s) => !s.mc && s.rain != null).length} estacions del Meteocat amb les lectures d'aquesta hora`);
         if (!ours) parts.push('sense dades de la xarxa Meteocadí');
       } else {
         if (behind) parts.push(`Les dades del Meteocat no s'actualitzen ${sinceOf(x.latest)}: el portal de dades obertes de la Generalitat va endarrerit. Mentrestant només hi surten les estacions de la xarxa Meteocadí`);
@@ -1055,7 +1130,8 @@ const RADAR_DAYS = radarDays();
     if (past() && !rangeToday()) return;
     // El radar d'avui, de les 24 hores i dels períodes que arriben fins avui es torna a calcular
     const today = todayMadrid();
-    for (const [k, st] of rainRadar) if (k === 'today' || k === '24h' || (k.startsWith('range:') && k.endsWith(today))) st.state = 'idle';
+    // (i l'última hora que no ha pogut fer servir el radar del Meteocat, que ho torna a provar)
+    for (const [k, st] of rainRadar) if (k === 'today' || k === '24h' || (k.startsWith('range:') && k.endsWith(today)) || (k.startsWith('1h:') && st.state === 'error')) st.state = 'idle';
     load(true);
   }, 15 * 60 * 1000);
 </script>

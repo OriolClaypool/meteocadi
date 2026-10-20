@@ -66,6 +66,7 @@ const CARDS = [
   import { STATIONS } from '../lib/stations.js';
   import { FB, computeField, outlineMask, toCanvas, fieldColor, lowSun } from '../scripts/camp.js';
   import { tempColorLight, num, hourMadrid, todayMadrid } from '../lib/format.js';
+  import { noSave } from '../scripts/sense-desar.js';
 
   const HIDDEN = new Set(['IBAG65', 'IBAG72']);
   const cv = document.querySelector<HTMLCanvasElement>('[data-cat-map]');
@@ -165,8 +166,8 @@ const CARDS = [
     ctx.fillText('meteocadi.cat', W - 14, k > 1.2 ? 14 : H - 14);
   }
 
-  // Sense menú de "desa la imatge"
-  cv?.addEventListener('contextmenu', (e) => e.preventDefault());
+  // Sense desar, copiar ni imprimir el mapa
+  noSave(cv);
 
   // "des de la 1:30", "des de les 23:30" o "des d'ahir"
   function sinceOf(iso: string) {
