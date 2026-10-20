@@ -416,7 +416,7 @@
       "maxDuration": 30
     },
     "api/capes/[capa].js": {
-      "maxDuration": 30,
+      "maxDuration": 60,
       "includeFiles": "src/lib/catalunya-contorn.json"
     }
   }

@@ -140,7 +140,7 @@ const { internal = false } = Astro.props;
   import { archiveFor } from '../scripts/arxiu-dades.js';
   import { STATIONS } from '../lib/stations.js';
   import CONTORN from '../lib/catalunya-contorn.json';
-  import { FB, FIELD, HI, computeField, comarquesMask, toCanvas, fieldColor } from '../scripts/camp.js';
+  import { FB, FIELD, HI, computeField, comarquesMask, toCanvas, fieldColor, lowSun } from '../scripts/camp.js';
   import { rainClasses } from '../lib/escales.js';
   import { createFlux } from '../scripts/vent-flux.js';
   import { radarToday } from '../scripts/pluja-radar.js';
@@ -415,7 +415,11 @@ const { internal = false } = Astro.props;
         }
         radarState = 'ok';
       })
-      .catch(() => { radarState = radarFrame ? 'ok' : 'error'; })
+      .catch(() => {
+        radarState = radarFrame ? 'ok' : 'error';
+        // Sense cap imatge: es torna a provar al cap d'un minut (si encara es vol veure)
+        if (!radarFrame) window.setTimeout(() => { if (radarState === 'error') { radarState = 'idle'; radarUpdate(); } }, 60e3);
+      })
       .finally(radarUpdate);
   }
   function radarUpdate() {
@@ -473,7 +477,9 @@ const { internal = false } = Astro.props;
         .then((r) => { rainRadar = r; rainRadarState = r ? 'ok' : 'error'; if (r && cur.key === 'rain' && period.kind === 'today') field(); })
         .catch(() => { rainRadarState = 'error'; });
     }
-    const f = computeField(pts, cur.key, { mask, maskHi, dem: demState === 'ok' ? dem : null, alpha: 1, min: cur.key === 'rain' ? rainScale.floor : null, radar: wantRadar && rainRadar ? rainRadar.grid : null });
+    // Inversions a les valls: a la mínima i a la temperatura d'ara amb el sol baix (camp.js, lowSun)
+    const inversion = cur.key === 'tmin' || (cur.key === 't' && lowSun(latest || new Date()));
+    const f = computeField(pts, cur.key, { mask, maskHi, dem: demState === 'ok' ? dem : null, alpha: 1, min: cur.key === 'rain' ? rainScale.floor : null, radar: wantRadar && rainRadar ? rainRadar.grid : null, inversion });
     if (!f) return;
     const url = toCanvas(f.web).toDataURL();
     const bounds: any = [[FB.lat0, FB.lng0], [FB.lat1, FB.lng1]];
@@ -534,6 +540,7 @@ const { internal = false } = Astro.props;
     });
     el.querySelector('#cmRadarBtn')?.addEventListener('click', () => {
       radarOn = !radarOn;
+      if (radarOn && radarState === 'error') radarState = 'idle';
       try { localStorage.setItem(K_RAD, radarOn ? '1' : '0'); } catch {}
       radarUpdate();
     });

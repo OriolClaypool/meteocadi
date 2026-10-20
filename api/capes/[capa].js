@@ -64,9 +64,10 @@ async function radarIndex(res) {
 async function radarImage(res, t) {
   const d = fromStamp(t);
   const age = Date.now() - d.getTime();
-  // Només hores de veritat, cada 5 minuts, de les darreres 24 hores (les que guarda el dipòsit d'OPERA)
+  // Només hores de veritat, cada 5 minuts, de les darreres 24 hores (les que guarda el dipòsit d'OPERA). Una hora que
+  // encara ha d'arribar, amb un 404 curt: si la CDN el guardés una hora, quan la imatge ja hi fos no es veuria
   if (isNaN(d) || stamp(d) !== t || d.getUTCMinutes() % 5 || age < -60e3 || age > 25 * 3600e3) {
-    send404(res, 'Imatge: radar-AAAAMMDDHHMM (UTC, cada 5 minuts, de les darreres 24 hores).');
+    send404(res, 'Imatge: radar-AAAAMMDDHHMM (UTC, cada 5 minuts, de les darreres 24 hores).', !isNaN(d) && age < 0 ? 60 : 3600);
     return;
   }
   try {
@@ -110,8 +111,8 @@ async function aromeList(res) {
 async function aromeImg(res, k, r, t) {
   const run = fromHstamp(r), valid = fromHstamp(t);
   const hrs = (valid - run) / 3600e3;
-  if (!VAR[k] || hstamp(run) !== r || hstamp(valid) !== t || hrs < 0 || hrs > 54 || Date.now() - run.getTime() > 3 * 864e5 || run.getTime() > Date.now()) {
-    send404(res, 'Imatge: arome-<variable>-AAAAMMDDHH (passada)-AAAAMMDDHH (hora), en UTC.');
+  if (!Object.hasOwn(VAR, k) || hstamp(run) !== r || hstamp(valid) !== t || hrs < 0 || hrs > 54 || Date.now() - run.getTime() > 3 * 864e5 || run.getTime() > Date.now()) {
+    send404(res, 'Imatge: arome-<variable>-AAAAMMDDHH (passada)-AAAAMMDDHH (hora), en UTC.', run.getTime() > Date.now() ? 60 : 3600);
     return;
   }
   try {
@@ -121,8 +122,8 @@ async function aromeImg(res, k, r, t) {
       return;
     }
     res.setHeader('Content-Type', 'image/png');
-    // Una passada ja no canvia
-    res.setHeader('Cache-Control', 'public, max-age=3600, s-maxage=604800, immutable');
+    // Una passada ja no canvia; si la imatge no té cap valor (una hora que encara no hi és del tot), 5 minuts
+    res.setHeader('Cache-Control', f.min == null ? 'public, s-maxage=300' : 'public, max-age=3600, s-maxage=604800, immutable');
     if (f.min != null) res.setHeader('X-Arome-Min', String(f.min));
     if (f.max != null) res.setHeader('X-Arome-Max', String(f.max));
     res.status(200).send(f.png);
@@ -152,7 +153,7 @@ async function plujaHour(res, t) {
   const d = fromStamp(t);
   const age = Date.now() - d.getTime();
   if (isNaN(d) || stamp(d) !== t || d.getUTCMinutes() !== 0 || age < 0 || age > 25 * 3600e3) {
-    send404(res, 'Hora: pluja-AAAAMMDDHH00 (UTC, en punt, de les darreres 24 hores).');
+    send404(res, 'Hora: pluja-AAAAMMDDHH00 (UTC, en punt, de les darreres 24 hores).', !isNaN(d) && age < 0 ? 60 : 3600);
     return;
   }
   try {
@@ -197,7 +198,7 @@ async function acaList(res, kind) {
 async function acaDay(res, date) {
   const ms = Date.parse(`${date}T12:00:00Z`);
   if (isNaN(ms) || new Date(ms).toISOString().slice(0, 10) !== date || date >= ymdMadrid() || Date.now() - ms > 91 * 864e5) {
-    send404(res, 'Dia: aca-AAAA-MM-DD (un dia anterior a avui, dels darrers 90).');
+    send404(res, 'Dia: aca-AAAA-MM-DD (un dia anterior a avui, dels darrers 90).', !isNaN(ms) && date >= ymdMadrid() ? 60 : 3600);
     return;
   }
   try {
@@ -214,9 +215,16 @@ async function acaDay(res, date) {
 
 export default async function handler(req, res) {
   const url = new URL(req.url || '/', 'https://www.meteocadi.cat');
-  const capa = decodeURIComponent(url.pathname.split('/').filter(Boolean).pop() || '');
-  // Vercel pot afegir el segment com a paràmetre ("capa"); qualsevol altre es redirigeix
-  if ([...url.searchParams.keys()].some((k) => k !== 'capa')) {
+  let capa;
+  try {
+    capa = decodeURIComponent(url.pathname.split('/').filter(Boolean).pop() || '');
+  } catch {
+    send404(res, 'Capa desconeguda.');
+    return;
+  }
+  // Vercel pot afegir el segment com a paràmetre ("capa"). Qualsevol altre paràmetre, o un "capa" que no sigui el del
+  // camí, es redirigeix a l'adreça neta: cada variant seria una entrada nova a la CDN i una crida nova a les fonts
+  if ([...url.searchParams].some(([k, v]) => k !== 'capa' || v !== capa)) {
     res.statusCode = 308;
     res.setHeader('Location', `/api/capes/${encodeURIComponent(capa)}`);
     res.setHeader('Cache-Control', 'public, s-maxage=86400');

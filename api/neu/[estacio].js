@@ -29,10 +29,16 @@ async function mesurada(res) {
 
 export default async function handler(req, res) {
   const url = new URL(req.url || '/', 'https://www.meteocadi.cat');
-  const slug = decodeURIComponent(url.pathname.split('/').filter(Boolean).pop() || '');
+  let slug;
+  try {
+    slug = decodeURIComponent(url.pathname.split('/').filter(Boolean).pop() || '');
+  } catch {
+    slug = ''; // camí mal codificat: no coincidirà amb res (404)
+  }
   const clean = `/api/neu/${slug}`;
   // Vercel pot afegir el segment com a paràmetre ("estacio"); qualsevol altre es redirigeix
-  if ([...url.searchParams.keys()].some((k) => k !== 'estacio')) {
+  // (un "estacio" diferent del camí també: seria una entrada nova a la CDN)
+  if ([...url.searchParams].some(([k, v]) => k !== 'estacio' || v !== slug)) {
     res.statusCode = 308;
     res.setHeader('Location', clean);
     res.setHeader('Cache-Control', 'public, s-maxage=86400');

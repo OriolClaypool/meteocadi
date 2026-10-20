@@ -96,8 +96,9 @@ export function verify({ n = 30, lead = 1, group = null } = {}) {
         rain: a.rain.n ? { ...a.rain, acc: Math.round((100 * a.rain.ok) / a.rain.n) } : null,
       };
     })
-    // Un model amb molt poques dades (va començar tard o falla sovint) no entra al rànquing
-    .filter((r) => r.mae != null && r.n >= 20)
+    // Un model amb molt poques dades (va començar tard o falla sovint) no entra al rànquing: com a mínim 20 dies-estació
+    // i el 80 % dels del model que en té més (si no, es compararien models amb dies diferents)
+    .filter((r, _, all) => r.mae != null && r.n >= 20 && r.n >= 0.8 * Math.max(...all.map((x) => x.n)))
     .sort((a, b) => a.mae - b.mae || Object.keys(MODEL_INFO).indexOf(a.model) - Object.keys(MODEL_INFO).indexOf(b.model));
   const rainy = days.filter((d) => Object.values(d.stations).some((s) => s.precipTotal != null && s.precipTotal >= RAIN)).length;
   return { from: days[0].date, to: days[days.length - 1].date, days: days.length, rainy, rows };

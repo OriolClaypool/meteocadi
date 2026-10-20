@@ -96,6 +96,9 @@ const S2 = 2 * 2;
 // d'1,89 a 1,57 °C; a les màximes, igual (0,94 i 0,93). Amb les 184 estacions de la XEMA d'un dia de pluja (19/10)
 // no s'activa i el mapa queda igual. La posició al relleu (fons de vall o carena) no millorava res: la graella del
 // relleu (4 km) és massa grossa per a les valls estretes.
+// Els dos trams només per a la mínima i per a la temperatura d'ara amb el sol baix (inversion: true, vegeu lowSun): a
+// les tardes d'estiu, la marinada refresca la costa i l'ajust ho prendria per una inversió (la costa, a 0 m, més freda
+// que la plana de Lleida) i pintaria les serres de la costa més calentes que la costa mateixa.
 function solve3(X, y) {
   const A = [[0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]];
   for (let i = 0; i < X.length; i++) for (let a = 0; a < 3; a++) { A[a][3] += X[i][a] * y[i]; for (let c = 0; c < 3; c++) A[a][c] += X[i][a] * X[i][c]; }
@@ -108,13 +111,14 @@ function solve3(X, y) {
   }
   return A.map((row, i) => row[3] / row[i]);
 }
-export function altTrend(pts) {
+export function altTrend(pts, twoSegments = true) {
   const n = pts.length;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const mz = pts.reduce((a, p) => a + p.alt, 0) / n, mv = pts.reduce((a, p) => a + p.v, 0) / n;
   const sxx = pts.reduce((a, p) => a + (p.alt - mz) ** 2, 0);
   const b = clamp(sxx > 0 ? pts.reduce((a, p) => a + (p.alt - mz) * (p.v - mv), 0) / sxx : -0.0065, -0.0098, -0.002);
   const lin = { f: (z) => b * z, b };
+  if (!twoSegments) return lin;
   const rss0 = pts.reduce((a, p) => a + (p.v - mv - b * (p.alt - mz)) ** 2, 0);
   let best = null;
   for (let h = 300; h <= 2000; h += 100) {
@@ -146,11 +150,30 @@ function sampleGrid(grid, lat, lng) {
   return (a * (1 - tx) + b * tx) * (1 - ty) + (d * (1 - tx) + e * tx) * ty;
 }
 
-export function computeField(pts, key, { mask, maskHi = null, dem = null, alpha = null, min = null, radar = null }) {
+// Sol baix al centre de Catalunya, quan hi pot haver inversió tèrmica a les valls: de nit, al matí fins que el sol és a
+// 20° (a l'hivern, cap a les 11; les inversions triguen a desfer-se) i al vespre per sota de 5° (abans, a l'estiu, encara
+// hi pot haver marinada)
+export function lowSun(date = new Date(), lat = 41.8, lng = 1.6) {
+  const rad = Math.PI / 180;
+  const d = date.getTime() / 864e5 - 10957.5; // dies des del 2000-01-01 12:00 UTC
+  const g = rad * ((357.529 + 0.98560028 * d) % 360);
+  const q = (280.459 + 0.98564736 * d) % 360;
+  const L = rad * ((q + 1.915 * Math.sin(g) + 0.02 * Math.sin(2 * g)) % 360);
+  const e = rad * (23.439 - 0.00000036 * d);
+  const ra = Math.atan2(Math.cos(e) * Math.sin(L), Math.cos(L));
+  const dec = Math.asin(Math.sin(e) * Math.sin(L));
+  const gmst = (18.697374558 + 24.06570982441908 * d) % 24;
+  const ha = rad * (gmst * 15 + lng) - ra;
+  const el = Math.asin(Math.sin(rad * lat) * Math.sin(dec) + Math.cos(rad * lat) * Math.cos(dec) * Math.cos(ha)) / rad;
+  const morning = Math.sin(ha) < 0; // angle horari negatiu: abans del migdia solar
+  return el < 5 || (morning && el < 20);
+}
+
+export function computeField(pts, key, { mask, maskHi = null, dem = null, alpha = null, min = null, radar = null, inversion = false }) {
   const cfg = FIELD[key] && min != null ? { ...FIELD[key], min } : FIELD[key];
   if (!cfg || !mask || pts.length < 5) return null;
   const useDem = !!cfg.dem && !!dem;
-  const trend = useDem ? altTrend(pts) : null;
+  const trend = useDem ? altTrend(pts, inversion) : null;
   const n = pts.length;
   const PX = new Float64Array(n), PY = new Float64Array(n), PR = new Float64Array(n);
   pts.forEach((p, j) => {

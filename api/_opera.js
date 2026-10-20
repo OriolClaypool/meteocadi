@@ -115,18 +115,29 @@ export const fileUrl = (t, prod = 'DBZH') => `${S3}/${dayDir(t)}OPERA@${t.slice(
 
 // Imatges DBZH disponibles a partir de 'since' (Date), de la més antiga a la més nova ('AAAAMMDDHHMM')
 export const listFrames = (since, now = new Date()) => listProduct('DBZH', since, now);
-// El mateix per a qualsevol producte de la composició (DBZH, RATE, ACRR)
+// El mateix per a qualsevol producte de la composició (DBZH, RATE, ACRR). Una llista per dia UTC (tots els dies entre
+// since i now: una finestra de 26 hores pot tocar-ne tres) i, si n'hi ha més de 1.000, per pàgines
 export async function listProduct(prod, since, now = new Date()) {
-  const days = [...new Set([stamp(since), stamp(now)].map((t) => t.slice(0, 8)))];
+  const days = [];
+  for (let d = Date.UTC(since.getUTCFullYear(), since.getUTCMonth(), since.getUTCDate()); d <= now.getTime(); d += 864e5) days.push(stamp(new Date(d)).slice(0, 8));
+  const re = new RegExp(`<Key>[^<]*OPERA@(\\d{8})T(\\d{4})@0@${prod}\\.tiff</Key>`, 'g');
   const lists = await Promise.all(
     days.map(async (day) => {
       const prefix = dayDir(`${day}0000`);
       const after = `${prefix}OPERA@${day}T${stamp(since).slice(0, 8) === day ? stamp(since).slice(8) : '0000'}`;
-      const qs = new URLSearchParams({ 'list-type': '2', prefix, 'start-after': after, 'max-keys': '1000' });
-      const r = await fetch(`${S3}?${qs}`, { signal: AbortSignal.timeout(8000) });
-      if (!r.ok) throw new Error(`llista ${day}: HTTP ${r.status}`);
-      const xml = await r.text();
-      return [...xml.matchAll(new RegExp(`<Key>[^<]*OPERA@(\\d{8})T(\\d{4})@0@${prod}\\.tiff</Key>`, 'g'))].map((m) => m[1] + m[2]);
+      const out = [];
+      let token = null;
+      for (let page = 0; page < 5; page++) {
+        const qs = new URLSearchParams({ 'list-type': '2', prefix, 'max-keys': '1000', ...(token ? { 'continuation-token': token } : { 'start-after': after }) });
+        const r = await fetch(`${S3}?${qs}`, { signal: AbortSignal.timeout(8000) });
+        if (!r.ok) throw new Error(`llista ${day}: HTTP ${r.status}`);
+        const xml = await r.text();
+        for (const m of xml.matchAll(re)) out.push(m[1] + m[2]);
+        token = /<IsTruncated>true<\/IsTruncated>/.test(xml) ? /<NextContinuationToken>([^<]+)<\/NextContinuationToken>/.exec(xml)?.[1] : null;
+        if (!token) break;
+        token = token.replace(/&amp;/g, '&');
+      }
+      return out;
     }),
   );
   return [...new Set(lists.flat())].sort();

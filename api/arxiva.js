@@ -209,6 +209,7 @@ function pickFields(s) {
 async function ghGet(path, token) {
   const res = await fetch(`${GITHUB_API}/repos/${GITHUB_REPO}/contents/${path}?ref=${GITHUB_BRANCH}`, {
     headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
+    signal: AbortSignal.timeout(15000),
   });
   if (res.status === 404) return null;
   if (!res.ok) {
@@ -223,6 +224,7 @@ async function gh(method, path, token, body) {
     method,
     headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', ...(body ? { 'Content-Type': 'application/json' } : {}) },
     ...(body ? { body: JSON.stringify(body) } : {}),
+    signal: AbortSignal.timeout(20000),
   });
   if (!res.ok) {
     const err = await res.text();
@@ -279,11 +281,18 @@ export default async function handler(req, res) {
   }
 
   // Previsions dels models (Open-Meteo): en paral·lel amb WU; si fallen, l'arxiu es desa igualment
+  // null només si el fitxer no existeix; qualsevol altre problema (i un fitxer sense contingut, de més d'1 MB) és un error
   const ghJson = async (path) => {
     const f = await ghGet(path, ghToken);
-    return f?.content ? JSON.parse(Buffer.from(f.content, 'base64').toString('utf8')) : null;
+    if (!f) return null;
+    if (!f.content) throw new Error(`${path}: l'API no en dona el contingut`);
+    return JSON.parse(Buffer.from(f.content, 'base64').toString('utf8'));
   };
-  const modelsP = modelsUpdate(ghJson, dateNDaysAgo(1)).catch((e) => ({ files: {}, days: [], errors: [String(e?.message ?? e)] }));
+  // Com a molt 40 segons: l'arxiu ha de tenir temps de fer el commit (la funció en té 60)
+  const modelsP = Promise.race([
+    modelsUpdate(ghJson, dateNDaysAgo(1)),
+    new Promise((resolve) => setTimeout(() => resolve({ files: {}, days: [], errors: ['models: més de 40 s, es deixa per a la nit següent'] }), 40000).unref?.()),
+  ]).catch((e) => ({ files: {}, days: [], errors: [String(e?.message ?? e)] }));
 
   // By default, self-heal: scan the last 7 complete days and archive any that are
   // still missing (so a failed night gets backfilled by the next run automatically).

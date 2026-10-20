@@ -80,10 +80,11 @@ async function catalog(fetchFn) {
       if (/fora/i.test(info.Estat || '')) continue; // "Fora de servei"
       const [lat, lng] = String(s.location || '').trim().split(/\s+/).map(Number);
       if (!(lat > 40.4 && lat < 42.95 && lng > 0.1 && lng < 3.4)) continue;
-      const name = NAMES[s.sensor] || plain(s.componentDesc);
+      const name = NAMES[s.sensor] || plain(s.componentDesc) || plain(s.sensor);
+      if (!name) continue;
       list.push({
         sensor: String(s.sensor),
-        name: name ? name[0].toUpperCase() + name.slice(1) : String(s.sensor),
+        name: name[0].toUpperCase() + name.slice(1),
         lat: Math.round(lat * 1e5) / 1e5,
         lng: Math.round(lng * 1e5) / 1e5,
         com: info.Comarca ? comarca(info.Comarca) : undefined,
@@ -138,8 +139,9 @@ export async function acaRain(kind, now = new Date(), fetchFn = fetch, date = nu
   // Fins on arriben les dades: la lectura més nova de tots els pluviòmetres
   let newest = 0;
   for (const m of by.values()) for (const t of m.keys()) if (t > start && t <= end && t > newest) newest = t;
-  // D'un dia sencer s'esperen les lectures fins a mitjanit; d'avui i de les 24 hores, fins a la més nova
-  const until = kind === 'day' ? end : newest;
+  // D'un dia sencer s'esperen les lectures fins a mitjanit; d'avui i de les 24 hores, fins a la més nova o, si l'ACA
+  // va endarrerida, fins fa 15 minuts (amb més de 2 hores de retard, tots els totals queden marcats com a incomplets)
+  const until = kind === 'day' ? end : Math.max(newest, Math.floor((nowMs - 15 * 60e3) / STEP) * STEP);
   const expected = newest ? Math.round((until - start) / STEP) : 0;
   const stations = [];
   for (const g of cat) {
@@ -150,12 +152,12 @@ export async function acaRain(kind, now = new Date(), fetchFn = fetch, date = nu
       if (t <= start || t > until || v < 0 || v > MAX_RATE) continue;
       n++;
       sum += v / 12;
-      if (t > newest - 3600e3) hour += v / 12;
+      if (t > until - 3600e3) hour += v / 12;
       if (t > last) last = t;
     }
     if (!n) continue;
     stations.push({
-      id: `aca-${g.sensor}`,
+      id: `aca-${g.sensor.replace(/[^\w.-]/g, '')}`,
       name: g.name,
       lat: g.lat,
       lng: g.lng,
@@ -172,7 +174,9 @@ export async function acaRain(kind, now = new Date(), fetchFn = fetch, date = nu
     updated: now.toISOString(),
     latest: newest ? new Date(newest).toISOString() : null,
     period: { kind, ...(date ? { date } : {}), start: new Date(start).toISOString(), end: kind === 'day' ? new Date(end).toISOString() : newest ? new Date(newest).toISOString() : null },
-    ...(kind === 'day' ? { complete: newest >= end - 15 * 60e3 } : {}),
+    // Un dia sencer és definitiu quan ja hi ha les lectures fins a mitjanit i fa 2 hores que ha acabat (alguns
+    // pluviòmetres arriben més tard que d'altres)
+    ...(kind === 'day' ? { complete: newest >= end - 15 * 60e3 && nowMs > end + 2 * 3600e3 } : {}),
     source: SOURCE,
     stations,
   };

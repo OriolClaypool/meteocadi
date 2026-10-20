@@ -7,8 +7,9 @@
 // Fitxers: dades/models/AAAA-MM.json
 //   { month, models: [id, …], days: { 'AAAA-MM-DD': { <estació>: { <model>: [tmax1, tmin1, pluja1, tmax2, tmin2, pluja2] } } } }
 //   (1: la previsió feta el dia abans; 2: la feta dos dies abans; null on el model no en té)
-// Si falten dies dels darrers BACK (la primera nit, o després d'una nit que falla), se'n recuperen fins a CHUNK per
-// nit, a més d'ahir. Una petició per model amb les 12 estacions (si un model falla, els altres es desen igualment).
+// Si falten dies dels darrers BACK (la primera nit, o després d'una nit que falla), se'n recuperen fins a CHUNK + 1
+// per nit, dels més nous als més antics (la primera nit ja hi ha el darrer mes sencer). Una petició per model i tros
+// amb les 12 estacions (si un model falla, els altres es desen igualment).
 import { STATIONS } from '../src/lib/stations.js';
 
 const API = 'https://previous-runs-api.open-meteo.com/v1/forecast';
@@ -78,22 +79,27 @@ export async function fetchModel(model, from, to, fetchFn = fetch) {
   return out;
 }
 
-// Els dies que cal demanar: ahir i, si en falten dels darrers BACK, el tros més antic (fins a CHUNK dies)
+// Els dies que cal demanar: els que falten dels darrers BACK, dels més nous als més antics, en dos trossos de dies
+// seguits com a molt i CHUNK + 1 dies en total (ahir i un mes, la primera nit)
 export function plan(have, yesterday) {
-  const missing = [];
-  for (let k = BACK - 1; k >= 0; k--) {
-    const d = addDays(yesterday, -k);
-    if (!have.has(d)) missing.push(d);
-  }
+  const oldest = addDays(yesterday, -(BACK - 1));
   const spans = [];
-  if (missing.includes(yesterday)) spans.push([yesterday, yesterday]);
-  const old = missing.filter((d) => d !== yesterday);
-  if (old.length) {
-    const from = old[0];
-    // Fins on arriben els que falten seguits a partir del primer (com a molt CHUNK dies)
-    let to = from;
-    while (old.includes(addDays(to, 1)) && to < addDays(from, CHUNK - 1)) to = addDays(to, 1);
+  let budget = CHUNK + 1;
+  let d = yesterday;
+  while (d >= oldest && spans.length < 2 && budget > 0) {
+    if (have.has(d)) {
+      d = addDays(d, -1);
+      continue;
+    }
+    const to = d;
+    let from = d;
+    budget--;
+    while (budget > 0 && addDays(from, -1) >= oldest && !have.has(addDays(from, -1))) {
+      from = addDays(from, -1);
+      budget--;
+    }
     spans.push([from, to]);
+    d = addDays(from, -1);
   }
   return spans;
 }
@@ -102,14 +108,12 @@ export function plan(have, yesterday) {
 export async function modelsUpdate(ghJson, yesterday, fetchFn = fetch) {
   const months = new Set();
   for (let k = 0; k < BACK; k++) months.add(addDays(yesterday, -k).slice(0, 7));
+  // Si un mes no es pot llegir (i no és que no existeixi), aquesta nit no es fa res: si es tornés a escriure només amb
+  // els dies nous, es perdrien els que ja hi havia
   const docs = {};
-  for (const m of months) {
-    try {
-      docs[m] = (await ghJson(`dades/models/${m}.json`)) || null;
-    } catch {
-      docs[m] = null;
-    }
-  }
+  const ms = [...months];
+  const read = await Promise.all(ms.map((m) => ghJson(`dades/models/${m}.json`)));
+  ms.forEach((m, i) => { docs[m] = read[i] || null; });
   const have = new Set(Object.values(docs).flatMap((d) => Object.keys(d?.days || {})));
   const spans = plan(have, yesterday);
   if (!spans.length) return { files: {}, days: [], errors: [] };
