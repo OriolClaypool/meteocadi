@@ -86,7 +86,11 @@ import EstudiTop from '../components/EstudiTop.astro';
               <label>Format</label>
               <div class="st-seg" id="rankFmt"><button type="button" data-fmt="post" aria-pressed="false">Publicació 4:5</button><button type="button" data-fmt="story" aria-pressed="true">Història 9:16</button><button type="button" data-fmt="wide" aria-pressed="false">Horitzontal 16:9</button></div>
             </div>
-            <div class="st-field"><label for="sentence">La frase de sota el títol <span>Es pot editar</span></label><textarea id="sentence" rows="3"></textarea><button type="button" class="st-link" id="sentenceReset" style="margin-top:6px;">Tornar a la frase automàtica</button></div>
+            <div class="st-field">
+              <label>Estil</label>
+              <div class="st-seg" id="rankSty"><button type="button" data-sty="net" aria-pressed="true" title="Títol d'una línia, sense frase ni escala">Neta</button><button type="button" data-sty="complet" aria-pressed="false" title="Data, títol gran, frase i escala de colors">Completa</button></div>
+            </div>
+            <div class="st-field" id="sentenceField"><label for="sentence">La frase de sota el títol <span>Es pot editar</span></label><textarea id="sentence" rows="3"></textarea><button type="button" class="st-link" id="sentenceReset" style="margin-top:6px;">Tornar a la frase automàtica</button></div>
           </div>
           <p class="st-note" id="dataNote">Les dades de cada dia es desen cada matí cap a les 6. Les estacions amb el dia incomplet no entren als extrems ni al rànquing de temperatures.</p>
         </div>

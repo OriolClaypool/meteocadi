@@ -140,6 +140,10 @@ export async function startEstudi() {
   let rankVar = 'max';
   // Format del rànquing: 'story' (1080 × 1920), 'post' (1080 × 1350, 4:5) o 'wide' (1600 × 900, per a X). Es recorda.
   let rankFmt = ['story', 'post', 'wide'].includes(store.get(K_FMT)) ? store.get(K_FMT) : 'story';
+  // Estil de la imatge del rànquing: 'net' (per defecte: títol d'una línia, sense frase ni escala) o 'complet'. El
+  // mateix que trien les imatges dels mapes i del radar (mc-img-estil, text pla).
+  let rankSty = 'net';
+  try { rankSty = localStorage.getItem('mc-img-estil') === 'complet' ? 'complet' : 'net'; } catch {}
   // Rànquing de la xarxa pròpia ('mc') o de les estacions del Meteocat de tot Catalunya ('cat')
   let rankNet = store.get(K_NET) === 'cat' ? 'cat' : 'mc';
   let sentence = { key: '', text: '', edited: false };
@@ -347,7 +351,7 @@ export async function startEstudi() {
       if (sentence.key !== key) sentence = { key, text: rankSentence(d.rows, rankVar, net), edited: false };
       if ($('sentence').value !== sentence.text) $('sentence').value = sentence.text;
       const when = isAra() && d.time ? aLaHora(d.time) : d.kind === 'ahir' ? "d'ahir" : d.kind === 'avui' ? "d'avui" : d.kind === '24h' ? 'de les darreres 24 h' : d.kind === 'range' ? delAl(d.from, d.to) : delDia(d.date);
-      (rankFmt === 'wide' ? drawRankingWide : drawRanking)(ctx, { date: d.date, from: d.from, to: d.to, days: d.kind === 'range' ? spanDays(d.from, d.to) : 1, when, variable: rankVar, rows: d.rows, sentence: sentence.text, net, kind: d.kind, time: d.time, fmt: rankFmt });
+      (rankFmt === 'wide' ? drawRankingWide : drawRanking)(ctx, { date: d.date, from: d.from, to: d.to, days: d.kind === 'range' ? spanDays(d.from, d.to) : 1, when, variable: rankVar, rows: d.rows, sentence: sentence.text, net, kind: d.kind, time: d.time, fmt: rankFmt, clean: rankSty === 'net' });
     }
     lastData = d;
   }
@@ -675,6 +679,20 @@ export async function startEstudi() {
       draw();
     }),
   );
+  // Estil: la frase només surt a la versió completa
+  const paintSty = () => {
+    document.querySelectorAll('[data-sty]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.sty === rankSty)));
+    $('sentenceField').hidden = rankSty === 'net';
+  };
+  document.querySelectorAll('[data-sty]').forEach((b) =>
+    b.addEventListener('click', () => {
+      rankSty = b.dataset.sty === 'complet' ? 'complet' : 'net';
+      try { localStorage.setItem('mc-img-estil', rankSty); } catch {}
+      paintSty();
+      draw();
+    }),
+  );
+  paintSty();
   $('sentence').addEventListener('input', (e) => { sentence.text = e.target.value; sentence.edited = true; draw(); });
   $('sentenceReset').addEventListener('click', () => { sentence.key = ''; draw(); });
 

@@ -7,6 +7,7 @@
 // cap llegenda; crèdits en petit). Oriol, 19/10/2026: "que no haya tanto texto", "el título ocupa mucho".
 import CONTORN from '../lib/catalunya-contorn.json';
 import { dayName, dayMonth, todayMadrid, hourMadrid } from '../lib/format.js';
+import { drawIcon } from './icones.js';
 
 const F = { head: "'Schibsted Grotesk Variable'", ui: "'Geist Variable'", mono: "'Geist Mono Variable'" };
 const C = { bg: '#eef3f8', land: '#ffffff', ink: '#10233b', ink2: '#44556b', mut: '#56667a', blue: '#22477a', line: '#dfe6ee' };
@@ -35,29 +36,6 @@ const NET = {
   story: { W: 1080, H: 1920, x0: 64, head: 290, hs: 50, map: [24, 370, 1056, 1590], alignY: 0.3, credits: 1640, foot: 1692, pill: 23, dot: 7, sw: 44 },
   wide: { W: 1600, H: 900, x0: 64, head: 100, hs: 48, map: [600, 28, 1576, 872], x1: 548, credits: 772, foot: 836, pill: 20, dot: 6.5, sw: 40 },
 };
-
-// Icones de traç (24×24, com les del web), per a la línia del títol de la versió neta
-const ICONS = {
-  temp: ['M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z'],
-  rain: ['M4 14.899A7 7 0 1 1 15.71 8h1.79a4.5 4.5 0 0 1 2.5 8.242', 'M16 14v6', 'M8 14v6', 'M12 16v6'],
-  wind: ['M12.8 19.6A2 2 0 1 0 14 16H2', 'M17.5 8a2.5 2.5 0 1 1 2 4H2', 'M9.8 4.4A2 2 0 1 1 11 8H2'],
-  hum: ['M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.71-3.19S7.29 6.75 7 5.3c-.29 1.45-1.14 2.84-2.29 3.76S3 11.1 3 12.25c0 2.22 1.8 4.05 4 4.05z', 'M12.56 6.6A10.97 10.97 0 0 0 14 3.02c.5 2.5 2 4.9 4 6.5s3 3.5 3 5.5a6.98 6.98 0 0 1-11.91 4.97'],
-  snow: ['M2 12h20M12 2v20M20 16l-4-4 4-4M4 8l4 4-4 4M16 4l-4 4-4-4M8 20l4-4 4 4'],
-  radar: ['M19.07 4.93A10 10 0 0 0 6.99 3.34', 'M4 6h.01', 'M2.29 9.62A10 10 0 1 0 21.31 8.35', 'M16.24 7.76A6 6 0 1 0 8.23 16.67', 'M12 18h.01', 'M17.99 11.66A6 6 0 0 1 15.77 16.67', 'M13.41 10.59l5.66-5.66', 'M14 12a2 2 0 1 1-4 0a2 2 0 1 1 4 0'],
-};
-function drawIcon(ctx, name, x, y, size, color) {
-  const paths = ICONS[name];
-  if (!paths) return;
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.scale(size / 24, size / 24);
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 2;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  for (const d of paths) ctx.stroke(new Path2D(d));
-  ctx.restore();
-}
 
 const HAS_LS = typeof CanvasRenderingContext2D !== 'undefined' && 'letterSpacing' in CanvasRenderingContext2D.prototype;
 const tracking = (ctx, px) => { if (HAS_LS) ctx.letterSpacing = `${px}px`; };
