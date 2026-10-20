@@ -12,6 +12,8 @@
 // /api/capes/aca i /api/capes/aca-24h: la pluja d'avui i de les darreres 24 hores als pluviòmetres de l'Agència
 //   Catalana de l'Aigua (JSON, 5 minuts a la CDN; api/_aca.js)
 // /api/capes/aca-AAAA-MM-DD: la d'un dia anterior dels darrers 90 (una setmana a la CDN quan ja és sencer)
+// /api/capes/arxiva-pluja: no és una capa; només per al cron de cada nit (vercel.json): desa la pluja del radar del dia
+//   que acaba d'acabar a dades/radar (api/_pluja-dia.js), perquè el mapa la pugui fer servir els dies anteriors
 // Les dades i com es fan les imatges: api/_opera.js. Com les altres funcions, qualsevol paràmetre es redirigeix a
 // l'adreça neta (perquè no se salti la CDN) i l'hora de la imatge va dins del camí.
 import { listFrames, radarFrame, stamp, fromStamp, BOUNDS, LEVELS, COLORS, W, H } from '../_opera.js';
@@ -20,6 +22,8 @@ import { listProduct } from '../_opera.js';
 import { accHour, FW, FH } from '../_pluja.js';
 import { acaRain, SOURCE as ACA_SOURCE } from '../_aca.js';
 import { ymdMadrid } from '../_xema.js';
+import { radarDay, radarPath, prevYmd } from '../_pluja-dia.js';
+import { githubToken, commitFiles, fileExists, cronOk } from '../_github.js';
 
 // Una imatge cada 10 minuts (les de les hores en punt, i 10, 20…): les composicions intermèdies (…5) solen arribar
 // sense una part dels radars d'AEMET, que en fan una cada 10 minuts, i l'animació faria pampallugues
@@ -171,6 +175,53 @@ async function plujaHour(res, t) {
   }
 }
 
+// ------------------------------------------------------------------ arxiu de la pluja del radar (api/_pluja-dia.js)
+// Només el cron de Vercel (o qui tingui el CRON_SECRET): el dia local que acaba d'acabar. Amb el CRON_SECRET, també un
+// dia concret (arxiva-pluja-AAAA-MM-DD, si encara és al dipòsit, que només en guarda 24 hores), per tornar-ho a provar.
+// Si el dia ja és desat, no fa res: ni commit ni compilació nova.
+async function arxivaPluja(req, res, date) {
+  res.setHeader('Cache-Control', 'no-store');
+  const secret = (process.env.CRON_SECRET || '').trim();
+  if (!cronOk(req) || (date && !secret)) {
+    res.status(401).json({ error: 'unauthorized' });
+    return;
+  }
+  if (date && (isNaN(Date.parse(`${date}T12:00:00Z`)) || new Date(Date.parse(`${date}T12:00:00Z`)).toISOString().slice(0, 10) !== date)) {
+    res.status(404).json({ error: 'dia' });
+    return;
+  }
+  const token = githubToken();
+  if (!token) {
+    res.status(500).json({ error: 'GITHUB_TOKEN not configured' });
+    return;
+  }
+  const ymd = date || prevYmd(ymdMadrid());
+  const path = radarPath(ymd);
+  try {
+    if (await fileExists(path, token)) {
+      res.status(200).json({ ok: true, date: ymd, already: true });
+      return;
+    }
+    const day = await radarDay(ymd);
+    if (day.incomplete) {
+      console.warn('[capes/arxiva-pluja]', ymd, `${day.hours} de ${day.expected} hores`);
+      res.status(200).json({ ok: false, ...day });
+      return;
+    }
+    // Una altra execució pot haver acabat mentrestant
+    if (await fileExists(path, token)) {
+      res.status(200).json({ ok: true, date: ymd, already: true });
+      return;
+    }
+    const sha = await commitFiles({ [path]: `${JSON.stringify(day)}\n` }, `Radar: pluja del ${ymd}`, token);
+    console.log('[capes/arxiva-pluja]', ymd, `${day.hours} de ${day.expected} hores, màxim ${day.max} mm`, sha);
+    res.status(200).json({ ok: true, date: ymd, hours: day.hours, expected: day.expected, missing: day.missing, max: day.max, commit: sha });
+  } catch (e) {
+    console.error('[capes/arxiva-pluja]', ymd, String(e));
+    res.status(500).json({ error: String(e) });
+  }
+}
+
 // ------------------------------------------------------------------ pluviòmetres de l'ACA (api/_aca.js)
 // Darrera resposta bona de cada període (mentre la instància segueix activa): si l'ACA falla, se serveix aquesta
 // marcada amb stale, si és de fa menys d'una hora
@@ -244,5 +295,7 @@ export default async function handler(req, res) {
   if (capa === 'aca-24h') return acaList(res, '24h');
   const ad = /^aca-(\d{4}-\d{2}-\d{2})$/.exec(capa);
   if (ad) return acaDay(res, ad[1]);
+  const ap = /^arxiva-pluja(?:-(\d{4}-\d{2}-\d{2}))?$/.exec(capa);
+  if (ap) return arxivaPluja(req, res, ap[1] || null);
   send404(res, 'Capes: radar, radar-AAAAMMDDHHMM, pluja, pluja-AAAAMMDDHH00, arome, arome-<variable>-AAAAMMDDHH-AAAAMMDDHH, aca, aca-24h i aca-AAAA-MM-DD.');
 }
