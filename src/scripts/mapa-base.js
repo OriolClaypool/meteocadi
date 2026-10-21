@@ -3,6 +3,7 @@
 // La capa (radar, previsió) es pinta en un canvas georeferenciat (CanvasOverlay) a la capa 'layer'.
 import L from 'leaflet';
 import CONTORN from '../lib/catalunya-contorn.json';
+import { noSave } from './sense-desar.js';
 
 // Poblacions de referència (les petites només en apropar-s'hi): [nom, lat, lng, zoom mínim]
 export const PLACES = [
@@ -30,6 +31,8 @@ export const CanvasOverlay = L.ImageOverlay.extend({
 export function baseMap(el, { view, skip = [] } = {}) {
   const map = L.map(el, { zoomSnap: 0.25, minZoom: 6.5, maxZoom: 11, attributionControl: true });
   map.fitBounds(view);
+  // Mapes públics: el radar i la previsió no es poden desar ni copiar
+  noSave(map.getContainer());
   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Elevation/World_Hillshade/MapServer/tile/{z}/{y}/{x}', {
     attribution: 'Relleu © <a href="https://www.esri.com/" target="_blank" rel="noopener">Esri</a>',
     maxZoom: 17,

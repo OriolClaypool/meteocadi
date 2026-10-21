@@ -5,6 +5,7 @@
 import CONTORN from '../lib/catalunya-contorn.json';
 import { loadAra } from './live.js';
 import { hourMadrid, todayMadrid, tempColor, num, cap } from '../lib/format.js';
+import { noSave } from './sense-desar.js';
 
 const W = 840, H = 630, PAD = 34;
 const my = (lat) => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360));
@@ -259,8 +260,8 @@ export function startMapesPortada() {
     }
   }, { rootMargin: '600px 0px' });
   io.observe(sec);
-  // Sense menú de "desa la imatge" a les vistes prèvies
-  sec.querySelectorAll('canvas').forEach((c) => c.addEventListener('contextmenu', (e) => e.preventDefault()));
+  // Sense desar, copiar ni imprimir les vistes prèvies
+  sec.querySelectorAll('canvas').forEach((c) => noSave(c));
 }
 
 // Per a les proves

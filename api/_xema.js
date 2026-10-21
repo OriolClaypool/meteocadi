@@ -239,13 +239,24 @@ export async function xemaData(period, now = new Date()) {
     const k = `${row.codi_estacio}|${row.codi_variable}`;
     if (!last[k]) last[k] = { v: n(row.valor_lectura), t: row.data_lectura };
   }
-  // Pluja de la darrera hora amb dades: les dues lectures semihoràries més noves de cada estació
-  const r35 = {};
+  // Pluja de la darrera hora amb dades: les dues lectures semihoràries més noves de cada estació. r1hEnd: el final de
+  // l'hora que sumen, si les dues lectures són seguides (el període "Última hora" del mapa de l'estudi només fa servir les
+  // estacions que acaben a la mateixa hora)
+  const r35 = {}, r35t = {};
   for (const row of latest) {
     if (row.codi_variable !== '35') continue;
     const l = (r35[row.codi_estacio] ||= []);
-    if (l.length < 2 && n(row.valor_lectura) != null) l.push(n(row.valor_lectura));
+    if (l.length < 2 && n(row.valor_lectura) != null) {
+      l.push(n(row.valor_lectura));
+      (r35t[row.codi_estacio] ||= []).push(row.data_lectura);
+    }
   }
+  const r1hEnd = (id) => {
+    const t = r35t[id];
+    if (t?.length !== 2) return null;
+    const a = endOf(t[0]), b = endOf(t[1]);
+    return a.getTime() - b.getTime() === 30 * 60e3 ? a.toISOString() : null;
+  };
   const agg = {};
   for (const row of today) agg[`${row.codi_estacio}|${row.codi_variable}`] = row;
   const L = (id, ...codes) => {
@@ -293,6 +304,7 @@ export async function xemaData(period, now = new Date()) {
         tmin: lim(A(id, 'mn', '42'), -40, 48),
         rain: lim(r1(A(id, 'sm', '35')), 0, 1000),
         rain1h: r35[id]?.length ? r1(r35[id].reduce((a, b) => a + b, 0)) : null,
+        r1hEnd: r1hEnd(id),
         gust: lim(kmh(A(id, 'mx', '50', '53', '56')), 0, 250),
         ...(incomplete(id) ? { inc: true } : {}),
         // Pluja amb més de 2 hores sense lectures: el total quedaria curt
