@@ -139,8 +139,18 @@ export function altTrend(pts, twoSegments = true) {
 
 // radar (només la pluja): la pluja del radar a la mateixa graella (FW × FH, mm; NaN on no n'hi ha), per fer-ne la
 // fusió condicional amb els pluviòmetres: a cada punt, la interpolació de les estacions més la diferència entre el
-// radar en aquell punt i el radar interpolat de la mateixa manera des de les estacions (tot en log(1 + mm)). Així, a
-// cada estació queda el que ha mesurat i, entre estacions, la forma de la pluja és la del radar.
+// radar en aquell punt i el radar interpolat de la mateixa manera des de les estacions (tot en log(1 + mm)).
+// Fins al 4/11/2026 la diferència entrava sencera i el radar manava entre estacions: el mapa de 24 hores fins al
+// 4/11 a les 9:00 tenia taques de més de 100 mm entre estacions de 20-35 mm (màxim mesurat, 63 mm) i forats en
+// blanc al costat d'estacions amb 0,8-0,9 mm (Oriol: "els colors no encaixen amb els registres"). L'OPERA no està
+// corregit amb pluviòmetres i, d'un punt a l'altre, s'equivoca molt (el quocient radar / pluviòmetre anava de 0,2 a
+// 2,6 en aquell mapa). Validació creuada (cada estació estimada sense ella; 239 i 251 estacions, 24 h fins al 4/11 i
+// el dia 3/11): sense radar, 2,6 i 3,3 mm d'error mitjà i el 61 % i el 63 % de les estacions a la seva classe de
+// color; amb la fusió sencera, 5,3 i 6,2 mm i el 53 % i el 51 %. Ara la diferència es multiplica per corr² (la
+// correlació del radar amb els pluviòmetres d'aquell mapa, RADAR_K) i no pot moure el valor més d'un 25 % (en
+// 1 + mm, RADAR_CLIP), i res no passa del màxim mesurat: 2,7 i 3,6 mm, el 60 % i el 62 %. El radar ajusta la
+// forma de la pluja entre estacions, però la quantitat és la de les estacions.
+const RADAR_CLIP = Math.log(1.25);
 function sampleGrid(grid, lat, lng) {
   const [x, y] = toPx(lng, lat);
   const c = Math.floor(x - 0.5), r = Math.floor(y - 0.5), tx = x - 0.5 - c, ty = y - 0.5 - r;
@@ -197,6 +207,10 @@ export function computeField(pts, key, { mask, maskHi = null, dem = null, alpha 
     if (!(radarCorr >= 0.4)) RS = null;
   }
   const useRadar = !!RS;
+  // Quant compta el radar (vegeu RADAR_CLIP) i el màxim mesurat, que el camp no pot passar
+  const radarK = useRadar ? Math.min(1, radarCorr * radarCorr) : 0;
+  let maxPR = 0;
+  if (useRadar) for (let j = 0; j < n; j++) if (PR[j] > maxPR) maxPR = PR[j];
   const kk = Math.min(K, n - 1);
   // Les kk + 1 estacions més properes del punt, ordenades per distància (bd: km², bi: índex de l'estació)
   const bd = new Float64Array(kk + 1), bi = new Int32Array(kk + 1);
@@ -248,7 +262,10 @@ export function computeField(pts, key, { mask, maskHi = null, dem = null, alpha 
       }
       let v = sw > 0 ? sv / sw : PR[bi[0]];
       // Fusió amb el radar (on n'hi ha al punt i a les estacions del voltant)
-      if (RS && rw > 0 && radar[i] === radar[i]) v = Math.max(0, v + Math.log1p(Math.max(0, radar[i])) - rv / rw);
+      if (RS && rw > 0 && radar[i] === radar[i]) {
+        const d = radarK * (Math.log1p(Math.max(0, radar[i])) - rv / rw);
+        v = Math.min(maxPR, Math.max(0, v + Math.max(-RADAR_CLIP, Math.min(RADAR_CLIP, d))));
+      }
       if (step) {
         if (bd[0] <= maxD2) G[i] = v;
         continue;
@@ -265,7 +282,7 @@ export function computeField(pts, key, { mask, maskHi = null, dem = null, alpha 
       web.data[k + 3] = Math.round(inside * (alpha ?? cfg.alpha));
     }
   }
-  if (step) return { ...paintClasses(G, cfg, mask, maskHi, alpha ?? cfg.alpha), useDem, useRadar, radarCorr, alpha: cfg.alpha };
+  if (step) return { ...paintClasses(G, cfg, mask, maskHi, alpha ?? cfg.alpha), useDem, useRadar, radarCorr, radarK, alpha: cfg.alpha };
   return { raw, web, useDem, alpha: cfg.alpha, inversion: trend?.h != null ? { h: trend.h, below: trend.b1 } : null };
 }
 

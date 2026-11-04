@@ -27,9 +27,9 @@ const NOTES = {
   dem: "El color és una estimació entre estacions que té en compte l'altitud del terreny.",
   wind: "El color és una estimació entre estacions i només orientativa: el vent canvia molt d'un lloc a l'altre.",
   plain: 'El color és una estimació entre estacions.',
-  radar: "El color és una estimació entre estacions amb la forma de la pluja del radar (OPERA d'EUMETNET, CC BY 4.0).",
+  radar: "El color és una estimació entre estacions ajustada amb el radar (OPERA d'EUMETNET, CC BY 4.0).",
   // Última hora (només a l'estudi): el radar del Meteocat
-  'radar-meteocat': 'El color és una estimació entre estacions amb la forma de la pluja del radar del Servei Meteorològic de Catalunya.',
+  'radar-meteocat': 'El color és una estimació entre estacions ajustada amb el radar del Servei Meteorològic de Catalunya.',
 };
 
 // Versió neta: head = [x, y] de la línia del títol; hs = mida del títol; x1 = amplada de la columna de text (horitzontal)
