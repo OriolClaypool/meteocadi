@@ -20,7 +20,7 @@ const RADAR_DAYS = radarDays();
 </div>
 <div class="cm-per" role="group" aria-label="Període de les dades" id="cmPer">
   <span class="cm-per__lab">Període</span>
-  {internal && <button type="button" data-p="1h" aria-pressed="false" title="La pluja de l'última hora, amb la forma del radar del Meteocat">Última hora</button>}
+  {internal && <button type="button" data-p="1h" aria-pressed="false" title="La pluja de l'última hora, ajustada amb el radar del Meteocat">Última hora</button>}
   <button type="button" data-p="today" aria-pressed="true">Avui</button>
   <button type="button" data-p="24h" aria-pressed="false">Darreres 24 h</button>
   <label class="cm-per__day"><span>Un altre dia</span><input type="date" id="cmDay" aria-label="Un dia anterior" /></label>
@@ -40,7 +40,7 @@ const RADAR_DAYS = radarDays();
 </p>
 {internal && (
   <p class="cm-note">
-    Última hora (només a l'estudi): la pluja de les lectures semihoràries de les estacions del Meteocat que acaben a la mateixa hora i la de la xarxa Meteocadí en aquella hora, amb la forma de la pluja del radar del <a href="https://www.meteo.cat/" rel="noopener" target="_blank">Servei Meteorològic de Catalunya</a> (una imatge cada 6 minuts; el seu servidor només en guarda les darreres 3 hores). Sense els pluviòmetres de l'ACA, que arriben a una altra hora.
+    Última hora (només a l'estudi): la pluja de les lectures semihoràries de les estacions del Meteocat que acaben a la mateixa hora i la de la xarxa Meteocadí en aquella hora, ajustada amb el radar del <a href="https://www.meteo.cat/" rel="noopener" target="_blank">Servei Meteorològic de Catalunya</a> (una imatge cada 6 minuts; el seu servidor només en guarda les darreres 3 hores). Sense els pluviòmetres de l'ACA, que arriben a una altra hora.
   </p>
 )}
 <div class="cm-ext" id="cmExt" aria-live="polite"></div>
@@ -413,7 +413,7 @@ const RADAR_DAYS = radarDays();
   // l'ACA no hi compten: són gairebé tots a la meitat est
   let xemaDown = false;
   const xemaFew = () => stations.filter((s) => !s.mc && !s.aca && val(s) != null).length < 20;
-  // Pluja: el radar (src/scripts/pluja-radar.js) dona la forma de la pluja entre estacions (camp.js, radar). Avui i
+  // Pluja: el radar (src/scripts/pluja-radar.js) ajusta la forma de la pluja entre estacions (camp.js, radar). Avui i
   // les darreres 24 hores, del dipòsit de l'OPERA (només en guarda 24 h); els dies anteriors, dels dies desats cada nit
   // (/radar-pluja, des del 20/10/2026). Un període amb algun dia sense radar desat va sense radar. Un estat per període.
   type RainRadar = { state: 'idle' | 'loading' | 'ok' | 'error'; data: any };
@@ -514,8 +514,8 @@ const RADAR_DAYS = radarDays();
     const op = document.getElementById('cmOp') as HTMLInputElement | null;
     if (op) op.disabled = !(fieldOn && can);
     const t = !can ? 'no disponible per al gruix de neu' : !fieldOn ? '' : xemaDown || xemaFew() ? 'sense dades de Meteocat' : plain ? 'interpolada entre estacions'
-      : radar === 'meteocat' ? 'entre estacions, amb la forma de la pluja del radar del Meteocat'
-      : radar ? 'entre estacions, amb la forma de la pluja del radar'
+      : radar === 'meteocat' ? 'entre estacions, ajustada amb el radar del Meteocat'
+      : radar ? 'entre estacions, ajustada amb el radar'
       : why ? `interpolada entre estacions (${why})` : noteFor(cur.key);
     el.textContent = t ? t[0].toUpperCase() + t.slice(1) : '';
   }
