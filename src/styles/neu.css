@@ -183,6 +183,8 @@ a.nv-hcard:hover { border-color: #3a5a86; }
 .nv-rk .nv-row__id { flex: 1; }
 .nv-rk .nv-parts { margin-left: 30px; }
 .nv .nv-rk__why { margin: 8px 0 0 30px; font-size: 14px; color: var(--ink2); }
+.nv .nv-rk__src { margin: 4px 0 0 30px; font-size: 12px; color: var(--ink2); opacity: .8; }
+.nv .nv-nosnow { font-size: 16px; padding: 20px 18px; color: var(--ink); }
 .nv-rank > li:first-child .nv-rk__pos { color: var(--ink); }
 /* Com es calcula la nota */
 .nv-how { margin-top: 14px; padding: 0 16px; }

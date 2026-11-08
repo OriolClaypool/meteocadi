@@ -10,7 +10,6 @@ import SkiHome from '../components/SkiHome.astro';
 import CatalunyaAra from '../components/CatalunyaAra.astro';
 import { STATIONS, fmtAlt } from '../lib/stations.js';
 import { PLACE_BY_SLUG, forecastChips } from '../lib/places.js';
-import { inSeason } from '../lib/ski.js';
 import { latestDay, extremes } from '../lib/archive.js';
 import { episodes } from '../lib/episodes.js';
 import { tempColor, num, dayShort, dayMonthShort, todayMadrid } from '../lib/format.js';
@@ -19,7 +18,7 @@ const day = latestDay();
 const ex = extremes(day);
 // Episodi destacat recent (acabat fa com a molt 6 dies respecte del darrer dia arxivat)
 const recent = episodes().find((e) => day && (Date.parse(day.date) - Date.parse(e.end)) / 864e5 <= 6);
-const skiSeason = inSeason(todayMadrid());
+const neuMonths = [11, 12, 1, 2, 3, 4].includes(Number(todayMadrid().slice(5, 7)));
 const chips = forecastChips(todayMadrid()).map((s) => PLACE_BY_SLUG[s]).map((p) => ({ name: p.name, lat: p.lat, lng: p.lng, alt: p.alt }));
 const ARROW = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg>';
 const altLo = fmtAlt(Math.min(...STATIONS.map((s) => s.alt))).replace(' m', '');
@@ -116,6 +115,8 @@ const contours = [...Array(10).keys()].map((j) => `translate(1180 260) rotate(${
     </div>
   </div>
 
+  {neuMonths && <SkiHome />}
+
   {recent && (
     <a class={`epstrip ep--${recent.type}`} href={`/episodis/${recent.slug}`}>
       <div class="wrap">
@@ -149,15 +150,11 @@ const contours = [...Array(10).keys()].map((j) => `translate(1180 260) rotate(${
     </div>
   </section>
 
-  {skiSeason && <SkiHome />}
-
   <section class="sec sec--pale" id="previsio">
     <div class="wrap">
       <Forecast chips={chips} title="Les pròximes 48 hores" sub="Previsió cada tres hores: cel, temperatura, pluja i vent, calculada per a l'altitud de cada lloc." />
     </div>
   </section>
-
-  {!skiSeason && <SkiHome />}
 
   <MesMeteocadi />
 </Base>
