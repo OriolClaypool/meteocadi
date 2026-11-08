@@ -14,7 +14,7 @@ const ARROW = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" strok
 ---
 <a class="neustrip" href="/neu" data-neustrip={JSON.stringify({ resorts: lite })}>
   <div class="wrap">
-    <b>METEOCADÍ NEU</b>
+    <b>Meteocadí Neu</b>
     <span data-neustrip-t>{text || "Previsió de neu, cota de neu i vent a les estacions d'esquí del Pirineu."}</span>
     <u>Veure la neu <Fragment set:html={ARROW} /></u>
   </div>
@@ -23,7 +23,7 @@ const ARROW = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" strok
 <style is:global>
   .neustrip { display: block; background: #0b2a3f; color: #fff; text-decoration: none; border-bottom: 1px solid rgba(255,255,255,.12); }
   .neustrip .wrap { display: flex; align-items: center; gap: 14px; padding-top: 12px; padding-bottom: 12px; font-size: 15px; line-height: 1.35; }
-  .neustrip b { flex: none; font: 600 12px/1 var(--mono, 'Geist Mono', monospace); letter-spacing: .08em; color: #7fd0ff; }
+  .neustrip b { flex: none; font-weight: 700; color: #7fd0ff; }
   .neustrip span { flex: 1; min-width: 0; }
   .neustrip u { flex: none; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; color: #7fd0ff; font-weight: 600; white-space: nowrap; }
   .neustrip:hover u { color: #fff; }
@@ -35,22 +35,22 @@ const ARROW = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" strok
 </style>
 
 <script>
-  import { groupsOf, neuSentence } from '../lib/neu/neu.js';
+  import { groupsOf, neuSentence, usefulSensors } from '../lib/neu/neu.js';
   import { todayMadrid } from '../lib/format.js';
   const a = document.querySelector<HTMLElement>('[data-neustrip]');
   const t = a?.querySelector<HTMLElement>('[data-neustrip-t]');
   if (a && t) {
     const { resorts } = JSON.parse(a.dataset.neustrip || '{}');
-    const paint = () =>
-      fetch('/api/neu')
-        .then((r) => (r.ok ? r.json() : null))
-        .then((fc) => {
-          if (!fc?.resorts || !Object.keys(fc.resorts).length) return;
-          const g = groupsOf(resorts, fc);
-          const s = g ? neuSentence(g, todayMadrid()) : '';
-          if (s) t.textContent = s;
-        })
-        .catch(() => {});
+    const get = (u: string) => fetch(u).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    // La previsió i, si arriben, els sensors de neu mesurada útils per a alguna estació (com a /neu)
+    const paint = async () => {
+      const [fc, me] = await Promise.all([get('/api/neu'), get('/api/neu/mesurada')]);
+      if (!fc?.resorts || !Object.keys(fc.resorts).length) return;
+      const g = groupsOf(resorts, fc);
+      const stations = me?.stations && !me.error ? usefulSensors(resorts, me.stations) : null;
+      const s = g ? neuSentence(g, todayMadrid(), stations) : '';
+      if (s) t.textContent = s;
+    };
     paint();
     setInterval(paint, 30 * 60 * 1000);
   }

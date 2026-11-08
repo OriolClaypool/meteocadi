@@ -313,11 +313,46 @@ export function noSnowText(groups, today, stations = null) {
 }
 
 // La frase de la franja de la portada: sense neu enlloc, la primera nevada prevista; si no, el parte del dia
-export function neuSentence(groups, today) {
-  const nos = noSnowText(groups, today);
+export function neuSentence(groups, today, stations = null) {
+  const nos = noSnowText(groups, today, stations);
   if (nos) return nos;
   const pt = parte(groups, today);
   return pt ? `${pt.title} ${pt.sub}`.trim() : '';
+}
+
+// Parte signat (src/data/parte-neu.json: { text, signa, data }): només si té 4 dies o menys; si no, null
+export function parteSignat(p, today) {
+  if (!p?.text || !p?.data) return null;
+  const age = (parseDay(today).getTime() - parseDay(p.data).getTime()) / 864e5;
+  return age >= -1 && age <= 4 ? { text: String(p.text), signa: p.signa ? String(p.signa) : '' } : null;
+}
+
+// Les cinc millors estacions del dia k per a la primera pantalla, en files compactes: nom, nota (en temporada) o
+// gruix (fora), neu nova prevista i icona del temps. Sense neu enlloc, la frase de noSnowText ('' si no hi ha previsió)
+export function topHTML(groups, { today, k = 0, season = true, notes = null, stations = null, type = 'totes', base = '/neu/' }) {
+  if (!groups?.length) return '';
+  const nos = noSnowText(groups, today, stations);
+  if (nos) return `<p class="nv-t5__none">${esc(nos)}</p>`;
+  const i0 = todayIdx(groups[0].top.days, today);
+  const i = i0 + k;
+  const useNota = season && notes;
+  const rows = groups
+    .filter((g) => resortFilter('totes', type)(g.resort))
+    .map((g) => {
+      const d = g.top.days[i];
+      const n = useNota ? notes[g.resort.slug]?.[k] ?? null : null;
+      const depth = useNota ? null : depthToday(g, i0, sensorsFor(g.resort, stations));
+      return { g, d, n, nova: Math.max(0, d?.snow ?? 0), cm: depth?.cm ?? 0 };
+    })
+    .sort((a, b) => (useNota ? (b.n?.v ?? -1) - (a.n?.v ?? -1) : b.nova - a.nova || b.cm - a.cm) || a.g.resort.name.localeCompare(b.g.resort.name, 'ca'))
+    .slice(0, 5);
+  const lis = rows.map(({ g, d, n, nova, cm }) => {
+    const main = useNota
+      ? (n?.v != null ? `<span class="nv-t5__n nv-nota--${n.level}" title="${esc(n.label)}">${notaFmt(n.v)}</span>` : '<span class="nv-t5__n nv-nota--x">…</span>')
+      : `<span class="nv-t5__v"><b>${cm >= 3 ? Math.round(cm) : 0}</b> cm</span>`;
+    return `<li><a class="nv-t5__r" href="${base}${g.resort.slug}"><span class="nv-t5__name">${esc(g.resort.short ?? g.resort.name)}</span>${main}<span class="nv-t5__v"><b>${nova >= 0.5 ? `+${Math.round(nova)}` : '0'}</b> cm nova</span><span class="nv-t5__ic">${codeIcon(d?.code, 24)}</span></a></li>`;
+  });
+  return `<ol class="nv-t5__l">${lis.join('')}</ol>`;
 }
 
 // La neu caiguda els n dies abans d'avui: mesurada al sensor més proper o, si no n'hi ha, la del model

@@ -7,7 +7,8 @@
 import NeuLayout from '../../layouts/NeuLayout.astro';
 import { NEU, lleugera, ALLAUS } from '../../lib/neu/estacions.js';
 import { previsioBuild } from '../../lib/neu/build.js';
-import { groupsOf, parte, forecastCardsHTML, measuredCardHTML, listHTML, allNotes, dayLabel, todayIdx, scaleHTML, icon, aLes } from '../../lib/neu/neu.js';
+import { groupsOf, parte, parteSignat, topHTML, forecastCardsHTML, measuredCardHTML, listHTML, allNotes, dayLabel, todayIdx, scaleHTML, icon, aLes } from '../../lib/neu/neu.js';
+import parteJson from '../../data/parte-neu.json';
 import { inSeason } from '../../lib/ski.js';
 import { todayMadrid, longDate, cap } from '../../lib/format.js';
 
@@ -17,6 +18,10 @@ const lite = NEU.map(lleugera);
 const fc = await previsioBuild();
 const groups = groupsOf(lite, fc);
 const pt = groups ? parte(groups, today) : null;
+// Parte signat de l'Oriol (src/data/parte-neu.json): mana sobre la frase automàtica mentre té 4 dies o menys
+const signat = parteSignat(parteJson, today);
+const topText = signat ? signat.text : pt ? `${pt.title} ${pt.accent}`.trim() : "Neu i esquí al Pirineu, estació per estació.";
+const topSub = signat ? '' : pt?.sub || '';
 // Al build no hi ha sensors ni trànsit: la nota fa servir el gruix del model (el navegador la refà amb els sensors)
 const notes = groups && season ? allNotes(groups, today) : null;
 const TYPE = 'alpi';
@@ -30,6 +35,7 @@ const days = groups
 const of = (type) => lite.filter((r) => type === 'totes' || r.type === type);
 const count = (type) => ({ totes: of(type).length, cat: of(type).filter((r) => r.country === 'cat').length, and: of(type).filter((r) => r.country === 'and').length });
 const cnt = count(season ? TYPE : 'totes');
+const topInit = groups ? topHTML(groups, { today, k: 0, season, notes, type: season ? TYPE : 'totes' }) : '';
 const listInit = groups ? listHTML(groups, { today, stations: null, season, notes, type: season ? TYPE : 'totes' }).replace(/<ol class="nv-list( nv-rank)?">/, (m, r) => `<ol class="nv-list${r ?? ''}${cnt.totes > 8 ? ' is-short' : ''}">`) : '';
 
 const BULLETINS = [
@@ -45,31 +51,30 @@ const BULLETINS = [
   path="/neu"
   current="avui"
 >
-  <div slot="hero" class="nv-hero__in" data-neu={JSON.stringify({ resorts: lite, today, built: !!groups })}>
-    <p class="nv-eyebrow" data-nv-date>{cap(longDate(today))}{fc?.updated ? ` · Actualitzat ${aLes(fc.updated)}` : ''}</p>
-    <h1 class="nv-h1" data-nv-title>
-      {pt ? pt.title : 'Neu i esquí al Pirineu,'} <span>{pt ? pt.accent : 'estació per estació.'}</span>
-    </h1>
-    <p class="nv-lead" data-nv-sub>{pt?.sub || "Previsió de neu, cota de neu i vent a les estacions d'esquí de Catalunya i Andorra, i el gruix de neu mesurat."}</p>
-    <div class="nv-cards">
-      <div class="nv-cards__g" data-nv-fcards set:html={forecastCardsHTML(groups, { today, season, notes, type: TYPE })} />
-      <div class="nv-cards__g" data-nv-mcard set:html={measuredCardHTML(undefined)} />
+  <div slot="hero" class="nv-hero__in" data-neu={JSON.stringify({ resorts: lite, today, built: !!groups, parte: parteJson })}>
+    <h1 class="nv-h1" data-nv-title>{topText}</h1>
+    <p class="nv-sign" data-nv-sign hidden={!signat?.signa}>{signat?.signa}</p>
+    <p class="nv-lead" data-nv-sub hidden={!topSub}>{topSub}</p>
+    <div class="nv-ctl" data-nv-ctl>
+      <div class="nv-chips" role="group" aria-label="Dia" data-nv-days>
+        {days.map((d, k) => <button type="button" class="nv-chip" data-k={k} aria-pressed={k === 0 ? 'true' : 'false'}>{dayLabel(d, k)}</button>)}
+      </div>
+      <div class="nv-seg nv-seg--auto" role="group" aria-label="Tipus d'esquí" data-nv-type hidden={!season}>
+        <button type="button" data-type="alpi" aria-pressed="true">Esquí alpí</button>
+        <button type="button" data-type="fons" aria-pressed="false">Esquí de fons</button>
+      </div>
     </div>
+    <div class="nv-t5" data-nv-top5>
+      <div data-nv-top5l set:html={topInit || '<p class="nv-t5__none">Carregant la previsió…</p>'} />
+      <a class="nv-t5__all" href="#estacions" data-nv-top5all hidden={!listInit.startsWith('<ol')}>Veure-les totes</a>
+    </div>
+    <p class="nv-upd" data-nv-date>{fc?.updated ? `Previsió actualitzada ${aLes(fc.updated)}` : ''}</p>
   </div>
 
   <section class="nv-sec nv-anchor" id="mapa">
     <div class="nv-in">
       <p class="nv-eyebrow" data-nv-mapeb>{season ? 'On anar' : 'Mapa'}</p>
       <h2 class="nv-h2" data-nv-maptitle>{season ? 'On anar avui' : 'On nevarà'}</h2>
-      <div class="nv-ctl" data-nv-ctl hidden={!season}>
-        <div class="nv-chips" role="group" aria-label="Dia" data-nv-days>
-          {days.map((d, k) => <button type="button" class="nv-chip" data-k={k} aria-pressed={k === 0 ? 'true' : 'false'}>{dayLabel(d, k)}</button>)}
-        </div>
-        <div class="nv-seg nv-seg--auto" role="group" aria-label="Tipus d'esquí" data-nv-type>
-          <button type="button" data-type="alpi" aria-pressed="true">Esquí alpí</button>
-          <button type="button" data-type="fons" aria-pressed="false">Esquí de fons</button>
-        </div>
-      </div>
       <div class="nv-card nv-map__wrap">
         <div class="nv-mapbar">
           <div class="nv-seg nv-seg--auto nv-seg--sm" role="group" aria-label="Què es mostra al mapa" data-nv-layers>
@@ -91,6 +96,34 @@ const BULLETINS = [
     </div>
   </section>
 
+  <section class="nv-sec" id="targetes">
+    <div class="nv-in">
+      <div class="nv-cardsec">
+        <div class="nv-cards">
+          <div class="nv-cards__g" data-nv-fcards set:html={forecastCardsHTML(groups, { today, season, notes, type: TYPE })} />
+          <div class="nv-cards__g" data-nv-mcard set:html={measuredCardHTML(undefined)} />
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="nv-sec nv-anchor" id="allaus">
+    <div class="nv-in">
+      <p class="nv-eyebrow">Fora pistes</p>
+      <h2 class="nv-h2">Perill d'allaus</h2>
+      <p class="nv-intro">Per a l'esquí de muntanya i el fora pista, el butlletí oficial de cada zona.</p>
+      <ul class="nv-card nv-links">
+        {BULLETINS.map((b) => (
+          <li>
+            <a href={b.url} rel="noopener">
+              <span class="nv-links__t"><span class="nv-links__k" set:html={icon('alert', 18)} /><span><b>{b.k}</b><small>{b.name}</small></span></span>
+              <Fragment set:html={icon('ext', 18)} />
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
   <section class="nv-sec nv-anchor" id="estacions">
     <div class="nv-in">
       <p class="nv-eyebrow">Estacions</p>
@@ -125,34 +158,17 @@ const BULLETINS = [
     </div>
   </section>
 
-  <section class="nv-sec nv-anchor" id="allaus">
-    <div class="nv-in">
-      <p class="nv-eyebrow">Fora pistes</p>
-      <h2 class="nv-h2">Perill d'allaus</h2>
-      <p class="nv-intro">Per a l'esquí de muntanya i el fora pista, el butlletí oficial de cada zona.</p>
-      <ul class="nv-card nv-links">
-        {BULLETINS.map((b) => (
-          <li>
-            <a href={b.url} rel="noopener">
-              <span class="nv-links__t"><span class="nv-links__k" set:html={icon('alert', 18)} /><span><b>{b.k}</b><small>{b.name}</small></span></span>
-              <Fragment set:html={icon('ext', 18)} />
-            </a>
-          </li>
-        ))}
-      </ul>
-    </div>
-  </section>
 </NeuLayout>
 
 <script>
   import { aromeLinks } from '../../scripts/arome-link.js';
-  import { groupsOf, parte, forecastCardsHTML, measuredCardHTML, listHTML, allNotes, notaItems, resortFilter, mapItems, sensorItems, usefulSensors, pinHTML, scaleHTML, NOTA_LEGEND, todayIdx, dayLabel, dayWord, aLes } from '../../lib/neu/neu.js';
+  import { groupsOf, parte, parteSignat, topHTML, forecastCardsHTML, measuredCardHTML, listHTML, allNotes, notaItems, resortFilter, mapItems, sensorItems, usefulSensors, pinHTML, scaleHTML, NOTA_LEGEND, todayIdx, dayLabel, dayWord, aLes } from '../../lib/neu/neu.js';
   import { inSeason } from '../../lib/ski.js';
   import { todayMadrid, longDate, dayName, cap } from '../../lib/format.js';
 
   const root = document.querySelector<HTMLElement>('[data-neu]')!;
   // built: la pàgina ja porta la previsió del build (si ara no arriba, es queda la del build)
-  const { resorts, built } = JSON.parse(root.dataset.neu || '{}');
+  const { resorts, built, parte: parteData } = JSON.parse(root.dataset.neu || '{}');
   const q = new URLSearchParams(location.search);
   let today = todayMadrid();
   const season = () => inSeason(today) || q.has('temporada');
@@ -177,22 +193,42 @@ const BULLETINS = [
   function paintHero() {
     const g = groups();
     if (st !== undefined) $('[data-nv-mcard]')!.innerHTML = measuredCardHTML(st);
-    if (!g && built) return;
-    $('[data-nv-date]')!.textContent = `${cap(longDate(today))}${fc?.updated ? ` · Actualitzat ${aLes(fc.updated)}` : ''}`;
-    if (g) {
-      const pt = parte(g, today);
+    // Frase de dalt: el parte signat (4 dies o menys) o l'automàtic
+    const sg = parteSignat(parteData, today);
+    if (sg) {
+      $('[data-nv-title]')!.textContent = sg.text;
+      $('[data-nv-sign]')!.textContent = sg.signa;
+      $('[data-nv-sign]')!.hidden = !sg.signa;
+      $('[data-nv-sub]')!.hidden = true;
+    } else {
+      $('[data-nv-sign]')!.hidden = true;
+      const pt = g ? parte(g, today) : null;
       if (pt) {
-        $('[data-nv-title]')!.innerHTML = `${esc(pt.title)} <span>${esc(pt.accent)}</span>`;
+        $('[data-nv-title]')!.textContent = `${pt.title} ${pt.accent}`.trim();
         $('[data-nv-sub]')!.textContent = pt.sub;
+        $('[data-nv-sub]')!.hidden = !pt.sub;
       }
     }
+    if (fc?.updated) $('[data-nv-date]')!.textContent = `Previsió actualitzada ${aLes(fc.updated)}`;
     if (g || fcFailed) $('[data-nv-fcards]')!.innerHTML = forecastCardsHTML(g, { today, season: season(), wait: !fcFailed, notes, type: S.type });
+    paintTop(g);
+  }
+
+  // Les cinc millors estacions del dia triat (primera pantalla)
+  function paintTop(g: any) {
+    const box = $('[data-nv-top5l]')!;
+    if (!g) {
+      if (!built) box.innerHTML = fcFailed ? '<p class="nv-t5__none">La previsió no arriba ara mateix. Ho tornem a provar d’aquí a uns minuts.</p>' : '<p class="nv-t5__none">Carregant la previsió…</p>';
+      return;
+    }
+    box.innerHTML = topHTML(g, { today, k: S.k, season: season(), notes, stations: st ?? null, type: type() });
+    $('[data-nv-top5all]')!.hidden = !!box.querySelector('.nv-t5__none');
   }
 
   // Botons del dia i del tipus d'esquí (només en temporada)
   function paintControls() {
     const sea = season();
-    $('[data-nv-ctl]')!.hidden = !sea;
+    $('[data-nv-type]')!.hidden = !sea;
     const ds = days();
     if (S.k >= ds.length && ds.length) S.k = 0;
     if (ds.length) $('[data-nv-days]')!.innerHTML = ds.map((d: any, k: number) => `<button type="button" class="nv-chip" data-k="${k}" aria-pressed="${k === S.k}">${dayLabel(d.date, k)}</button>`).join('');
@@ -391,7 +427,7 @@ const BULLETINS = [
     const per = t.closest<HTMLElement>('[data-per]');
     if (per) { S.per = Number(per.dataset.per); paintMap(); return; }
     const day = t.closest<HTMLElement>('[data-nv-days] [data-k]');
-    if (day) { S.k = Number(day.dataset.k); paintControls(); paintList(); paintMap(); return; }
+    if (day) { S.k = Number(day.dataset.k); paintControls(); paintTop(groups()); paintList(); paintMap(); return; }
     const ty = t.closest<HTMLElement>('[data-nv-type] [data-type]');
     if (ty) { S.type = ty.dataset.type!; S.all = false; paintControls(); paintHero(); paintList(); paintMap(); return; }
     if (t.closest('[data-nv-more]')) { S.all = true; paintList(); }
