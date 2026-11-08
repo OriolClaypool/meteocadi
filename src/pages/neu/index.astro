@@ -105,11 +105,11 @@ const BULLETINS = [
         </select>
       </div>
       <div data-nv-list set:html={listInit || '<p class="nv-load">Carregant la previsió…</p>'} />
-      <p class="nv-legend-s" data-nv-listlg hidden={season}>
+      <p class="nv-legend-s" data-nv-listlg hidden={season || !listInit.startsWith('<ol')}>
         <span><i style="background:#A3B1C2"></i>Neu dels dies anteriors</span>
         <span><i style="background:#6FAEF5"></i>Neu prevista al cim</span>
       </p>
-      <button type="button" class="nv-more" data-nv-more hidden={!listInit || cnt.totes <= 8}><span data-nv-more-t>Veure les {cnt.totes} estacions</span><Fragment set:html={icon('next', 18)} /></button>
+      <button type="button" class="nv-more" data-nv-more hidden={!listInit.startsWith('<ol') || cnt.totes <= 8}><span data-nv-more-t>Veure les {cnt.totes} estacions</span><Fragment set:html={icon('next', 18)} /></button>
       <details class="nv-card nv-how" data-nv-how hidden={!season}>
         <summary>Com es calcula la nota</summary>
         <div class="nv-how__b">
@@ -146,7 +146,7 @@ const BULLETINS = [
 
 <script>
   import { aromeLinks } from '../../scripts/arome-link.js';
-  import { groupsOf, parte, forecastCardsHTML, measuredCardHTML, listHTML, allNotes, notaItems, resortFilter, mapItems, sensorItems, pinHTML, scaleHTML, NOTA_LEGEND, todayIdx, dayLabel, dayWord, aLes } from '../../lib/neu/neu.js';
+  import { groupsOf, parte, forecastCardsHTML, measuredCardHTML, listHTML, allNotes, notaItems, resortFilter, mapItems, sensorItems, usefulSensors, pinHTML, scaleHTML, NOTA_LEGEND, todayIdx, dayLabel, dayWord, aLes } from '../../lib/neu/neu.js';
   import { inSeason } from '../../lib/ski.js';
   import { todayMadrid, longDate, dayName, cap } from '../../lib/format.js';
 
@@ -215,7 +215,6 @@ const BULLETINS = [
     const w = wordK(S.k);
     $('[data-nv-listtitle]')!.textContent = sea ? `Rànquing ${w === 'avui' ? 'd’avui' : `de ${w}`}${S.type === 'fons' ? ', esquí de fons' : ''}` : 'Neu a cada estació';
     $('[data-nv-listintro]')!.textContent = sea ? 'De millor a pitjor per anar a esquiar, amb una nota de 0 a 10.' : 'Ordenades per la neu prevista els pròxims 3 dies.';
-    $('[data-nv-listlg]')!.hidden = sea;
     $('[data-nv-how]')!.hidden = !sea;
     if (!g) {
       if (built) return;
@@ -224,6 +223,7 @@ const BULLETINS = [
       return;
     }
     box.innerHTML = listHTML(g, { today, k: sea ? S.k : 0, zone: S.zone, type: type(), stations: st ?? null, season: sea, notes });
+    $('[data-nv-listlg]')!.hidden = sea || !!box.querySelector('.nv-nosnow');
     // Les 6 primeres; la resta, amb el botó (si n'hi ha més de 8)
     const n = box.querySelectorAll('.nv-list > li').length;
     const short = !S.all && n > 8;
@@ -442,7 +442,7 @@ const BULLETINS = [
       .catch(() => { fcFailed = !fc; })
       .finally(paint);
     getJson('/api/neu/mesurada')
-      .then((j) => { st = j?.error ? (st ?? null) : (j?.stations ?? null); })
+      .then((j) => { st = j?.error ? (st ?? null) : (j?.stations ? usefulSensors(resorts, j.stations) : null); })
       .catch(() => { st = st ?? null; })
       .finally(paint);
     if (season()) {

@@ -9,7 +9,7 @@
 import { rateDay, dayVerdict as skiVerdict } from '../ski.js';
 import { num, dayName, dayShort, parseDay, cap } from '../format.js';
 import { wmoText } from '../wmo.js';
-import { notesOf, notaFmt, partLevel, NOTA_LABEL, partTxt, depthSource, depthTxt, allNew } from './nota.js';
+import { notesOf, depthToday, sensorsFor, notaFmt, partLevel, NOTA_LABEL, partTxt, depthSource, depthTxt, allNew } from './nota.js';
 
 export const thousands = (v) => String(v).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
 const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -291,6 +291,35 @@ export function nearSensors(resort, stations, n = 2) {
     .slice(0, n);
 }
 
+// Sensors que serveixen per a alguna estació (la regla de nearSensors: a 35 km o menys i com a molt 300 m per sota de
+// la base): els que no, com el Puig Sesolles al Montseny, no surten a /neu
+export function usefulSensors(resorts, stations) {
+  if (!stations?.length) return stations ?? [];
+  return stations.filter((s) => (resorts ?? []).some((r) => nearSensors(r, [s], 1).length));
+}
+
+// Sense neu enlloc, una sola frase amb la previsió (null si hi ha neu a terra a alguna estació)
+export function noSnowText(groups, today, stations = null) {
+  if (!groups?.length) return null;
+  const i0 = todayIdx(groups[0].top.days, today);
+  if (groups.some((g) => (depthToday(g, i0, sensorsFor(g.resort, stations))?.cm ?? 0) >= 3)) return null;
+  const k = [0, 1, 2, 3, 4, 5, 6].find((x) => groups.some((g) => (g.top.days[i0 + x]?.snow ?? 0) >= 1));
+  if (k == null) return 'Cap nevada a la vista els pròxims set dies.';
+  const day = groups[0].top.days[i0 + k];
+  const sn = (g) => g.top.days[i0 + k]?.snow ?? 0;
+  const max = Math.max(...groups.map(sn));
+  const names = groups.filter((g) => sn(g) >= Math.max(1, max * 0.5)).sort((a, b) => sn(b) - sn(a)).slice(0, 2).map((g) => g.resort.short ?? g.resort.name);
+  return `Encara no hi ha neu a cap estació. La primera nevada prevista és ${dayWord(day.date, k)} a ${list(names)}.`;
+}
+
+// La frase de la franja de la portada: sense neu enlloc, la primera nevada prevista; si no, el parte del dia
+export function neuSentence(groups, today) {
+  const nos = noSnowText(groups, today);
+  if (nos) return nos;
+  const pt = parte(groups, today);
+  return pt ? `${pt.title} ${pt.sub}`.trim() : '';
+}
+
 // La neu caiguda els n dies abans d'avui: mesurada al sensor més proper o, si no n'hi ha, la del model
 export function pastSnow(g, sensors, today, n) {
   const s = sensors?.[0];
@@ -382,6 +411,7 @@ export function rankHTML(groups, notes, { k = 0, zone = 'totes', type = 'totes',
       return `<li class="nv-card nv-row nv-rk">
 <div class="nv-row__top"><span class="nv-rk__pos" aria-hidden="true">${j + 1}</span><div class="nv-row__id"><a class="nv-row__name" href="${base}${res.slug}">${esc(res.name)}</a><p class="nv-row__meta">${esc(res.zone)} · ${res.type === 'fons' ? 'esquí de fons' : 'esquí alpí'}</p></div>${n?.v != null ? notaBadge(n) : '<span class="nv-nota nv-nota--x"><b>—</b></span>'}</div>
 ${n?.why ? `<p class="nv-rk__why">${esc(n.why)}</p>` : ''}
+${n?.depth && n.cm != null && n.cm >= 3 ? `<p class="nv-rk__src">${esc(depthSource(n))}.</p>` : ''}
 ${partsHTML(n)}
 </li>`;
     })
@@ -392,6 +422,8 @@ ${partsHTML(n)}
 // esquiar; fora, per la neu prevista
 export function listHTML(groups, { today, k = 0, zone = 'totes', type = 'totes', stations = null, base = '/neu/', season = true, notes = null }) {
   if (!groups?.length) return '';
+  const nos = noSnowText(groups.filter((g) => resortFilter(zone, type)(g.resort)), today, stations);
+  if (nos) return `<p class="nv-empty nv-nosnow">${esc(nos)}</p>`;
   if (season && notes) return rankHTML(groups, notes, { k, zone, type, base });
   const i0 = todayIdx(groups[0].top.days, today);
   const i = i0 + k;
@@ -855,9 +887,11 @@ export function factsHTML(g, { today, now = null, sensors = null, wait = true, d
   if (s?.d24 != null) out.push(box('Neu nova en 24 h', cm(Math.max(0, s.d24)), `mesurada a ${esc(s.name)}`));
   else if (g) out.push(box('Neu prevista avui', cm(cm0(g.top.days[i0]?.snow)), 'al cim'));
   else out.push(box('Neu prevista avui', na, ''));
-  if (depth?.src === 'sensor') out.push(box('Gruix de neu', cm(depth.cm), `${esc(depth.where[0])}, ${thousands(depth.sensor.alt)}\u00A0m`));
-  else if (depth) out.push(box('Gruix de neu', cm(depth.src === 'model' ? depth.cm : Math.round(depth.cm / 5) * 5), depth.src === 'estimat' ? `estimat amb ${esc(list([...depth.where, ...(depth.model ? ['el model'] : [])]))}` : 'estimat pel model'));
-  else if (s) out.push(box('Gruix de neu', cm(s.now), `${esc(s.name)}, ${thousands(s.alt)}\u00A0m`));
+  if (depth) {
+    const v = depth.src === 'estimat' ? Math.round(depth.cm / 5) * 5 : depth.cm;
+    out.push(box('Gruix estimat', cm(v), esc(depthSource({ depth }).replace(/^Estimació de Meteocadí/, 'estimació Meteocadí')) + '.'));
+  }
+  else if (s) out.push(box('Gruix estimat', cm(s.now), `estimació Meteocadí amb ${esc(s.name)} (a ${Math.round(s.km)}\u00A0km)`));
   else if (g) out.push(box('Neu en 7 dies', cm(snowSum(g.top.days, i0, 7)), 'prevista al cim'));
   else out.push(box('Neu en 7 dies', na, ''));
   const T = now?.top;

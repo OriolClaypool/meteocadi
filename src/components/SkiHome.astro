@@ -1,63 +1,56 @@
 ---
-// Portada: les estacions d'esquí més properes al Cadí en targetes resumides (neu prevista, 7 dies, temps a dalt).
-import { PLACE_BY_SLUG, SKI_HOME } from '../lib/places.js';
-import { fetchSki, skiCompactHTML, inSeason } from '../lib/ski.js';
+// Portada, de novembre a abril: una sola franja cap a Meteocadí Neu (/neu) amb la frase del dia (el parte de Neu o, sense
+// neu enlloc, la primera nevada prevista). Al build es pinta amb la previsió d'aquell moment; el navegador la refà amb /api/neu.
+import { NEU, lleugera } from '../lib/neu/estacions.js';
+import { previsioBuild } from '../lib/neu/build.js';
+import { groupsOf, neuSentence } from '../lib/neu/neu.js';
 import { todayMadrid } from '../lib/format.js';
-import { NEU } from '../lib/neu/estacions.js';
 
-const resorts = SKI_HOME.map((s) => PLACE_BY_SLUG[s]).filter(Boolean).map((p) => ({ slug: p.slug, name: p.name, points: p.points, ski: p.ski }));
+const lite = NEU.map(lleugera);
 const today = todayMadrid();
-const season = inSeason(today);
-const groups = await fetchSki(resorts);
-const cards = skiCompactHTML(groups, { today, season, base: '/temps/' });
-// Les de Meteocadí Neu (/neu), on porta el botó
-const total = NEU.length;
+const groups = groupsOf(lite, await previsioBuild());
+const text = groups ? neuSentence(groups, today) : '';
 const ARROW = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"></path><path d="M13 6l6 6-6 6"></path></svg>';
 ---
-<section class="sec sec--ski" id="esqui">
+<a class="neustrip" href="/neu" data-neustrip={JSON.stringify({ resorts: lite })}>
   <div class="wrap">
-    <div class="sec__head">
-      <div>
-        <span class="eyebrow" style="color:#0e6e8c;">METEOCADÍ NEU · PREVISIÓ DE 7 DIES</span>
-        <h2 class="h2">Neu i esquí, <em>a prop del Cadí</em></h2>
-        <p class="sub" style="max-width:720px;margin-top:10px;">
-          {season
-            ? 'La neu prevista a dalt de les pistes, el temps de cada dia i el millor dia per esquiar a les estacions més properes.'
-            : "La temporada comença a mitjan novembre. Mentrestant, aquí veuràs quan arriben les primeres neus a dalt de les pistes de cada estació."}
-        </p>
-      </div>
-      <a class="btn btn--blue" href="/neu">{`Les ${total} estacions d'esquí`} <Fragment set:html={ARROW} /></a>
-    </div>
-    <div class="skcs" data-skih={JSON.stringify({ resorts })} set:html={cards || '<p class="mfc__load">Carregant la previsió…</p>'}></div>
+    <b>METEOCADÍ NEU</b>
+    <span data-neustrip-t>{text || "Previsió de neu, cota de neu i vent a les estacions d'esquí del Pirineu."}</span>
+    <u>Veure la neu <Fragment set:html={ARROW} /></u>
   </div>
-</section>
+</a>
 
 <style is:global>
-  .sec--ski { background: linear-gradient(180deg, #f2f9ff 0%, #e6f3fc 100%); padding: 88px 0; }
-  .sec--ski .sec__head { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; flex-wrap: wrap; margin-bottom: 28px; }
-  /* Al mòbil, les targetes es passen de costat */
+  .neustrip { display: block; background: #0b2a3f; color: #fff; text-decoration: none; border-bottom: 1px solid rgba(255,255,255,.12); }
+  .neustrip .wrap { display: flex; align-items: center; gap: 14px; padding-top: 12px; padding-bottom: 12px; font-size: 15px; line-height: 1.35; }
+  .neustrip b { flex: none; font: 600 12px/1 var(--mono, 'Geist Mono', monospace); letter-spacing: .08em; color: #7fd0ff; }
+  .neustrip span { flex: 1; min-width: 0; }
+  .neustrip u { flex: none; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; color: #7fd0ff; font-weight: 600; white-space: nowrap; }
+  .neustrip:hover u { color: #fff; }
   @media (max-width: 640px) {
-    .sec--ski { padding: 64px 0; }
-    .sec--ski .skcs { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 12px; margin: 0 calc(-1 * var(--pad)); padding: 0 var(--pad) 10px; }
-    .sec--ski .skc { flex: 0 0 86%; scroll-snap-align: start; }
-    .sec--ski .skc:hover { transform: none; }
+    .neustrip .wrap { flex-wrap: wrap; gap: 4px 12px; padding-top: 10px; padding-bottom: 10px; font-size: 14px; }
+    .neustrip b { width: 100%; }
+    .neustrip span { flex: 1 1 100%; }
   }
 </style>
 
 <script>
-  import { fetchSki, skiCompactHTML, inSeason } from '../lib/ski.js';
+  import { groupsOf, neuSentence } from '../lib/neu/neu.js';
   import { todayMadrid } from '../lib/format.js';
-  const box = document.querySelector<HTMLElement>('[data-skih]');
-  if (box) {
-    const { resorts } = JSON.parse(box.dataset.skih || '{}');
-    const paint = () => {
-      const today = todayMadrid();
-      const season = inSeason(today) || new URLSearchParams(location.search).has('temporada');
-      return fetchSki(resorts, 12000).then((groups) => {
-        const html = skiCompactHTML(groups, { today, season, base: '/temps/' });
-        if (html) box.innerHTML = html;
-      }).catch(() => {});
-    };
+  const a = document.querySelector<HTMLElement>('[data-neustrip]');
+  const t = a?.querySelector<HTMLElement>('[data-neustrip-t]');
+  if (a && t) {
+    const { resorts } = JSON.parse(a.dataset.neustrip || '{}');
+    const paint = () =>
+      fetch('/api/neu')
+        .then((r) => (r.ok ? r.json() : null))
+        .then((fc) => {
+          if (!fc?.resorts || !Object.keys(fc.resorts).length) return;
+          const g = groupsOf(resorts, fc);
+          const s = g ? neuSentence(g, todayMadrid()) : '';
+          if (s) t.textContent = s;
+        })
+        .catch(() => {});
     paint();
     setInterval(paint, 30 * 60 * 1000);
   }

@@ -70,7 +70,7 @@ function modelDepth(g, i) {
 export function depthToday(g, i0, sens) {
   const r = g.resort;
   const d = directSensor(r, sens);
-  if (d) return { cm: d.now, src: 'sensor', where: [d.name], sensor: d };
+  if (d) return { cm: d.now, src: 'sensor', where: [d.name], sensor: d, km: d.km };
   const m = modelDepth(g, i0);
   const parts = sens.map((s) => ({ v: s.now, w: 1 / (s.km + 3) ** 2, name: s.name }));
   if (m != null) parts.push({ v: m, w: 1 / 225, name: null });
@@ -78,7 +78,7 @@ export function depthToday(g, i0, sens) {
   const W = parts.reduce((a, p) => a + p.w, 0);
   const cm = parts.reduce((a, p) => a + p.v * p.w, 0) / W;
   const where = parts.filter((p) => p.name).slice(0, 2).map((p) => p.name);
-  return { cm, src: where.length ? 'estimat' : 'model', where, sensor: null, model: m != null };
+  return { cm, src: where.length ? 'estimat' : 'model', where, sensor: null, model: m != null, km: sens[0]?.km ?? null };
 }
 
 // Neu nova abans del dia i: els 3 dies anteriors (mesurada al sensor del costat, si n'hi ha, els dies passats) i la
@@ -288,12 +288,13 @@ export function partTxt(n, key) {
   return '';
 }
 
-// D'on surt el gruix (fitxa)
+// D'on surt el gruix: sempre una estimació de Meteocadí, mai una dada oficial de l'estació (fitxa i llistes)
 export function depthSource(n) {
   const d = n.depth;
   if (!d) return '';
-  if (d.src === 'sensor') return `Mesurat al sensor de ${d.where[0]} (${String(d.sensor.alt).replace(/\B(?=(\d{3})+(?!\d))/g, '.')}\u00A0m)`;
-  if (d.src === 'estimat') return `Estimat a partir ${d.where.length > 1 ? 'dels sensors' : 'del sensor'} de ${list(d.where)}${d.model ? ' i del model' : ''}`;
-  return 'Estimat pel model';
+  const km = (x) => `${Math.round(x)}\u00A0km`;
+  if (d.src === 'sensor') return `Estimació de Meteocadí amb el sensor del Meteocat de ${d.where[0]}${d.km != null ? ` (a ${km(d.km)})` : ''}`;
+  if (d.src === 'estimat') return `Estimació de Meteocadí amb ${d.where.length > 1 ? 'els sensors' : 'el sensor'} del Meteocat de ${list(d.where)}${d.km != null ? ` (el més proper, a ${km(d.km)})` : ''}${d.model ? ' i el model' : ''}`;
+  return 'Estimació de Meteocadí amb el model de previsió';
 }
 
