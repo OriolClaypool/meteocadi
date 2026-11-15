@@ -168,19 +168,45 @@ const skiFacts = p.ski
       ) : (
         <p>{p.ski ? `${p.ski.type === 'nordic' ? (es ? 'Esquí nórdico' : 'Esquí nòrdic') : es ? 'Esquí alpino' : 'Esquí alpí'} · ${alts.join(' – ')}` : `${fmtAlt(p.alt)} ${es ? 'de altitud' : "d'altitud"}`} · <a href={`${base}${region.slug}`}>{andorra ? region.name : `${es ? 'El tiempo' : 'El temps'} ${region.a}`}</a></p>
       )}
+    </div>
+  </section>
+
+  {/* Primer la lectura d'ara (15/11/2026): abans anava després del text de la previsió i de l'avís, a la tercera pantalla del mòbil */}
+  <section class="sec sec--dark" style="padding:44px 0 56px;" id="ara">
+    <div class="wrap" style="position:relative;">
+      <div class="sec__head">
+        <div>
+          {main
+            ? <span class="eyebrow"><span class="live live--off" data-live-badge style="padding:6px 12px;"><span class="live__dot"><i></i><i></i></span><span data-live-text>{es ? 'CONECTANDO…' : 'CONNECTANT…'}</span></span></span>
+            : <span class="eyebrow">{es ? 'METEOCAT · EN DIRECTO' : 'METEOCAT · EN DIRECTE'}</span>}
+          <h2 class="h2">{es ? 'Ahora' : 'Ara'} {main ? p.a : es ? 'cerca' : 'a prop'}</h2>
+          {!main && <p class="sub" style="margin-top:8px;">{es ? `Las estaciones automáticas del Meteocat más cercanas${andorra ? ', en Cataluña' : ''}, con la distancia hasta ${p.a.replace(/^en /, '')}.` : `Les estacions automàtiques del Meteocat més properes${andorra ? ', a Catalunya' : ''}, amb la distància fins ${p.a}.`}</p>}
+        </div>
+        {main && <a href="/estacions" style="color:#7fd0ff;font-size:15px;">{es ? 'Todas las estaciones' : 'Totes les estacions'}</a>}
+      </div>
+      {main && <StationTable ids={p.stations} lang={lang} />}
+      {main && <h3 class="nx__title">{es ? 'Estaciones del Meteocat cerca' : 'Estacions del Meteocat a prop'}</h3>}
+      <NearbyXema lat={p.lat} lng={p.lng} n={main ? 3 : 6} km={andorra ? 35 : 30} lang={lang} />
+    </div>
+  </section>
+
+  {(mountain || fc) && (
+  <section class="phead phead--text">
+    <div class="wrap">
       {mountain && mtext.length > 0 && (
-        <div class="prose" style="margin-top:22px;font-size:17px;">
+        <div class="prose" style="font-size:17px;">
           {mtext.map((t) => <p>{t}</p>)}
         </div>
       )}
       {mountain && <div style="margin-top:22px;"><MountainNotice short road={road} lang={lang} /></div>}
       {(!mountain || mtext.length === 0) && fc && (
-        <div class="prose" style="margin-top:22px;font-size:17px;">
+        <div class="prose" style="font-size:17px;">
           {fc.slice(0, 2).map((d) => <p>{dayText(d)}</p>)}
         </div>
       )}
     </div>
   </section>
+  )}
 
   {p.ski && (
     <section class="sec" style="padding:64px 0;">
@@ -208,24 +234,6 @@ const skiFacts = p.ski
       </div>
     </section>
   )}
-
-  <section class="sec sec--dark" style="padding:64px 0;" id="ara">
-    <div class="wrap" style="position:relative;">
-      <div class="sec__head">
-        <div>
-          {main
-            ? <span class="eyebrow"><span class="live live--off" data-live-badge style="padding:6px 12px;"><span class="live__dot"><i></i><i></i></span><span data-live-text>{es ? 'CONECTANDO…' : 'CONNECTANT…'}</span></span></span>
-            : <span class="eyebrow">{es ? 'METEOCAT · EN DIRECTO' : 'METEOCAT · EN DIRECTE'}</span>}
-          <h2 class="h2">{es ? 'Ahora' : 'Ara'} {main ? p.a : es ? 'cerca' : 'a prop'}</h2>
-          {!main && <p class="sub" style="margin-top:8px;">{es ? `Las estaciones automáticas del Meteocat más cercanas${andorra ? ', en Cataluña' : ''}, con la distancia hasta ${p.a.replace(/^en /, '')}.` : `Les estacions automàtiques del Meteocat més properes${andorra ? ', a Catalunya' : ''}, amb la distància fins ${p.a}.`}</p>}
-        </div>
-        {main && <a href="/estacions" style="color:#7fd0ff;font-size:15px;">{es ? 'Todas las estaciones' : 'Totes les estacions'}</a>}
-      </div>
-      {main && <StationTable ids={p.stations} lang={lang} />}
-      {main && <h3 class="nx__title">{es ? 'Estaciones del Meteocat cerca' : 'Estacions del Meteocat a prop'}</h3>}
-      <NearbyXema lat={p.lat} lng={p.lng} n={main ? 3 : 6} km={andorra ? 35 : 30} lang={lang} />
-    </div>
-  </section>
 
   {(p.roads?.length > 0 || roadAreas.length > 0) && (
     <section class="sec sec--pale" style="padding:64px 0;">

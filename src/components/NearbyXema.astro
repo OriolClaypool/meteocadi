@@ -18,16 +18,16 @@ const es = lang === 'es';
   .nx__c { background: rgba(255, 255, 255, 0.04); border: 1px solid var(--a-line); border-radius: 14px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
   .nx__h { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
   .nx__n { font-family: var(--f-head); font-size: 17px; font-weight: 800; letter-spacing: -0.01em; color: #f1f5fb; line-height: 1.2; }
-  .nx__s { display: block; font-family: var(--f-mono); font-size: 11.5px; color: var(--a-mut); margin-top: 3px; }
-  .nx__t { font-family: var(--f-mono); font-size: 30px; font-weight: 600; line-height: 1; white-space: nowrap; }
-  .nx__v { display: flex; flex-wrap: wrap; gap: 4px 14px; font-family: var(--f-mono); font-size: 12.5px; color: var(--a-txt2); }
+  .nx__s { display: block; font-variant-numeric: tabular-nums; font-size: 12.5px; color: var(--a-mut); margin-top: 3px; }
+  .nx__t { font-size: 30px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; line-height: 1; white-space: nowrap; color: var(--a-txt); }
+  .nx__v { display: flex; flex-wrap: wrap; gap: 4px 14px; font-variant-numeric: tabular-nums; font-size: 13px; color: var(--a-txt2); }
   .nx__v b { color: #f1f5fb; font-weight: 600; }
   .nx__src { margin-top: 12px; font-size: 12.5px; color: var(--a-mut); }
   @media (max-width: 640px) { .nx .nx__c:nth-child(n + 5) { display: none; } }
 </style>
 
 <script>
-  import { tempColor, num, dirLabel, todayMadrid } from '../lib/format.js';
+  import { num, dirLabel, todayMadrid } from '../lib/format.js';
   const thousands = (v: number) => String(v).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   const km = (a: number, b: number, c: number, d: number) => {
     const R = 6371, rad = (x: number) => (x * Math.PI) / 180;
@@ -78,7 +78,7 @@ const es = lang === 'es';
         if (s.rain != null) v.push(`${L.rain} <b>${num(s.rain)}</b> mm`);
         if (snowSeason && s.snow != null && s.snow >= 1) v.push(`${L.snow} <b>${Math.round(s.snow)}</b> cm`);
         const dist = s.d < 1 ? (es ? 'a menos de 1 km' : "a menys d'1 km") : `${L.at} ${num(s.d, 1)} km`;
-        return `<div class="nx__c"><div class="nx__h"><div><span class="nx__n">${s.name}</span><span class="nx__s">${s.alt != null ? `${thousands(s.alt)} m · ` : ''}${dist}</span></div>${s.t != null ? `<span class="nx__t" style="color:${tempColor(s.t)}">${num(s.t)}°</span>` : ''}</div><div class="nx__v">${v.map((x) => `<span>${x}</span>`).join('')}</div></div>`;
+        return `<div class="nx__c"><div class="nx__h"><div><span class="nx__n">${s.name}</span><span class="nx__s">${s.alt != null ? `${thousands(s.alt)} m · ` : ''}${dist}</span></div>${s.t != null ? `<span class="nx__t">${num(s.t)}°</span>` : ''}</div><div class="nx__v">${v.map((x) => `<span>${x}</span>`).join('')}</div></div>`;
       })
       .join('');
   });

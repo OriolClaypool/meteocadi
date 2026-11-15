@@ -361,6 +361,11 @@ button { font: inherit; }
 .phead h1 { font-size: clamp(38px, 5vw, 64px); font-weight: 800; letter-spacing: -0.035em; line-height: 1; }
 .phead h1 em { font-style: normal; color: var(--accent); }
 .phead p { font-size: 19px; color: var(--ink2); max-width: 760px; margin-top: 18px; }
+/* A les pàgines de cada lloc la capçalera va en dues parts, amb les lectures d'ara al mig: títol a dalt i text de la previsió després */
+.phead:has(+ #ara) { padding-bottom: 36px; }
+.phead--text { padding: 48px 0 56px; }
+.phead--text .prose > :first-child { margin-top: 0; }
+.phead--text .wrap > * + * { margin-top: 22px; }
 .crumbs { display: flex; flex-wrap: wrap; gap: 8px; font-size: 14px; color: var(--muted); margin-bottom: 18px; }
 .crumbs a { color: var(--muted); }
 .crumbs a:hover { color: var(--blue); }
