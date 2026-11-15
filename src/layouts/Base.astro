@@ -121,10 +121,15 @@ const graph = [
   </head>
   <body>
     <div class="strip" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
-    {!bare && <Header variant={header} current={current} lang={lang} alt={altPath} />}
-    <main>
-      <slot />
-    </main>
+    <!-- A dalt de tot, abans de la capçalera (la franja de Meteocadí Neu de la portada, de novembre a abril) -->
+    <slot name="top" />
+    <!-- La capçalera de la portada va sobre la foto (hdr--overlay, absoluta): es col·loca respecte d'aquest bloc -->
+    <div class="pg">
+      {!bare && <Header variant={header} current={current} lang={lang} alt={altPath} />}
+      <main>
+        <slot />
+      </main>
+    </div>
     {!bare && <Footer lang={lang} />}
     <script>
       // Pausa les animacions de les seccions que no es veuen (menys feina mentre es desplaça la pàgina)

@@ -1,6 +1,8 @@
 ---
 // Portada, de novembre a abril: una sola franja cap a Meteocadí Neu (/neu) amb la frase del dia (el parte de Neu o, sense
 // neu enlloc, la primera nevada prevista). Al build es pinta amb la previsió d'aquell moment; el navegador la refà amb /api/neu.
+// Va a dalt de tot de la portada (slot "top" de Base.astro), abans de la capçalera: fins al 15/11/2026 anava sota la
+// foto i la cinta, a la segona pantalla del mòbil.
 import { NEU, lleugera } from '../lib/neu/estacions.js';
 import { previsioBuild } from '../lib/neu/build.js';
 import { groupsOf, neuSentence } from '../lib/neu/neu.js';
@@ -14,43 +16,46 @@ const ARROW = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" strok
 ---
 <a class="neustrip" href="/neu" data-neustrip={JSON.stringify({ resorts: lite })}>
   <div class="wrap">
-    <b>METEOCADÍ NEU</b>
+    <b>Meteocadí Neu</b>
     <span data-neustrip-t>{text || "Previsió de neu, cota de neu i vent a les estacions d'esquí del Pirineu."}</span>
-    <u>Veure la neu <Fragment set:html={ARROW} /></u>
+    <u><span>Veure la neu</span> <Fragment set:html={ARROW} /></u>
   </div>
 </a>
 
 <style is:global>
   .neustrip { display: block; background: #0b2a3f; color: #fff; text-decoration: none; border-bottom: 1px solid rgba(255,255,255,.12); }
   .neustrip .wrap { display: flex; align-items: center; gap: 14px; padding-top: 12px; padding-bottom: 12px; font-size: 15px; line-height: 1.35; }
-  .neustrip b { flex: none; font: 600 12px/1 var(--mono, 'Geist Mono', monospace); letter-spacing: .08em; color: #7fd0ff; }
-  .neustrip span { flex: 1; min-width: 0; }
+  .neustrip b { flex: none; font-weight: 700; color: #7fd0ff; }
+  .neustrip .wrap > span { flex: 1; min-width: 0; }
   .neustrip u { flex: none; display: inline-flex; align-items: center; gap: 6px; text-decoration: none; color: #7fd0ff; font-weight: 600; white-space: nowrap; }
   .neustrip:hover u { color: #fff; }
+  /* Al mòbil: el nom i la frase a l'esquerra i només la fletxa a la dreta (tres línies com a molt) */
   @media (max-width: 640px) {
-    .neustrip .wrap { flex-wrap: wrap; gap: 4px 12px; padding-top: 10px; padding-bottom: 10px; font-size: 14px; }
-    .neustrip b { width: 100%; }
-    .neustrip span { flex: 1 1 100%; }
+    .neustrip .wrap { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 12px; padding-top: 9px; padding-bottom: 9px; font-size: 14px; }
+    .neustrip b { grid-column: 1; font-size: 13px; }
+    .neustrip .wrap > span { grid-column: 1; }
+    .neustrip u { grid-column: 2; grid-row: 1 / span 2; }
+    .neustrip u span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   }
 </style>
 
 <script>
-  import { groupsOf, neuSentence } from '../lib/neu/neu.js';
+  import { groupsOf, neuSentence, usefulSensors } from '../lib/neu/neu.js';
   import { todayMadrid } from '../lib/format.js';
   const a = document.querySelector<HTMLElement>('[data-neustrip]');
   const t = a?.querySelector<HTMLElement>('[data-neustrip-t]');
   if (a && t) {
     const { resorts } = JSON.parse(a.dataset.neustrip || '{}');
-    const paint = () =>
-      fetch('/api/neu')
-        .then((r) => (r.ok ? r.json() : null))
-        .then((fc) => {
-          if (!fc?.resorts || !Object.keys(fc.resorts).length) return;
-          const g = groupsOf(resorts, fc);
-          const s = g ? neuSentence(g, todayMadrid()) : '';
-          if (s) t.textContent = s;
-        })
-        .catch(() => {});
+    const get = (u: string) => fetch(u).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+    // La previsió i, si arriben, els sensors de neu mesurada útils per a alguna estació (com a /neu)
+    const paint = async () => {
+      const [fc, me] = await Promise.all([get('/api/neu'), get('/api/neu/mesurada')]);
+      if (!fc?.resorts || !Object.keys(fc.resorts).length) return;
+      const g = groupsOf(resorts, fc);
+      const stations = me?.stations && !me.error ? usefulSensors(resorts, me.stations) : null;
+      const s = g ? neuSentence(g, todayMadrid(), stations) : '';
+      if (s) t.textContent = s;
+    };
     paint();
     setInterval(paint, 30 * 60 * 1000);
   }

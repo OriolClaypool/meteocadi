@@ -1,5 +1,6 @@
 // Radar de precipitació: la composició europea d'OPERA (EUMETNET), dades obertes amb llicència CC BY 4.0, al dipòsit
-// públic s3.waw3-1.cloudferro.com/openradar-24h (les darreres 24 hores). Reflectivitat màxima (DBZH, producció
+// públic s3.waw3-1.cloudferro.com/openradar-24h (les darreres 24 hores) o, quan aquest falla, al de reserva
+// (vegeu SOURCES). Reflectivitat màxima (DBZH, producció
 // "CIRRUS"): 1 km, una imatge cada 5 minuts que arriba uns 4 o 5 minuts després i ja no canvia. Hi entren els radars
 // d'AEMET, de Météo-France i dels altres serveis europeus (els que hagin arribat a temps a cada imatge).
 //
@@ -23,7 +24,18 @@ import { mercGrid, maskOf } from './_merc.js';
 const require = createRequire(import.meta.url);
 const CONTORN = require('../src/lib/catalunya-contorn.json');
 
-const S3 = 'https://s3.waw3-1.cloudferro.com/openradar-24h';
+// Dipòsits, per ordre: el principal i el de reserva que EUMETNET engega quan el principal falla (documentació de
+// l'Open Radar Data, «ORD Backup»). L'11/11/2026 el principal es va quedar buit (un problema del seu proveïdor) i
+// les composicions van continuar arribant, amb els mateixos noms, al de reserva: el radar va estar quatre dies caigut
+// perquè només es mirava el primer. `good` recorda l'últim que ha respost bé en aquesta instància.
+export const SOURCES = [
+  'https://s3.waw3-1.cloudferro.com/openradar-24h',
+  'https://object-store.os-api.cci1.ecmwf.int/openradar-24h-backup',
+];
+let good = 0;
+const order = () => [good, ...SOURCES.keys()].filter((v, i, a) => a.indexOf(v) === i);
+export const _source = () => good;
+export const _setSource = (i) => { good = i; };
 const NX = 3800, NY = 4400, PX = 1000;
 const NODATA = -9999000;
 
@@ -111,13 +123,36 @@ const pad = (n) => String(n).padStart(2, '0');
 export const stamp = (d) => `${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}${pad(d.getUTCDate())}${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}`;
 export const fromStamp = (t) => new Date(Date.UTC(+t.slice(0, 4), +t.slice(4, 6) - 1, +t.slice(6, 8), +t.slice(8, 10), +t.slice(10, 12)));
 const dayDir = (t) => `${t.slice(0, 4)}/${t.slice(4, 6)}/${t.slice(6, 8)}/OPERA/COMP/`;
-export const fileUrl = (t, prod = 'DBZH') => `${S3}/${dayDir(t)}OPERA@${t.slice(0, 8)}T${t.slice(8, 12)}@0@${prod}.tiff`;
+export const fileUrl = (t, prod = 'DBZH', src = good) => `${SOURCES[src]}/${dayDir(t)}OPERA@${t.slice(0, 8)}T${t.slice(8, 12)}@0@${prod}.tiff`;
 
 // Imatges DBZH disponibles a partir de 'since' (Date), de la més antiga a la més nova ('AAAAMMDDHHMM')
 export const listFrames = (since, now = new Date()) => listProduct('DBZH', since, now);
 // El mateix per a qualsevol producte de la composició (DBZH, RATE, ACRR). Una llista per dia UTC (tots els dies entre
 // since i now: una finestra de 26 hores pot tocar-ne tres) i, si n'hi ha més de 1.000, per pàgines
 export async function listProduct(prod, since, now = new Date()) {
+  // El dipòsit amb la imatge més nova. Si l'últim que anava bé en té una de recent (menys de 40 minuts abans de
+  // 'now'), no es mira l'altre; si és buit o s'ha quedat aturat, sí (el de reserva deixa de rebre imatges quan el
+  // principal torna)
+  let best = null, err = null;
+  for (const src of order()) {
+    let all;
+    try {
+      all = await listFrom(src, prod, since, now);
+    } catch (e) {
+      err = err || e;
+      continue;
+    }
+    if (all.length && (!best || all.at(-1) > best.all.at(-1))) best = { src, all };
+    if (best && now.getTime() - fromStamp(best.all.at(-1)).getTime() < 40 * 60e3) break;
+  }
+  if (best) {
+    good = best.src;
+    return best.all;
+  }
+  if (err) throw err;
+  return [];
+}
+async function listFrom(src, prod, since, now) {
   const days = [];
   for (let d = Date.UTC(since.getUTCFullYear(), since.getUTCMonth(), since.getUTCDate()); d <= now.getTime(); d += 864e5) days.push(stamp(new Date(d)).slice(0, 8));
   const re = new RegExp(`<Key>[^<]*OPERA@(\\d{8})T(\\d{4})@0@${prod}\\.tiff</Key>`, 'g');
@@ -129,7 +164,7 @@ export async function listProduct(prod, since, now = new Date()) {
       let token = null;
       for (let page = 0; page < 5; page++) {
         const qs = new URLSearchParams({ 'list-type': '2', prefix, 'max-keys': '1000', ...(token ? { 'continuation-token': token } : { 'start-after': after }) });
-        const r = await fetch(`${S3}?${qs}`, { signal: AbortSignal.timeout(8000) });
+        const r = await fetch(`${SOURCES[src]}?${qs}`, { signal: AbortSignal.timeout(8000) });
         if (!r.ok) throw new Error(`llista ${day}: HTTP ${r.status}`);
         const xml = await r.text();
         for (const m of xml.matchAll(re)) out.push(m[1] + m[2]);
@@ -143,21 +178,35 @@ export async function listProduct(prod, since, now = new Date()) {
   return [...new Set(lists.flat())].sort();
 }
 
+// Obre un fitxer de la composició (COG) al primer dipòsit que el té: la imatge de geotiff, o null si no és enlloc.
+// Una imatge la pot demanar una instància que no ha fet mai la llista: per això es prova cada dipòsit
+export async function openImage(t, prod = 'DBZH') {
+  let err = null, missing = 0;
+  const srcs = order();
+  for (const src of srcs) {
+    const url = fileUrl(t, prod, src);
+    try {
+      const img = await (await fromUrl(url)).getImage(0);
+      good = src;
+      return img;
+    } catch (e) {
+      // Error genèric de geotiff: es mira si és que el fitxer no hi és
+      const h = await fetch(url, { method: 'HEAD', signal: AbortSignal.timeout(5000) }).catch(() => null);
+      if (h && (h.status === 404 || h.status === 403)) missing++;
+      else err = err || e;
+    }
+  }
+  if (missing === srcs.length) return null;
+  throw err;
+}
+
 // Una imatge del radar ('AAAAMMDDHHMM') → { png, cover, rain, max, nodes } o null si el fitxer no hi és
 // cover: part de Catalunya que veuen els radars (0-1); rain: part de Catalunya amb eco (≥ 10 dBZ); max: dBZ màxim a
 // Catalunya (o null)
 // Llegeix la finestra [c0, r0, c1, r1] de la banda de dBZ: { data (Float32Array), nodes } o null si no hi és
 async function readCog(t, win) {
-  let img;
-  try {
-    const tif = await fromUrl(fileUrl(t));
-    img = await tif.getImage(0);
-  } catch (e) {
-    // Error genèric de geotiff: es mira si és que el fitxer no hi és
-    const h = await fetch(fileUrl(t), { method: 'HEAD', signal: AbortSignal.timeout(5000) }).catch(() => null);
-    if (h && (h.status === 404 || h.status === 403)) return null;
-    throw e;
-  }
+  const img = await openImage(t);
+  if (!img) return null;
   if (img.getWidth() !== NX || img.getHeight() !== NY) throw new Error(`graella inesperada: ${img.getWidth()} × ${img.getHeight()}`);
   const [data] = await img.readRasters({ window: win, samples: [0] });
   const meta = img.getGDALMetadata?.() || {};

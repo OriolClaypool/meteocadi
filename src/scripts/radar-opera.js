@@ -128,7 +128,10 @@ export function startRadarPage() {
       ix = r.ok ? await r.json() : null;
     } catch {}
     if (!ix?.frames?.length) {
-      $('rpStatus').textContent = "No s'ha pogut carregar el radar. Torna-ho a provar d'aquí a una estona.";
+      // Sense imatges: es diu a dalt (on hi havia «Carregant el radar…») i es torna a provar tot sol (refresh)
+      $('rpTime').textContent = 'El radar no respon ara mateix';
+      $('rpAge').textContent = '';
+      $('rpStatus').textContent = "No s'han pogut carregar les imatges del radar. La pàgina ho torna a provar cada dos minuts.";
       return;
     }
     st.index = ix;
@@ -158,7 +161,9 @@ export function startRadarPage() {
 
   // Imatges noves: es torna a demanar la llista (a la CDN, 1 minut) i s'hi afegeixen les que faltin
   async function refresh() {
-    if (document.hidden || !st.index) return;
+    if (document.hidden) return;
+    // Si la primera càrrega va fallar, es torna a començar
+    if (!st.index) return loadAll();
     let ix = null;
     try {
       const r = await fetch('/api/capes/radar');

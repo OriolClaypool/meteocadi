@@ -36,6 +36,8 @@ const contours = [...Array(10).keys()].map((j) => `translate(1180 260) rotate(${
   header="overlay"
   preload="/imatges/portada-1600.webp"
 >
+  {/* De novembre a abril, la franja de Meteocadí Neu a dalt de tot, abans de la capçalera */}
+  {neuMonths && <SkiHome slot="top" />}
   <section class="hero">
     <picture class="hero__img">
       <source media="(max-width: 640px)" srcset="/imatges/portada-mobil-800.webp" type="image/webp" />
@@ -114,8 +116,6 @@ const contours = [...Array(10).keys()].map((j) => `translate(1180 260) rotate(${
       </div>
     </div>
   </div>
-
-  {neuMonths && <SkiHome />}
 
   {recent && (
     <a class={`epstrip ep--${recent.type}`} href={`/episodis/${recent.slug}`}>

@@ -238,8 +238,9 @@ a.nv-dchip:hover { border-color: #3a5a86; }
 .nv-dchip svg { margin-left: 6px; }
 .nv-prof { display: block; width: 100%; height: auto; margin-top: 14px; font-family: var(--f-ui); }
 .nv-prof__pill { font-size: 11px; font-weight: 600; }
-.nv-prof__lab { font-size: 12px; font-weight: 700; fill: #fff; }
-.nv-prof__sub { font-size: 11px; fill: var(--ice2); }
+/* Vora del color del fons: la línia de la isoterma o de la cota de neu no ratlla el text quan hi passa per sota */
+.nv-prof__lab { font-size: 12px; font-weight: 700; fill: #fff; paint-order: stroke; stroke: #0b1a2c; stroke-width: 7px; stroke-linejoin: round; }
+.nv-prof__sub { font-size: 11px; fill: var(--ice2); paint-order: stroke; stroke: #0b1a2c; stroke-width: 7px; stroke-linejoin: round; }
 .nv-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
 .nv-fact { padding: 12px; border-radius: 14px; background: var(--night2); border: 1px solid var(--nline); min-width: 0; }
 .nv-fact__k { font-size: 12px; color: var(--ice2); }
@@ -418,3 +419,60 @@ a.nv-dchip:hover { border-color: #3a5a86; }
   .nv-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .nv-chart { max-width: 560px; margin: 0 auto; }
 }
+
+/* ---------- primera pantalla de /neu: la frase, els dies i les cinc millors estacions (text normal, xifres en negreta) ---------- */
+.nv-hero .nv-h1 { margin-top: 4px !important; font-size: 24px; font-weight: 700; line-height: 1.22 !important; letter-spacing: -0.01em !important; }
+.nv-sign { margin-top: 6px !important; font-size: 14px; color: var(--ice2); }
+.nv-hero .nv-lead { margin-top: 6px !important; font-size: 14px; }
+.nv-hero .nv-ctl { margin-top: 4px; }
+.nv-hero .nv-chips { margin-top: 12px; }
+.nv-hero .nv-chip { height: 40px; padding: 0 14px; border-color: var(--nline); background: transparent; color: var(--ice2); font-weight: 500; }
+.nv-hero .nv-chip[aria-pressed='true'] { background: #fff; border-color: #fff; color: var(--ink); font-weight: 600; }
+.nv-t5 { margin-top: 12px; }
+.nv-t5__l { list-style: none; margin: 0; padding: 0; background: #fff; border-radius: 14px; overflow: hidden; }
+.nv-t5__l li + li { border-top: 1px solid var(--line2); }
+.nv-t5__r { display: grid; grid-template-columns: minmax(0, 1fr) auto auto 26px; align-items: center; gap: 10px; min-height: 52px; padding: 6px 12px; color: var(--ink) !important; text-decoration: none; font-size: 14px; }
+.nv-t5__r:hover { background: #f6f9fc; }
+.nv-t5__name { font-size: 16px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nv-t5__n { min-width: 40px; padding: 5px 6px; border-radius: 10px; text-align: center; font-size: 16px; font-weight: 700; line-height: 1; }
+.nv-t5__v { color: var(--ink2); font-size: 13px; white-space: nowrap; text-align: right; }
+.nv-t5__v b { color: var(--ink); font-size: 16px; font-weight: 700; }
+.nv-t5__ic { display: inline-flex; justify-content: center; color: var(--ink2); }
+.nv-t5__none { padding: 16px; border-radius: 14px; background: #fff; color: var(--ink); font-size: 16px; line-height: 1.4; }
+.nv-t5__all { display: flex; align-items: center; justify-content: center; height: 48px; margin-top: 10px; border-radius: 12px; background: var(--ice); color: var(--ink) !important; font-size: 16px; font-weight: 600; text-decoration: none; }
+.nv-t5__all:hover { background: #a9dcff; }
+.nv-upd { margin-top: 8px !important; font-size: 12px; color: var(--ice3); min-height: 1em; }
+@media (max-width: 400px) { .nv-t5__r { gap: 8px; padding: 6px 10px; } .nv-t5__v { font-size: 12px; } }
+.nv-cardsec { padding: 12px; border-radius: 18px; background: var(--night); }
+.nv-cardsec .nv-cards { margin-top: 0; }
+.nv-foot__soc { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 14px; }
+.nv-foot__soc a, .nv-foot__soc button { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 14px; border: 1px solid #c9d3df; border-radius: 999px; background: #fff; color: var(--ink) !important; font: 600 14px var(--f-ui); text-decoration: none; cursor: pointer; position: relative; }
+.nv-foot__soc .nv-share__ok { top: -34px; right: auto; left: 0; }
+
+/* ---------- obertures (temporada.js): abans que l'estació obri no hi ha nota ---------- */
+.nv-pre { margin-top: 8px !important; font-size: 14px; }
+.nv-pre a { display: inline-block; padding: 7px 12px; border-radius: 10px; background: var(--night2); box-shadow: inset 0 0 0 1px var(--nline); color: #fff !important; font-weight: 600; text-decoration: none; }
+.nv-pre a:hover { box-shadow: inset 0 0 0 1px #3a5a86; }
+.nv-open { margin-top: 10px !important; font-size: 14px; color: var(--ice2); }
+.nv-open b { color: #ffd08a; font-weight: 700; }
+.nv-ob { padding: 4px 16px 12px; }
+.nv-ob__l { list-style: none; margin: 0; padding: 0; }
+.nv-ob__r { padding: 12px 0; border-bottom: 1px solid var(--line2); }
+.nv-ob__d { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.nv-ob__d b { font-family: var(--f-head); font-size: 16px; }
+.nv-ob__d span { flex: none; font-size: 13px; font-weight: 600; color: var(--acc); }
+.nv .nv-ob__n { margin-top: 4px; font-size: 15px; line-height: 1.5; }
+.nv-ob__n a { font-weight: 600; text-decoration: none; }
+.nv-ob__n a:hover { text-decoration: underline; }
+.nv .nv-ob__s { margin-top: 4px; font-size: 13px; color: var(--ink2); }
+.nv .nv-ob__f { margin-top: 10px; font-size: 12px; color: var(--muted); }
+.nv-nota--closed { min-width: 0; padding: 7px 10px; }
+.nv-nota--closed small { margin: 0; font-size: 11px; }
+.nv-nota--closed.is-big { min-width: 0; padding: 9px 12px; }
+.nv-nota--closed.is-big small { font-size: 12px; }
+.nv-rk.is-closed .nv-row__name { color: var(--ink2); }
+.nv-rk.is-closed .nv-rk__pos { color: var(--obs); }
+.nv .nv-verd__closed { display: flex; gap: 8px; align-items: flex-start; margin-top: 10px; padding: 9px 12px; border-radius: 10px; background: var(--warn-bg); color: var(--warn); font-size: 14px; font-weight: 600; }
+.nv-verd__closed svg { flex: none; margin-top: 2px; }
+.nv-tdlv.is-closed { font-weight: 600; font-size: 12px; color: var(--muted); }
+.nv-pin.is-closed .nv-pin__lab span { color: var(--muted); }

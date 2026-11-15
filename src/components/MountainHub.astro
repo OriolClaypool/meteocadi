@@ -132,8 +132,11 @@ const ld = [
     document.querySelectorAll<HTMLElement>('[data-mh]').forEach((card) => {
       const d = j.stations?.[card.dataset.mh || ''];
       const f = (k: string) => card.querySelector<HTMLElement>(`[data-mh-f="${k}"]`);
+      // Sense dades: la targeta es fa petita i passa al final (abans, "Sense dades" a 44 px era el primer que es veia)
+      card.classList.toggle('is-off', !d || !!d.stale);
       if (!d || d.stale) {
-        f('temp')!.textContent = t(LANG).noData;
+        f('temp')!.textContent = d?.down ? t(LANG).outOfService : t(LANG).noDataNow;
+        f('temp')!.style.color = '';
         return;
       }
       const feels = d.temp != null && d.temp < 10 ? d.windchill : d.heatindex;

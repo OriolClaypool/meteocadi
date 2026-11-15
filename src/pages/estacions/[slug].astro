@@ -18,7 +18,10 @@ const clim = stationClimate(s.id).filter((c) => c.avgHigh != null || c.rain != n
 // Anys amb almenys un mes complet de cada mes de l'any: amb un sol any, la taula és la d'aquell any
 const climYears = clim.length ? Math.max(...clim.map((c) => c.n)) : 0;
 const dm = (iso) => `${Number(iso.slice(8))}/${Number(iso.slice(5, 7))}/${iso.slice(0, 4)}`;
-const places = PLACES.filter((p) => p.stations.includes(s.id));
+// Llocs que tenen aquesta estació de referència: primer el del mateix nom i els que la tenen com a principal; a la introducció, tres
+// (fins al 15/11/2026 hi sortien tots, vuit al Pedraforca, enganxats amb «i»: «a el temps a Gósol i el temps a…»)
+const rank = (p) => (p.slug === s.slug ? 0 : p.stations[0] === s.id ? 1 : 2);
+const places = PLACES.filter((p) => p.stations.includes(s.id)).sort((a, b) => rank(a) - rank(b)).slice(0, 3);
 const near = STATIONS.filter((x) => x.id !== s.id)
   .map((x) => ({ x, d: Math.hypot(x.lat - s.lat, (x.lng - s.lng) * 0.74) }))
   .sort((a, b) => a.d - b.d)
@@ -55,7 +58,7 @@ const VARS = [
       <nav class="crumbs" aria-label="Ruta"><a href="/">Inici</a><span>›</span><a href="/estacions">Estacions</a><span>›</span><span>{s.name}</span></nav>
       <h1>{s.name}</h1>
       <p>Estació meteorològica a <strong>{fmtAlt(s.alt)}</strong> d'altitud · {s.loc} ({s.comarca}) · {GROUPS[s.group].title}.
-        {places.length > 0 && <> Previsió i context del lloc a {places.map((p, i) => <>{i > 0 && ' i '}<a href={`/temps/${p.slug}`}>el temps {p.a}</a></>)}.</>}
+        {places.length > 0 && <> La previsió i el context del lloc: {places.map((p, i) => <>{i > 0 && (i === places.length - 1 ? ' i ' : ', ')}<a href={`/temps/${p.slug}`}>el temps {p.a}</a></>)}.</>}
       </p>
     </div>
   </section>
