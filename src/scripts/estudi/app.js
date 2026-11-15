@@ -6,8 +6,11 @@ import { todayMadrid, hourMadrid, dayMonth, parseDay } from '../../lib/format.js
 import { archiveFor } from '../arxiu-dades.js';
 import { periodRows } from './periode.js';
 import {
-  loadFonts, loadIcons, drawResum, drawRanking, drawRankingWide, WIDE, POST, drawPrevisio, layoutPrevisio, rankSentence, capFirst, WEATHER, PHENOMENA,
+  loadFonts, loadIcons, drawResum, drawRanking, drawRankingWide, drawNeu, WIDE, POST, drawPrevisio, layoutPrevisio, rankSentence, capFirst, WEATHER, PHENOMENA,
 } from './draw.js';
+import { NEU, lleugera } from '../../lib/neu/estacions.js';
+import { groupsOf, mostSnow, snowFill, thousands } from '../../lib/neu/neu.js';
+import { obertures, isOpen, diaLlarg, diaMes, elDia, falten, TEMPORADA, REVISAT } from '../../lib/neu/temporada.js';
 
 const $ = (id) => document.getElementById(id);
 const store = {
@@ -15,6 +18,7 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); return true; } catch { return false; } },
 };
 const K_TAB = 'meteocadi-estudi-tab';
+const K_NEU = 'meteocadi-estudi-neu';
 const K_NET = 'meteocadi-estudi-xarxa';
 const K_FMT = 'meteocadi-estudi-format';
 const K_PV = 'meteocadi-estudi-previsio-v1';
@@ -52,7 +56,7 @@ export async function startEstudi() {
   let icons = {};
   let ready = false;
   // La plantilla: la de l'enllaç (/estudi#resum, des del mapa) o la darrera que s'ha fet servir
-  const TPLS = ['previsio', 'resum', 'ranquing'];
+  const TPLS = ['previsio', 'resum', 'ranquing', 'neu'];
   const fromHash = location.hash.slice(1);
   let tpl = TPLS.includes(fromHash) ? fromHash : TPLS.includes(store.get(K_TAB)) ? store.get(K_TAB) : 'previsio';
   if (fromHash) history.replaceState(null, '', location.pathname);
@@ -297,7 +301,7 @@ export async function startEstudi() {
   let lastData = null;
   // Mida del canvas segons la plantilla i el format
   function size() {
-    const f = tpl === 'ranquing' ? rankFmt : 'story';
+    const f = tpl === 'ranquing' ? rankFmt : tpl === 'neu' ? neuFmt : 'story';
     const [w, h] = f === 'wide' ? [WIDE.W, WIDE.H] : f === 'post' ? [POST.W, POST.H] : [1080, 1920];
     if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
     canvas.parentElement.classList.toggle('is-wide', f === 'wide');
@@ -322,6 +326,23 @@ export async function startEstudi() {
       $('nextPage').disabled = page === n - 1;
       $('status').textContent = pvLayout.error || (n > 1 ? `El text no hi cap en una imatge: surt en ${n}. Descarrega-les una a una.` : pv.sample ? 'Text de mostra: escriu la previsió del dia.' : '');
       $('download').disabled = !!pvLayout.error;
+      return;
+    }
+    if (tpl === 'neu') {
+      let n;
+      try {
+        n = await neuData();
+      } catch {
+        if (seq !== drawSeq) return;
+        $('status').textContent = "No s'ha pogut carregar la previsió de neu. Torna-ho a provar d'aquí a una estona.";
+        $('download').disabled = true;
+        return;
+      }
+      if (seq !== drawSeq) return;
+      drawNeu(ctx, n);
+      $('neuNote').textContent = n.note || '';
+      $('download').disabled = false;
+      lastData = { date: todayMadrid() };
       return;
     }
     let d;
@@ -355,6 +376,72 @@ export async function startEstudi() {
     }
     lastData = d;
   }
+
+  // ------------------------------------------------------------------ neu
+  // Neu nova prevista al cim de cada estació d'esquí (les deu primeres) o les dates d'obertura de la temporada
+  let neuKind = ['n3', 'n7', 'ob'].includes(store.get(K_NEU)) ? store.get(K_NEU) : 'n3';
+  let neuFmt = 'story';
+  let neuFc = null;
+  const iLlista = (a) => (a.length > 1 ? `${a.slice(0, -1).join(', ')} i ${a[a.length - 1]}` : a[0] || '');
+  const majus = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+  async function neuData() {
+    const today = todayMadrid();
+    const lite = NEU.map(lleugera);
+    if (neuKind === 'ob') {
+      const gs = obertures(lite, today);
+      return {
+        kind: 'obertures', fmt: neuFmt,
+        caption: [`TEMPORADA ${TEMPORADA}`, ' · DATES ANUNCIADES PER LES ESTACIONS'],
+        groups: gs.map((g) => ({ date: g.date, title: g.date ? majus(diaLlarg(g.date)) : 'Sense data anunciada', when: g.date ? falten(g.date, today) : '', names: iLlista(g.items.map((r) => r.short || r.name)) })),
+        credit: `Dates anunciades per les estacions, si la neu ho permet. Revisades ${elDia(REVISAT)}.`,
+        note: gs.length ? '' : 'Ja no queda cap estació amb data per obrir.',
+      };
+    }
+    if (!neuFc) {
+      const r = await fetch('/api/neu');
+      if (!r.ok) throw new Error('neu');
+      neuFc = await r.json();
+    }
+    const days = neuKind === 'n7' ? 7 : 3;
+    const groups = groupsOf(lite, neuFc);
+    if (!groups) throw new Error('neu');
+    const ms = mostSnow(groups, today, days);
+    const rows = [...ms.all]
+      .sort((a, b) => Math.round(b.cm) - Math.round(a.cm) || b.g.resort.top - a.g.resort.top)
+      .slice(0, 10)
+      .map(({ g, cm }) => {
+        const r = g.resort;
+        return { name: r.name, sub: `${r.zone} · ${thousands(r.top)} m${!isOpen(r, today) && r.obre ? ` · obre ${elDia(r.obre)}` : ''}`, cm, color: snowFill(Math.max(1, cm)) };
+      });
+    const end = ms.end || today;
+    return {
+      kind: 'nevada', fmt: neuFmt, days,
+      caption: ['PREVISIÓ AL CIM DE CADA ESTACIÓ', ` · DEL ${diaMes(today).toLocaleUpperCase('ca')} AL ${diaMes(end).toLocaleUpperCase('ca')}`],
+      rows,
+      credit: 'Previsió: Open-Meteo. Neu nova prevista al cim de cada estació d\'esquí.',
+      note: rows.some((r) => Math.round(r.cm) > 0) ? '' : "El model no preveu neu nova a cap estació en aquests dies: potser val més la imatge de les obertures.",
+    };
+  }
+  document.querySelectorAll('[data-nkind]').forEach((b) =>
+    b.addEventListener('click', () => {
+      neuKind = b.dataset.nkind;
+      store.set(K_NEU, neuKind);
+      paintNeu();
+      draw();
+    }),
+  );
+  document.querySelectorAll('[data-nfmt]').forEach((b) =>
+    b.addEventListener('click', () => {
+      neuFmt = b.dataset.nfmt;
+      paintNeu();
+      draw();
+    }),
+  );
+  function paintNeu() {
+    document.querySelectorAll('[data-nkind]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.nkind === neuKind)));
+    document.querySelectorAll('[data-nfmt]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.nfmt === neuFmt)));
+  }
+  paintNeu();
 
   // ------------------------------------------------------------------ plantilles i vista
   function syncTpl() {
@@ -702,6 +789,7 @@ export async function startEstudi() {
     if (tpl === 'previsio') return `meteocadi-previsio-${n(pv.date)}${pvLayout?.pages.length > 1 ? `-${page + 1}` : ''}.png`;
     const date = lastData?.date || todayMadrid();
     if (tpl === 'resum') return `meteocadi-resum-${n(date)}.png`;
+    if (tpl === 'neu') return `meteocadi-neu-${neuKind === 'ob' ? 'obertures' : neuKind === 'n7' ? '7dies' : '3dies'}-${n(date)}.png`;
     const cat = lastData?.net === 'cat';
     if (lastData?.kind === 'range') return `meteocadi-ranquing-${cat ? 'catalunya-' : ''}${rankVar}-${n(lastData.from)}-${n(lastData.to)}${lastData.time ? `-${lastData.time.replace(':', '')}` : ''}${rankFmt === 'wide' ? '-horitzontal' : rankFmt === 'post' ? '-4x5' : ''}.png`;
     return `meteocadi-ranquing-${cat ? 'catalunya-' : ''}${rankVar}-${n(date)}${cat && lastData.kind === '24h' ? `-24h-${lastData.time.replace(':', '')}` : isAra() && lastData.time ? `-${lastData.time.replace(':', '')}` : ''}${rankFmt === 'wide' ? '-horitzontal' : rankFmt === 'post' ? '-4x5' : ''}.png`;
