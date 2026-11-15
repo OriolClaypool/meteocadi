@@ -13,9 +13,8 @@ const CARDS = [
 <section class="sec cat-ara" id="catalunya">
   <div class="wrap cat-ara__in">
     <div class="cat-ara__txt">
-      <span class="eyebrow" style="color:var(--muted);">MAPA · EN DIRECTE</span>
-      <h2 class="h2">Catalunya, <em>ara</em></h2>
-      <p class="sub">La temperatura a totes les estacions automàtiques del Servei Meteorològic de Catalunya i de la xarxa Meteocadí. Al mapa complet hi ha també les màximes i les mínimes, la pluja, el vent i la humitat.</p>
+      <h2 class="h2">Catalunya, ara</h2>
+      <p class="sec__lead">La temperatura a totes les estacions automàtiques del Servei Meteorològic de Catalunya i de la xarxa Meteocadí.</p>
       <div class="cat-ara__ext" data-cat-ext>
         {CARDS.map((c) => (
           <div class="cat-ara__c" data-k={c.k}>
@@ -25,7 +24,8 @@ const CARDS = [
           </div>
         ))}
       </div>
-      <a class="btn btn--blue" href="/mapa/catalunya" style="margin-top:26px;">Obre el mapa de Catalunya <Fragment set:html={ARROW} /></a>
+      <p class="sec__lead cat-ara__more">Al mapa complet hi ha també les màximes i les mínimes, la pluja, el vent i la humitat.</p>
+      <a class="btn btn--blue" href="/mapa/catalunya" style="margin-top:14px;">Obre el mapa de Catalunya <Fragment set:html={ARROW} /></a>
     </div>
     <a class="cat-ara__map" href="/mapa/catalunya" aria-label="Mapa de la temperatura a Catalunya ara">
       <canvas data-cat-map width="620" height="600" aria-hidden="true"></canvas>
@@ -38,16 +38,17 @@ const CARDS = [
 <style is:global>
   .cat-ara { padding: 96px 0; }
   .cat-ara__in { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); gap: 48px; align-items: center; }
-  .cat-ara__txt .sub { margin-top: 12px; max-width: 540px; }
+  .cat-ara__txt .sec__lead { margin-top: 10px; max-width: 540px; }
+  .cat-ara__txt .cat-ara__more { margin-top: 22px; }
   .cat-ara__ext { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 26px; }
   .cat-ara__c { background: var(--pale); border-radius: 14px; padding: 14px 16px; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-  .cat-ara__l { font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
-  .cat-ara__v { font-family: var(--f-mono); font-size: 28px; font-weight: 600; color: var(--ink); line-height: 1.2; }
+  .cat-ara__l { font-family: var(--f-ui); font-size: 13px; color: var(--muted); }
+  .cat-ara__v { font-family: var(--f-ui); font-variant-numeric: tabular-nums; font-size: 28px; font-weight: 600; letter-spacing: -0.02em; color: var(--ink); line-height: 1.2; }
   .cat-ara__w { font-size: 13.5px; color: var(--ink2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .cat-ara__map { position: relative; display: block; border-radius: 20px; background: var(--pale); padding: 12px; }
   .cat-ara__map canvas { display: block; width: 100%; height: auto; aspect-ratio: 620 / 600; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
-  .cat-ara__time { position: absolute; top: 20px; right: 22px; font-family: var(--f-mono); font-size: 12px; color: var(--muted); }
-  .cat-ara__lg { position: absolute; left: 50%; transform: translateX(-50%); bottom: 22px; display: grid; grid-template-columns: repeat(4, auto); column-gap: 26px; font-family: var(--f-mono); font-size: 11px; color: var(--ink2); }
+  .cat-ara__time { position: absolute; top: 20px; right: 22px; font-family: var(--f-ui); font-variant-numeric: tabular-nums; font-size: 12.5px; color: var(--muted); }
+  .cat-ara__lg { position: absolute; left: 50%; transform: translateX(-50%); bottom: 22px; display: grid; grid-template-columns: repeat(4, auto); column-gap: 26px; font-family: var(--f-ui); font-variant-numeric: tabular-nums; font-size: 11.5px; color: var(--ink2); }
   .cat-ara__lg i { grid-column: 1 / -1; height: 8px; border-radius: 4px; margin-bottom: 4px; background: linear-gradient(90deg, #4f46e5, #2563eb 12.5%, #0ea5e9 25%, #14b8a6 37.5%, #22c55e 50%, #eab308 62.5%, #f97316 75%, #dc2626 87.5%, #991b1b); }
   @media (max-width: 900px) {
     .cat-ara { padding: 72px 0; }
@@ -65,7 +66,7 @@ const CARDS = [
   import { loadAra } from '../scripts/live.js';
   import { STATIONS } from '../lib/stations.js';
   import { FB, computeField, outlineMask, toCanvas, fieldColor, lowSun } from '../scripts/camp.js';
-  import { tempColorLight, num, hourMadrid, todayMadrid } from '../lib/format.js';
+  import { num, hourMadrid, todayMadrid } from '../lib/format.js';
   import { noSave } from '../scripts/sense-desar.js';
 
   const HIDDEN = new Set(['IBAG65', 'IBAG72']);
@@ -222,12 +223,11 @@ const CARDS = [
     const withT = list.filter((s) => s.t != null);
     const shown = withT.length ? labels(ctx, withT, hot, cold) : 0;
     mark(ctx);
-    const set = (k: string, s: any, v: string, color?: string) => {
+    const set = (k: string, s: any, v: string) => {
       const el = document.querySelector(`[data-cat-ext] [data-k="${k}"]`);
       if (!el || !s) return;
       const vb = el.querySelector('.cat-ara__v') as HTMLElement;
       vb.textContent = v;
-      if (color) vb.style.color = color;
       (el.querySelector('.cat-ara__w') as HTMLElement).textContent = `${s.name}${s.com ? ` · ${s.com}` : ''}`;
     };
     const t = document.querySelector('[data-cat-time]');
@@ -236,14 +236,14 @@ const CARDS = [
       if (cv) cv.dataset.labels = String(shown);
       return;
     }
-    set('hot', hot, `${num(hot?.t)}°`, tempColorLight(hot?.t));
-    set('cold', cold, `${num(cold?.t)}°`, tempColorLight(cold?.t));
-    if (rain && rain.rain >= 0.1) set('rain', rain, `${num(rain.rain)} mm`, '#1d4ed8');
+    set('hot', hot, `${num(hot?.t)}°`);
+    set('cold', cold, `${num(cold?.t)}°`);
+    if (rain && rain.rain >= 0.1) set('rain', rain, `${num(rain.rain)} mm`);
     else {
       const el = document.querySelector('[data-cat-ext] [data-k="rain"]');
       if (el) { (el.querySelector('.cat-ara__v') as HTMLElement).textContent = '0 mm'; (el.querySelector('.cat-ara__w') as HTMLElement).textContent = 'No ha plogut enlloc'; }
     }
-    if (gust) set('gust', gust, `${Math.round(gust.gust)} km/h`, gust.gust >= 70 ? '#c2410c' : undefined);
+    if (gust) set('gust', gust, `${Math.round(gust.gust)} km/h`);
     if (t && x?.latest) t.textContent = `Dades de les ${hourMadrid(new Date(x.latest))} · ${withT.length} estacions`;
     if (cv) cv.dataset.labels = String(shown);
   }

@@ -56,9 +56,7 @@ const contours = [...Array(8).keys()].map((j) => `translate(${ridge.x.toFixed(0)
   <div class="wrap">
     <div class="sec__head">
       <div>
-        <span class="eyebrow" style="color:var(--muted);">RADAR · PREVISIÓ · XARXA</span>
-        <h2 class="h2">Més mapes, <em>en directe</em></h2>
-        <p class="sub" style="max-width:640px;">El radar de pluja cada deu minuts, la previsió hora a hora del model AROME i les estacions de la xarxa Meteocadí.</p>
+        <h2 class="h2">Més mapes, en directe</h2>
       </div>
     </div>
     <div class="mp-grid">
@@ -115,11 +113,11 @@ const contours = [...Array(8).keys()].map((j) => `translate(${ridge.x.toFixed(0)
   .mp-vis { position: relative; aspect-ratio: 4 / 3; background: #e9eef3; }
   .mp-vis--dark { background: #0b1d35; }
   .mp-vis canvas, .mp-vis svg { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
-  .mp-pill { position: absolute; left: 12px; bottom: 12px; padding: 4px 10px; border-radius: 999px; background: rgba(255, 255, 255, 0.92); color: var(--ink); font-family: var(--f-mono); font-size: 12px; font-weight: 500; letter-spacing: 0.02em; box-shadow: 0 1px 3px rgba(16, 35, 59, 0.18); }
+  .mp-pill { position: absolute; left: 12px; bottom: 12px; padding: 4px 10px; border-radius: 999px; background: rgba(255, 255, 255, 0.92); color: var(--ink); font-family: var(--f-ui); font-variant-numeric: tabular-nums; font-size: 12.5px; font-weight: 500; box-shadow: 0 1px 3px rgba(16, 35, 59, 0.18); }
   .mp-txt { display: flex; flex-direction: column; gap: 8px; padding: 20px 22px 22px; flex: 1; }
   .mp-txt h3 { font-size: 23px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
   .mp-txt p { font-size: 15px; line-height: 1.5; color: var(--ink2); }
-  .mp-when { font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.02em; color: var(--muted); min-height: 1.4em; }
+  .mp-when { font-family: var(--f-ui); font-variant-numeric: tabular-nums; font-size: 13px; color: var(--muted); min-height: 1.4em; }
   .mp-go { margin-top: auto; padding-top: 6px; display: inline-flex; align-items: center; gap: 8px; font-weight: 700; color: var(--accent); }
   .mp-lab { font-family: var(--f-ui); font-size: 12.5px; paint-order: stroke; stroke: #0b1d35; stroke-width: 3px; stroke-linejoin: round; }
   .mp-lab__n { fill: #c3cfde; font-weight: 500; }
