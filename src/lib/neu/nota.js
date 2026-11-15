@@ -18,6 +18,7 @@
 // Com que es multiplica, quan una cosa falla molt (sense neu, vent molt fort, pluja) la nota baixa molt encara que la
 // resta vagi bé, i mai és més alta que la pitjor de les parts.
 import { rateDay } from '../ski.js';
+import { isOpen, obreText, obreCurt } from './temporada.js';
 
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 const r1 = (v) => Math.round(v * 10) / 10;
@@ -202,8 +203,17 @@ export function notesOf(g, today, { stations = null, transit = null, pistes = nu
   const depth = depthToday(g, i0, sens);
   const direct = depth?.sensor ?? null;
   const out = [];
-  for (let k = 0; k < 7 && days[i0 + k]; k++) out.push(notaDay(g, i0 + k, i0, { depth, direct, transit, pistes }));
+  for (let k = 0; k < 7 && days[i0 + k]; k++) {
+    // Abans d'obrir (temporada.js) no hi ha nota: "Tancada" i quan obre
+    const date = days[i0 + k].date;
+    out.push(isOpen(g.resort, date) ? notaDay(g, i0 + k, i0, { depth, direct, transit, pistes }) : closedNote(g.resort, date));
+  }
   return out;
+}
+
+// La "nota" d'un dia que l'estació encara és tancada: sense xifra (v null), amb quan obre
+export function closedNote(resort, date) {
+  return { v: null, level: null, closed: true, label: 'Tancada', why: obreText(resort, date), short: obreCurt(resort, date), date, f: {}, depth: null };
 }
 
 // ------------------------------------------------------------------ textos

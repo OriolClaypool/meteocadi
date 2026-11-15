@@ -4,16 +4,20 @@
 import { num, dayName, dayShort, parseDay, cap } from './format.js';
 import { wmoIcon, wmoText, iconUrl } from './wmo.js';
 import { fetchMountain } from './mountain.js';
+import { PRIMERA } from './neu/temporada.js';
 
 export const SKI_DAYS = 7; // dies de previsió a partir d'avui
 export const SKI_PAST = 2; // dies anteriors, per saber la neu nova caiguda
 // Les estacions són els llocs de places.js amb l'atribut ski (no s'importa aquí perquè aquest fitxer també va al navegador)
 
-// Temporada d'esquí: del 15 de novembre al 30 d'abril. Fora de temporada no es mostra la valoració.
+// Temporada d'esquí: des del dia que obre la primera estació (src/lib/neu/temporada.js; el 2026, el 28 de novembre)
+// fins al 30 d'abril. Fora de temporada no es mostra la valoració: fins al 15/11/2026 començava per data, el 15 de
+// novembre, i les estacions sortien valorades dues setmanes abans d'obrir. Un any sense dates, el 15 de novembre.
 export function inSeason(iso) {
-  const m = Number(iso.slice(5, 7));
-  const d = Number(iso.slice(8, 10));
-  return m === 12 || m <= 3 || m === 4 || (m === 11 && d >= 15);
+  const md = iso.slice(5, 10);
+  if (md <= '04-30') return true;
+  const start = PRIMERA && PRIMERA.slice(0, 4) === iso.slice(0, 4) ? PRIMERA.slice(5) : '11-15';
+  return md >= start;
 }
 
 const thousands = (v) => String(v).replace(/\B(?=(\d{3})+(?!\d))/g, '.');

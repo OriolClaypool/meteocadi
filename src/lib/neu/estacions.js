@@ -5,6 +5,7 @@
 // Les xifres de cada estació (cotes, km) s'han de poder comprovar a la seva web oficial.
 import { PLACES } from '../places.js';
 import { REGION_BY_SLUG } from '../regions.js';
+import { obertura } from './temporada.js';
 
 const FORA = new Set(['rasos-de-peguera']);
 
@@ -58,6 +59,8 @@ export const NEU = PLACES.filter((p) => p.ski && !FORA.has(p.slug))
       // Incidències de trànsit (Servei Català de Trànsit) a menys d'aquests km: només a Catalunya
       roadsKm: p.region === 'andorra' ? null : p.near ?? 14,
       tren: TREN.has(p.slug),
+      // Quan obre aquesta temporada (temporada.js): obre, obreDes, obreNota, obreFont
+      ...obertura(p.slug),
       // Punts de la previsió: el cim (primer) i la base (darrer)
       points: [pts[0], pts[pts.length - 1]].filter(Boolean).map(({ label, lat, lng, alt }) => ({ label, lat, lng, alt })),
     };
@@ -71,6 +74,7 @@ export const NEU_BY_SLUG = Object.fromEntries(NEU.map((r) => [r.slug, r]));
 export const lleugera = (r) => ({
   slug: r.slug, name: r.name, short: r.short, zone: r.zone, zoneA: r.zoneA, country: r.country, type: r.type,
   base: r.base, top: r.top, lat: r.lat, lng: r.lng, points: r.points, ...(r.tren ? { tren: true } : {}),
+  obre: r.obre, obreDes: r.obreDes, ...(r.obreNota ? { obreNota: r.obreNota } : {}),
 });
 
 // Butlletí de perill d'allaus de la zona de cada estació
