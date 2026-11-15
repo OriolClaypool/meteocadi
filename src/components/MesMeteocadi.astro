@@ -55,9 +55,7 @@ const smalls = (best ? 1 : 0) + (ep ? 1 : 0) + 2;
   <div class="wrap">
     <div class="sec__head">
       <div>
-        <span class="eyebrow" style="color:var(--muted);">L'ARXIU, ELS MODELS I MÉS</span>
-        <h2 class="h2">Més de <em>Meteocadí</em></h2>
-        <p class="sub" style="max-width:660px;">Tot el que guarden les estacions, quin model de previsió encerta més al Cadí, els episodis de mal temps i guies per al cap de setmana i per tenir la teva estació.</p>
+        <h2 class="h2">Més de Meteocadí</h2>
       </div>
       <a href="/sobre" class="link-arrow">Sobre el projecte <Fragment set:html={ARROW} /></a>
     </div>
@@ -88,8 +86,8 @@ const smalls = (best ? 1 : 0) + (ep ? 1 : 0) + 2;
         )}
         {(hot || cold) && (
           <dl class="mm-rec">
-            {hot && <div><dt>Rècord de calor de la xarxa</dt><dd><b style={`color:${tempColorLight(hot.v)}`}>{num(hot.v)} °C</b> {shortName(hot.s)}, {fullDate(hot.date)}</dd></div>}
-            {cold && <div><dt>Rècord de fred de la xarxa</dt><dd><b style={`color:${tempColorLight(cold.v)}`}>{num(cold.v)} °C</b> {shortName(cold.s)}, {fullDate(cold.date)}</dd></div>}
+            {hot && <div><dt>Rècord de calor de la xarxa</dt><dd><b>{num(hot.v)} °C</b> {shortName(hot.s)}, {fullDate(hot.date)}</dd></div>}
+            {cold && <div><dt>Rècord de fred de la xarxa</dt><dd><b>{num(cold.v)} °C</b> {shortName(cold.s)}, {fullDate(cold.date)}</dd></div>}
           </dl>
         )}
         <span class="mm-go">Obre l'historial <Fragment set:html={ARROW} /></span>
@@ -145,15 +143,15 @@ const smalls = (best ? 1 : 0) + (ep ? 1 : 0) + 2;
   .mm-hook b { color: var(--ink); font-weight: 700; }
   .mm-go { margin-top: auto; padding-top: 6px; display: inline-flex; align-items: center; gap: 8px; font-weight: 700; color: var(--accent); }
   .mm-bars { margin: 8px 0 0; display: flex; flex-direction: column; gap: 6px; }
-  .mm-bars figcaption { font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .mm-bars figcaption { font-family: var(--f-ui); font-size: 13px; color: var(--muted); }
   .mm-bars svg { width: 100%; max-width: 420px; height: auto; display: block; }
-  .mm-bars__v { font-family: var(--f-mono); font-size: 12px; font-weight: 600; fill: var(--ink); }
+  .mm-bars__v { font-family: var(--f-ui); font-variant-numeric: tabular-nums; font-size: 12px; font-weight: 600; fill: var(--ink); }
   .mm-bars__d { font-family: var(--f-ui); font-size: 11.5px; fill: var(--muted); }
   .mm-rec { display: grid; gap: 10px; margin: 6px 0 0; }
   .mm-rec div { display: flex; flex-direction: column; gap: 2px; }
-  .mm-rec dt { font-family: var(--f-mono); font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+  .mm-rec dt { font-family: var(--f-ui); font-size: 13px; color: var(--muted); }
   .mm-rec dd { margin: 0; font-size: 14.5px; color: var(--ink2); }
-  .mm-rec b { font-family: var(--f-mono); font-size: 17px; font-weight: 600; margin-right: 4px; }
+  .mm-rec b { font-family: var(--f-ui); font-variant-numeric: tabular-nums; font-size: 17px; font-weight: 600; color: var(--ink); margin-right: 4px; }
   @media (max-width: 1100px) {
     .mm-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .mm-card--big { grid-row: auto; grid-column: 1 / -1; }

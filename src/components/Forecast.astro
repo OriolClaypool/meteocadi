@@ -13,7 +13,7 @@ const first = place ?? chips[0];
     <div class="sec__head">
       <div>
         {title && <h2 class="h2">{title}</h2>}
-        {sub && <p class="sub" set:html={sub} />}
+        {sub && <p class="sec__lead" set:html={sub} />}
       </div>
       {chips.length > 1 && (
         <div class="chips" role="group" aria-label="Tria el lloc">

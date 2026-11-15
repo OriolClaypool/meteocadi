@@ -171,26 +171,29 @@ button { font: inherit; }
 .hero__shade2 { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(6, 14, 28, 0.62) 0%, rgba(6, 14, 28, 0.25) 40%, rgba(6, 14, 28, 0) 62%); }
 .hero__wind { position: absolute; left: 0; top: 0; width: 100%; height: 600px; pointer-events: none; }
 .hero__body { position: relative; z-index: 2; min-height: 820px; display: flex; align-items: flex-end; justify-content: space-between; gap: 48px; padding-top: 120px; padding-bottom: 56px; }
-.hero__text { max-width: 740px; display: flex; flex-direction: column; gap: 22px; padding-bottom: 20px; }
-.kicker { font-size: 18px; font-weight: 600; color: #ffd98a; }
-/* "El temps a Catalunya," ha de cabre en una línia a l'ordinador */
-.hero h1 { font-size: clamp(46px, 4.5vw, 70px); font-weight: 800; line-height: 0.98; letter-spacing: -0.035em; }
-.hero h1 em { font-style: normal; color: var(--cyan-l); }
-.hero__lead { font-size: 20px; line-height: 1.5; color: rgba(255, 255, 255, 0.9); max-width: 600px; }
-.hero__btns { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin-top: 6px; }
+.hero__text { max-width: 740px; display: flex; flex-direction: column; padding-bottom: 20px; }
+/* El títol de la pàgina és una línia petita i la frase gran és la lectura d'ara (.hero__now): primer la dada */
+.hero h1 { font-size: 18px; font-weight: 600; line-height: 1.3; letter-spacing: 0; color: rgba(255, 255, 255, 0.9); margin-bottom: 14px; }
+.hero__now { font-size: clamp(36px, 4.5vw, 66px); font-weight: 800; line-height: 1; letter-spacing: -0.035em; text-wrap: balance; min-height: 2em; margin-bottom: 24px; transition: opacity 0.35s ease; }
+.hero__now.is-wait { opacity: 0; }
+.hero__now:empty { display: none; }
+.hero__lead { font-size: 20px; line-height: 1.5; color: rgba(255, 255, 255, 0.9); max-width: 600px; margin-bottom: 28px; }
+.hero__btns { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
 .hero__credit { position: absolute; left: var(--pad); bottom: 24px; z-index: 2; display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: rgba(255, 255, 255, 0.72); }
 
 /* Panell fosc tipus instrument (A) */
 .panel { font-family: var(--f-ui); color: var(--a-txt); background: rgba(6, 10, 18, 0.86); border: 1px solid rgba(61, 184, 255, 0.18); border-radius: 20px; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45); }
 .resum { width: 500px; flex-shrink: 0; padding: 26px 28px 22px; display: flex; flex-direction: column; gap: 16px; }
 .resum__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
-.eyebrow { font-family: var(--f-mono); font-size: 11.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--cyan); }
+/* Etiqueta petita: amb la lletra del text i sense majúscules forçades */
+.eyebrow { font-family: var(--f-ui); font-size: 13px; font-weight: 500; color: var(--cyan); }
 .resum__grid { display: grid; grid-template-columns: 1fr 1fr; border-top: 1px solid var(--a-line); }
 .stat { display: flex; flex-direction: column; gap: 10px; padding: 20px 20px 20px 0; }
 .stat:nth-child(2n) { padding: 20px 0 20px 24px; border-left: 1px solid var(--a-line); }
 .stat:nth-child(n + 3) { border-top: 1px solid rgba(61, 184, 255, 0.08); }
-.stat__lab { display: flex; align-items: center; gap: 8px; font-family: var(--f-mono); font-size: 11.5px; letter-spacing: 0.1em; color: var(--a-mut2); }
-.stat__val { font-family: var(--f-mono); font-size: 44px; line-height: 1; font-weight: 500; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+/* Les xifres van amb la lletra del text i d'un sol color: el color es queda als mapes i als gràfics, que tenen llegenda */
+.stat__lab { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--a-mut); }
+.stat__val { font-size: 44px; line-height: 1; font-weight: 600; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; color: var(--a-txt); }
 .stat__val small { font-size: 17px; letter-spacing: 0; color: var(--a-mut); margin-left: 4px; }
 .stat__who { font-size: 13px; color: var(--a-mut); }
 .resum__foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-top: 14px; border-top: 1px solid rgba(61, 184, 255, 0.08); font-size: 13px; color: var(--a-mut2); }
@@ -199,12 +202,21 @@ button { font: inherit; }
 
 @media (max-width: 1100px) {
   .hero, .hero__body { min-height: 0; }
-  .hero__body { flex-direction: column; align-items: stretch; padding-top: 130px; padding-bottom: 64px; }
-  .resum { width: 100%; max-width: 560px; }
+  /* En una columna, les xifres van just sota la frase; el text que descriu el web i els botons, després */
+  .hero__body { flex-direction: column; align-items: stretch; gap: 0; padding-top: 130px; padding-bottom: 64px; }
+  .hero__text { display: contents; }
+  .hero h1 { order: 1; }
+  .hero__now { order: 2; }
+  .resum { order: 3; width: 100%; max-width: 560px; }
+  .hero__lead { order: 4; margin-top: 32px; max-width: 560px; }
+  .hero__btns { order: 5; }
+  /* El text i els botons queden sobre la part nevada de la foto: l'ombra de baix puja més perquè es llegeixin */
+  .hero__shade { background: linear-gradient(180deg, rgba(6, 14, 28, 0.45) 0%, rgba(6, 14, 28, 0) 14%, rgba(6, 14, 28, 0.3) 42%, rgba(6, 14, 28, 0.8) 70%, rgba(6, 14, 28, 0.88) 100%); }
 }
 @media (max-width: 640px) {
   .hero__img img { object-position: 62% 30%; }
-  .hero__body { padding-top: 110px; gap: 32px; }
+  .hero__body { padding-top: 110px; }
+  .hero__now { min-height: 3em; }
   .hero__lead { font-size: 18px; }
   .btn { height: 48px; padding: 0 20px; font-size: 16px; }
   .resum { padding: 22px 18px 18px; }
@@ -216,7 +228,7 @@ button { font: inherit; }
 /* ---------- cinta "ara" ---------- */
 .ticker { height: 60px; background: var(--a-bg); border-bottom: 1px solid rgba(61, 184, 255, 0.1); display: flex; align-items: center; overflow: hidden; font-family: var(--f-ui); }
 .ticker__live { position: relative; z-index: 1; height: 60px; display: flex; align-items: center; padding: 0 24px 0 var(--pad); background: var(--a-bg); box-shadow: 18px 0 24px var(--a-bg); flex-shrink: 0; }
-.live { display: inline-flex; align-items: center; gap: 10px; padding: 8px 14px; border: 1px solid rgba(52, 211, 153, 0.3); border-radius: 999px; font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.06em; color: #6ee7b7; white-space: nowrap; }
+.live { display: inline-flex; align-items: center; gap: 10px; padding: 8px 14px; border: 1px solid rgba(52, 211, 153, 0.3); border-radius: 999px; font-size: 12.5px; font-weight: 500; letter-spacing: 0.03em; font-variant-numeric: tabular-nums; color: #6ee7b7; white-space: nowrap; }
 .live__dot { position: relative; width: 8px; height: 8px; }
 .live__dot i { position: absolute; inset: 0; border-radius: 50%; background: #34d399; }
 .live__dot i:first-child { animation: ring 2s ease-out infinite; }
@@ -230,9 +242,9 @@ button { font: inherit; }
 .tk { display: inline-flex; align-items: baseline; gap: 10px; color: var(--a-txt); }
 .tk:hover { color: #fff; }
 .tk b { font-size: 15px; font-weight: 500; }
-.tk .a { font-family: var(--f-mono); font-size: 11px; color: var(--a-mut2); }
-.tk .t { font-family: var(--f-mono); font-size: 18px; font-weight: 500; }
-.tk .w { font-family: var(--f-mono); font-size: 12px; color: var(--a-mut); }
+.tk .a { font-size: 12px; font-variant-numeric: tabular-nums; color: var(--a-mut2); }
+.tk .t { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.tk .w { font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--a-mut); }
 .tk-sep { width: 1px; height: 18px; background: rgba(61, 184, 255, 0.2); align-self: center; }
 
 /* ---------- seccions ---------- */
@@ -242,11 +254,12 @@ button { font: inherit; }
 .sec--deep { background: var(--deep); color: #fff; }
 .sec__head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px 32px; margin-bottom: 32px; flex-wrap: wrap; }
 .sec__head > div:first-child { display: flex; flex-direction: column; gap: 12px; }
-.sec__lead { font-size: 17px; line-height: 1.5; color: var(--ink2); max-width: 620px; margin-top: -2px; }
-.sec--dark .sec__lead { color: #b8c6d8; }
+/* Sota el títol d'una secció, com a molt una línia petita (d'on surten les dades, quantes n'hi ha) */
+.sec__lead { font-size: 15.5px; line-height: 1.5; color: var(--muted); max-width: 620px; margin-top: -2px; }
+.sec--dark .sec__lead { color: var(--a-mut); }
 .h2 { font-family: var(--f-head); font-size: clamp(34px, 4.2vw, 52px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.02; }
-.h2 em { font-style: normal; color: var(--accent); }
-.sec--dark .h2 em, .sec--deep .h2 em { color: var(--cyan-l); }
+/* Els títols són d'un sol color (abans la segona part anava en blau) */
+.h2 em { font-style: normal; color: inherit; }
 .sub { font-size: 18px; color: var(--ink2); }
 .sec--dark .h2 { color: #f1f5fb; }
 .sec--deep .sub, .sec--dark .sub { color: rgba(255, 255, 255, 0.78); }
@@ -265,9 +278,9 @@ button { font: inherit; }
 /* ---------- taula d'estacions (A) ---------- */
 .st-table { position: relative; }
 .st-head, .st-row { display: grid; grid-template-columns: minmax(0, 1fr) 100px 80px 80px 150px 84px 80px 190px; column-gap: 24px; align-items: center; padding: 0 20px; }
-.st-head { padding-bottom: 12px; font-family: var(--f-mono); font-size: 11.5px; letter-spacing: 0.1em; color: var(--a-mut2); border-bottom: 1px solid var(--a-line); }
+.st-head { padding-bottom: 12px; font-size: 13px; color: var(--a-mut2); border-bottom: 1px solid var(--a-line); }
 .st-head .r, .st-row .r { text-align: right; }
-.st-group { display: flex; align-items: center; gap: 10px; padding: 26px 20px 10px; font-family: var(--f-mono); font-size: 11.5px; letter-spacing: 0.12em; border-bottom: 1px solid var(--a-line2); text-transform: uppercase; }
+.st-group { display: flex; align-items: center; gap: 10px; padding: 26px 20px 10px; font-size: 13.5px; font-weight: 500; border-bottom: 1px solid var(--a-line2); }
 .st-group span:first-child { color: var(--cyan); }
 .st-group span { color: var(--a-mut2); }
 .st-group span:last-child { margin-left: auto; }
@@ -275,13 +288,13 @@ button { font: inherit; }
 .st-row:hover { background: rgba(61, 184, 255, 0.05); color: var(--a-txt); }
 .st-name { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .st-name b { font-size: 16px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.st-name small { font-family: var(--f-mono); font-size: 11.5px; color: var(--a-mut2); }
-.st-now { font-family: var(--f-mono); font-size: 26px; font-weight: 500; letter-spacing: -0.02em; }
-.st-v { font-family: var(--f-mono); font-size: 16px; }
-.st-wind { display: flex; align-items: center; gap: 8px; font-family: var(--f-mono); font-size: 14px; color: var(--a-txt2); }
+.st-name small { font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--a-mut2); }
+.st-now { font-size: 26px; font-weight: 600; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: var(--a-txt); }
+.st-v { font-size: 16px; font-variant-numeric: tabular-nums; color: var(--a-txt2); }
+.st-wind { display: flex; align-items: center; gap: 8px; font-size: 14.5px; font-variant-numeric: tabular-nums; color: var(--a-txt2); }
 .st-wind svg { flex-shrink: 0; transition: transform 0.6s ease; }
 .st-unit { color: var(--a-mut2); font-size: 12px; }
-.st-rain { font-family: var(--f-mono); font-size: 15px; }
+.st-rain { font-size: 15px; font-variant-numeric: tabular-nums; color: var(--a-txt2); }
 .st-spark svg { display: block; }
 .st-mob { display: none; }
 .st-row.is-stale .st-now, .st-row.is-stale .st-v, .st-row.is-stale .st-wind, .st-row.is-stale .st-rain { opacity: 0.45; }
@@ -294,7 +307,7 @@ button { font: inherit; }
   .st-head { display: none; }
   .st-row { grid-template-columns: minmax(0, 1fr) auto; height: auto; padding: 14px 4px; row-gap: 4px; }
   .st-row > .c-max, .st-row > .c-min, .st-row > .st-wind, .st-row > .c-gust { display: none; }
-  .st-mob { display: block; grid-column: 1 / -1; font-family: var(--f-mono); font-size: 12.5px; color: var(--a-mut); }
+  .st-mob { display: block; grid-column: 1 / -1; font-size: 13px; font-variant-numeric: tabular-nums; color: var(--a-mut); }
   .st-group { padding: 24px 4px 10px; }
   .st-group span:nth-child(2) { display: none; }
   .st-now { font-size: 24px; }
@@ -515,7 +528,7 @@ button { font: inherit; }
 .ep__w { font-size: 14px; color: var(--muted); }
 .epstrip { display: block; background: #fff; border-bottom: 1px solid var(--line); color: var(--ink); }
 .epstrip .wrap { display: flex; align-items: center; gap: 10px 18px; flex-wrap: wrap; padding-top: 14px; padding-bottom: 14px; font-size: 15px; }
-.epstrip b { font-family: var(--f-mono); font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ep); }
+.epstrip b { font-size: 14px; font-weight: 700; color: var(--ep); }
 .epstrip span { color: var(--ink2); }
 .epstrip u { margin-left: auto; font-weight: 600; color: var(--accent); text-decoration: none; }
 .epstrip:hover u { text-decoration: underline; text-underline-offset: 3px; }

@@ -1,7 +1,7 @@
 // Lectures en directe: una sola crida a /api/ara (amb memòria cau al servidor)
 // i pinta tots els elements marcats amb data-* de la pàgina.
 import { STATIONS, BY_ID } from '../lib/stations.js';
-import { tempColor, windColor, precipColor, num, dirLabel, hourMadrid } from '../lib/format.js';
+import { tempColor, windColor, num, dirLabel, hourMadrid } from '../lib/format.js';
 import { t, pageLang } from '../lib/i18n.js';
 
 const REFRESH = 10 * 60 * 1000;
@@ -81,21 +81,22 @@ export function paint(j) {
     const off = !d || d.stale;
     // cinta
     $$(`[data-tk="${s.id}"]`).forEach((el) => {
-      set(el.querySelector('.t'), off ? '—' : `${num(d.temp)}°`, off ? undefined : tempColor(d.temp));
+      set(el.querySelector('.t'), off ? '—' : `${num(d.temp)}°`);
       set(el.querySelector('.w'), off || d.wind == null ? '' : `${dirLabel(d.dir)} ${Math.round(d.wind)} km/h`);
     });
     // files de taula
     $$(`[data-row="${s.id}"]`).forEach((row) => {
       row.classList.toggle('is-stale', !!d?.stale);
       const f = (k) => row.querySelector(`[data-f="${k}"]`);
-      set(f('now'), d ? `${num(d.temp)}°` : '—', d ? tempColor(d.temp) : undefined);
-      set(f('max'), d?.max != null ? `${num(d.max)}°` : '—', d?.max != null ? tempColor(d.max) : undefined);
-      set(f('min'), d?.min != null ? `${num(d.min)}°` : '—', d?.min != null ? tempColor(d.min) : undefined);
+      // Xifres d'un sol color (el del text): el color de la temperatura es queda als mapes i als gràfics
+      set(f('now'), d ? `${num(d.temp)}°` : '—');
+      set(f('max'), d?.max != null ? `${num(d.max)}°` : '—');
+      set(f('min'), d?.min != null ? `${num(d.min)}°` : '—');
       set(f('windv'), d?.wind != null ? `${dirLabel(d.dir)} ${Math.round(d.wind)}` : '—');
       rotate(f('arrow'), d?.dir);
       const g = d?.gustMax ?? d?.gust;
-      set(f('gust'), g != null ? `${Math.round(g)}` : '—', g != null ? (g >= 40 ? '#fbbf24' : '#c3cfde') : undefined);
-      set(f('rain'), d?.rain != null ? `${num(d.rain)} mm` : '—', d?.rain != null ? precipColor(d.rain) : undefined);
+      set(f('gust'), g != null ? `${Math.round(g)}` : '—');
+      set(f('rain'), d?.rain != null ? `${num(d.rain)} mm` : '—');
       // Fora de servei: els sensors exteriors no donen dades (control de qualitat de /api/ara)
       const ago = d?.down ? L.outOfService : d?.stale && d.epoch ? L.lastReading(Math.round((Date.now() / 1000 - d.epoch) / 3600)) : null;
       const nameEl = row.querySelector('.st-name small');

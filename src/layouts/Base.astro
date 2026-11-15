@@ -16,7 +16,8 @@ interface Props {
   noindex?: boolean;
   header?: 'overlay' | 'solid';
   current?: string;
-  preload?: string;
+  // Imatge que es carrega abans (la de la capçalera): una adreça, o una llista amb `media` per triar-ne una segons l'amplada
+  preload?: string | { href?: string; srcset?: string; sizes?: string; media?: string }[];
   bare?: boolean; // sense capçalera ni peu del web (eines internes)
   lang?: 'ca' | 'es'; // el castellà només a /es/
   alternates?: { ca: string; es: string }; // camins de la mateixa pàgina en cada llengua (hreflang)
@@ -71,7 +72,7 @@ const graph = [
     name: 'Meteocadí',
     url: `${site}/`,
     logo: `${site}/imatges/logo-256.png`,
-    sameAs: ['https://x.com/meteocadi'],
+    sameAs: ['https://x.com/meteocadi', 'https://www.instagram.com/meteocadi/'],
     description: "Xarxa d'estacions meteorològiques al Cadí-Moixeró i el Berguedà, en col·laboració amb el Parc Natural del Cadí-Moixeró.",
   },
   { '@type': 'WebSite', '@id': `${site}/#web`, name: 'Meteocadí', url: `${site}/`, inLanguage: 'ca', publisher: { '@id': `${site}/#org` } },
@@ -114,7 +115,9 @@ const graph = [
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={img} />
-    {preload && <link rel="preload" as="image" href={preload} fetchpriority="high" />}
+    {(typeof preload === 'string' ? [{ href: preload }] : preload || []).map((p) => (
+      <link rel="preload" as="image" href={p.href} imagesrcset={p.srcset} imagesizes={p.sizes} media={p.media} fetchpriority="high" />
+    ))}
     <script type="application/ld+json" set:html={JSON.stringify({ '@context': 'https://schema.org', '@graph': graph })} />
     {ogCard && <meta name="mc-og" content={JSON.stringify(ogCard)} />}
     <slot name="head" />
