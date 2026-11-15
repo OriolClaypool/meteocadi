@@ -9,7 +9,7 @@ import CONTORN from '../lib/catalunya-contorn.json';
 import { dayName, dayMonth, todayMadrid, hourMadrid } from '../lib/format.js';
 import { drawIcon } from './icones.js';
 
-const F = { head: "'Schibsted Grotesk Variable'", ui: "'Geist Variable'", mono: "'Geist Mono Variable'" };
+const F = { head: "'Schibsted Grotesk Variable'", ui: "'Geist Variable'", mono: "'Geist Variable'" };
 const C = { bg: '#eef3f8', land: '#ffffff', ink: '#10233b', ink2: '#44556b', mut: '#56667a', blue: '#22477a', line: '#dfe6ee' };
 const STRIP = ['#22477a', '#47a838', '#be282c', '#fbbd28'];
 const X0 = 64;

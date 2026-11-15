@@ -2,7 +2,7 @@
 // Tres plantilles amb el mateix sistema: capçalera (data + títol en dues línies, la segona en color),
 // contingut i peu amb meteocadi.cat. Marges pensats per a Stories: capçalera a 180 px, peu a ~1.700 px.
 import { tempColor, num, dayName, dayMonth, cap } from '../../lib/format.js';
-import { SCALES, fieldColor, readableOn, rainClasses } from '../../lib/escales.js';
+import { SCALES, fieldColor, readableOn, inkOn, rainClasses } from '../../lib/escales.js';
 import { iconBadge } from '../icones.js';
 
 export const W = 1080;
@@ -14,7 +14,9 @@ const LIMIT = 1652; // on ha d'acabar el contingut
 export const X0 = 64;
 export const X1 = 1016;
 
-const F = { head: "'Schibsted Grotesk Variable'", ui: "'Geist Variable'", mono: "'Geist Mono Variable'" };
+// 'mono' és la lletra de les xifres i de les llegendes petites: des del 15 de novembre del 2026 és la mateixa del
+// text (Geist) i no la de codi (Geist Mono), com al web. Per tornar-hi n'hi ha prou de canviar aquesta línia.
+const F = { head: "'Schibsted Grotesk Variable'", ui: "'Geist Variable'", mono: "'Geist Variable'" };
 const A = { bg: '#060a12', cy: '#3db8ff', txt: '#e6edf6', txt2: '#c3cfde', mut: '#93a3b8', mut2: '#7d8fa6', gold: '#f6c664' };
 export const L = { bg: '#eef3f8', ink: '#10233b', ink2: '#44556b', mut: '#56667a', blue: '#22477a', line: '#dfe6ee', rank: '#8a99ab', warn: '#b45309' };
 const STRIP = ['#22477a', '#47a838', '#be282c', '#fbbd28'];
@@ -223,8 +225,12 @@ function vline(ctx, x, y0, y1, color) {
 
 // ------------------------------------------------------------------ Resum del dia
 // d: { date, kind: 'ahir'|'avui'|'dia', time, rows: [{ name, alt, max, min, gust, rain, susp }] }
+// Des del 15 de novembre del 2026 és de la mateixa família que el rànquing i els mapes nets: fons clar, un títol
+// d'una línia amb icona, els quatre extrems d'un sol color i la taula amb la màxima i la mínima de cada estació
+// dins d'una pastilla del color de l'escala del mapa, amb l'escala a sota. Abans era fosca, amb les quatre xifres
+// de colors i una taula de 26 px que al mòbil no es llegia.
 export function drawResum(ctx, d) {
-  background(ctx, true);
+  background(ctx, false);
   const rows = d.rows.filter((r) => r.max != null || r.min != null);
   const temps = rows.filter((r) => !r.susp);
   const best = (list, k, dir) => list.filter((r) => r[k] != null).sort((a, b) => dir * (b[k] - a[k]))[0] || null;
@@ -233,89 +239,101 @@ export function drawResum(ctx, d) {
   const gu = best(rows, 'gust', 1);
   const rainy = rows.filter((r) => (r.rain ?? 0) > 0);
   const ra = best(rows, 'rain', 1);
-  const alts = rows.map((r) => r.alt);
 
-  const lead = d.kind === 'ahir' ? "Resum d'ahir" : d.kind === 'avui' ? `Avui fins a les ${d.time}` : 'Resum del dia';
-  const eyebrow = `${lead} · ${rows.length} estacions · ${Math.min(...alts).toLocaleString('ca-ES')} — ${Math.max(...alts).toLocaleString('ca-ES')} m`;
-  const y0 = header(ctx, eyebrow, cap(dayName(d.date)), dayMonth(d.date), A.cy, '#ffffff', A.cy) + 44;
+  const t1 = d.kind === 'avui' ? 'Avui' : 'Resum';
+  const t2 = d.kind === 'ahir' ? " d'ahir" : d.kind === 'avui' ? ` fins a les ${d.time}` : ` del ${dayMonth(d.date)}`;
+  netTitle(ctx, { x0: X0, head: 290, hs: 50, colR: X1, t1, t2, icon: 'temp', accent: L.blue });
+  networkCaption(ctx, rows.length, X0, 360, 19, 2, 'left', null, d.kind === 'ahir' ? `${dayName(d.date)} ${dayMonth(d.date)}` : '');
+  let y = 388;
+  hline(ctx, X0, X1, y, L.ink, 2);
 
-  // Quatre extrems
-  const CH = 244;
+  // Quatre extrems, d'un sol color
+  const CH = 200;
   const cells = [
-    ['Màxima', mx ? num(mx.max) : '—', '°C', '#ef4444', mx ? `${mx.name} · ${altTxt(mx.alt)}` : 'Sense dades'],
-    ['Mínima', mn ? num(mn.min) : '—', '°C', '#2dd4bf', mn ? `${mn.name} · ${altTxt(mn.alt)}` : 'Sense dades'],
-    ['Ratxa màxima', gu ? num(gu.gust) : '—', 'km/h', '#fbbf24', gu ? `${gu.name} · ${altTxt(gu.alt)}` : 'Sense dades'],
+    ['Màxima', mx ? num(mx.max) : '—', '°C', mx ? `${mx.name} · ${altTxt(mx.alt)}` : 'Sense dades'],
+    ['Mínima', mn ? num(mn.min) : '—', '°C', mn ? `${mn.name} · ${altTxt(mn.alt)}` : 'Sense dades'],
+    ['Ratxa màxima', gu ? num(gu.gust) : '—', 'km/h', gu ? `${gu.name} · ${altTxt(gu.alt)}` : 'Sense dades'],
     [
       'Pluja',
       ra && ra.rain > 0 ? num(ra.rain) : '0,0',
       'mm',
-      '#60a5fa',
       !rainy.length ? 'Sense pluja a la xarxa' : rainy.length === 1 ? `${ra.name} · única estació` : `${ra.name} · ${rainy.length} estacions amb pluja`,
     ],
   ];
-  hline(ctx, X0, X1, y0, 'rgba(61,184,255,0.22)');
-  hline(ctx, X0, X1, y0 + CH, 'rgba(61,184,255,0.10)');
-  hline(ctx, X0, X1, y0 + 2 * CH, 'rgba(61,184,255,0.22)');
-  vline(ctx, 540, y0, y0 + 2 * CH, 'rgba(61,184,255,0.14)');
-  cells.forEach(([label, val, unit, color, who], i) => {
-    const x = i % 2 ? 576 : X0;
-    const y = y0 + (i >= 2 ? CH : 0);
-    const maxW = i % 2 ? X1 - 576 : 540 - X0 - 24;
-    ctx.textBaseline = 'middle';
-    font(ctx, 'mono', 22);
-    ctx.fillStyle = A.mut2;
-    spaced(ctx, label.toLocaleUpperCase('ca'), x, y + 42, 2.64);
+  cells.forEach(([label, val, unit, who], i) => {
+    const x = i % 2 ? 572 : X0;
+    const cy = y + (i >= 2 ? CH : 0);
+    const maxW = i % 2 ? X1 - 572 : 540 - X0 - 24;
+    ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
-    tracking(ctx, -4.48);
-    font(ctx, 'mono', 112, 500);
-    ctx.fillStyle = color;
-    ctx.fillText(val, x, y + 158);
+    font(ctx, 'ui', 28);
+    ctx.fillStyle = L.mut;
+    ctx.fillText(label, x, cy + 54);
+    tracking(ctx, -3);
+    font(ctx, 'ui', 94, 600);
+    ctx.fillStyle = L.ink;
+    ctx.fillText(val, x, cy + 142);
     const vw = ctx.measureText(val).width;
     tracking(ctx, 0);
-    font(ctx, 'mono', 36);
-    ctx.fillStyle = A.mut;
-    ctx.fillText(unit, x + vw + 10, y + 158);
-    ctx.textBaseline = 'middle';
-    fitFont(ctx, 'ui', 26, 400, who, maxW, 20);
-    ctx.fillStyle = A.txt2;
-    ctx.fillText(who, x, y + 202);
+    font(ctx, 'ui', 34, 500);
+    ctx.fillStyle = L.mut;
+    ctx.fillText(unit, x + vw + 10, cy + 142);
+    fitFont(ctx, 'ui', 27, 400, who, maxW, 20);
+    ctx.fillStyle = L.ink2;
+    ctx.fillText(who, x, cy + 182);
   });
+  hline(ctx, X0, X1, y + CH, L.line);
+  vline(ctx, 540, y + 16, y + 2 * CH - 16, L.line);
+  y += 2 * CH;
+  hline(ctx, X0, X1, y, L.ink, 2);
 
-  // Taula de totes les estacions (de dalt a baix)
-  let y = y0 + 2 * CH + 32;
-  const RH = Math.min(48, Math.floor((LIMIT - y - 34) / Math.max(rows.length, 1)));
-  const cols = [736, 886, X1];
+  // Taula de totes les estacions, de dalt a baix: màxima i mínima en una pastilla del color de l'escala
+  const LEG = 1556; // on comença l'escala de colors
+  const CW = 132;
+  const cols = [772, 920];
   ctx.textBaseline = 'middle';
   font(ctx, 'mono', 19);
-  ctx.fillStyle = A.mut2;
-  spaced(ctx, 'ESTACIONS DE LA XARXA METEOCADÍ', X0, y + 11, 1.9);
-  ['MÀX.', 'MÍN.', 'MM'].forEach((t, i) => spaced(ctx, t, cols[i], y + 11, 1.9, 'right'));
-  y += 33;
-  hline(ctx, X0, X1, y, 'rgba(61,184,255,0.16)');
+  ctx.fillStyle = L.mut;
+  spaced(ctx, 'MÀX.', cols[0] - CW / 2, y + 30, 2, 'center');
+  spaced(ctx, 'MÍN.', cols[1] - CW / 2, y + 30, 2, 'center');
+  spaced(ctx, 'PLUJA MM', X1, y + 30, 2, 'right');
+  y += 54;
+  const RH = Math.min(84, Math.floor((LEG - 22 - y) / Math.max(rows.length, 1)));
+  const PH = Math.min(50, RH - 14);
   for (const r of [...rows].sort((a, b) => b.alt - a.alt)) {
-    const cyy = y + RH / 2;
-    font(ctx, 'ui', 26);
-    ctx.fillStyle = A.txt;
+    const cy = y + RH / 2;
     ctx.textAlign = 'left';
-    ctx.fillText(r.name, X0, cyy);
+    ctx.textBaseline = 'middle';
+    fitFont(ctx, 'head', Math.min(33, RH * 0.5), 700, r.name, 400, 22);
+    ctx.fillStyle = L.ink;
+    ctx.fillText(r.name, X0, cy);
     const nw = ctx.measureText(r.name).width;
-    font(ctx, 'mono', 18);
-    ctx.fillStyle = A.mut2;
-    ctx.fillText(altTxt(r.alt), X0 + nw + 10, cyy + 2);
+    font(ctx, 'ui', 21);
+    ctx.fillStyle = L.mut;
+    ctx.fillText(altTxt(r.alt), X0 + nw + 14, cy + 3);
+    [[r.max, 'tmax'], [r.min, 'tmin']].forEach(([v, scale], i) => {
+      const x = cols[i] - CW;
+      ctx.textAlign = 'center';
+      font(ctx, 'ui', Math.min(29, PH * 0.62), 600);
+      if (v == null) { ctx.fillStyle = L.rank; ctx.fillText('—', x + CW / 2, cy); return; }
+      const c = r.susp ? L.line : fieldColor(scale, v);
+      ctx.fillStyle = c;
+      ctx.beginPath();
+      ctx.roundRect(x, cy - PH / 2, CW, PH, 10);
+      ctx.fill();
+      ctx.fillStyle = r.susp ? L.mut : inkOn(c);
+      ctx.fillText(`${num(v)}°`, x + CW / 2, cy + 1);
+    });
     ctx.textAlign = 'right';
-    font(ctx, 'mono', 29);
-    ctx.fillStyle = r.susp ? '#56677e' : tempColor(r.max);
-    ctx.fillText(r.max == null ? '—' : `${num(r.max)}°`, cols[0], cyy);
-    ctx.fillStyle = r.susp ? '#56677e' : tempColor(r.min);
-    ctx.fillText(r.min == null ? '—' : `${num(r.min)}°`, cols[1], cyy);
-    font(ctx, 'mono', 25);
-    ctx.fillStyle = (r.rain ?? 0) > 0 ? '#60a5fa' : '#56677e';
-    ctx.fillText(r.rain == null ? '—' : num(r.rain), cols[2], cyy);
+    font(ctx, 'ui', Math.min(30, PH * 0.64), 500);
+    ctx.fillStyle = (r.rain ?? 0) > 0 ? L.ink : L.rank;
+    ctx.fillText(r.rain == null ? '—' : num(r.rain), X1, cy + 1);
     ctx.textAlign = 'left';
     y += RH;
-    hline(ctx, X0, X1, y, 'rgba(255,255,255,0.06)');
+    hline(ctx, X0, X1, y, L.line);
   }
-  footer(ctx, true);
+  drawScale(ctx, 'max', X0, X1, LEG, { sw: 18, fs: 15, cs: 14 });
+  netFooter(ctx, { x0: X0, credits: 1640, foot: 1692, colR: X1, W, H, credit: '' });
 }
 
 // ------------------------------------------------------------------ Rànquing
