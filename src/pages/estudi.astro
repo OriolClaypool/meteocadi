@@ -94,6 +94,21 @@ import EstudiTop from '../components/EstudiTop.astro';
           </div>
           <p class="st-note" id="dataNote">Les dades de cada dia es desen cada matí cap a les 6. Les estacions amb el dia incomplet no entren als extrems ni al rànquing de temperatures.</p>
         </div>
+
+        <!-- ============ NEU ============ -->
+        <div data-panel="neu" hidden>
+          <div class="st-edhead"><div><p class="st-eyebrow">METEOCADÍ NEU</p><h1>La neu</h1></div></div>
+          <div class="st-field">
+            <label>Quina imatge</label>
+            <div class="st-seg" id="neuKind"><button type="button" data-nkind="n3" aria-pressed="true">Neu en 3 dies</button><button type="button" data-nkind="n7" aria-pressed="false">Neu en 7 dies</button><button type="button" data-nkind="ob" aria-pressed="false">Quan obren</button></div>
+          </div>
+          <div class="st-field">
+            <label>Format</label>
+            <div class="st-seg" id="neuFmt"><button type="button" data-nfmt="post" aria-pressed="false">Publicació 4:5</button><button type="button" data-nfmt="story" aria-pressed="true">Història 9:16</button></div>
+          </div>
+          <p class="st-note" id="neuNote"></p>
+          <p class="st-note">La neu nova és la que preveu el model al cim de cada estació d'esquí (les deu primeres). Les dates d'obertura són les de <code>src/lib/neu/temporada.js</code>.</p>
+        </div>
       </section>
 
       <section class="st-pv" aria-label="Previsualització">

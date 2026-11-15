@@ -336,6 +336,112 @@ export function drawResum(ctx, d) {
   netFooter(ctx, { x0: X0, credits: 1640, foot: 1692, colR: X1, W, H, credit: '' });
 }
 
+// ------------------------------------------------------------------ Neu (15 de novembre del 2026)
+// Dues imatges de Meteocadí Neu, de la família neta: la neu nova prevista al cim de cada estació d'esquí (les deu
+// primeres, a 3 o 7 dies) i, a la pretemporada, quan obre cada estació. Vertical 9:16 o publicació 4:5.
+// d: { kind: 'nevada' | 'obertures', fmt: 'story' | 'post', days, caption: [negre, gris], credit,
+//      rows: [{ name, sub, cm, color }], groups: [{ date, title, when, names }] }
+const NEU_BLUE = '#1d4ed8';
+export function drawNeu(ctx, d) {
+  const post = d.fmt === 'post';
+  const F = post
+    ? { H: 1350, head: 92, hs: 40, cap: 150, capGap: 24, limit: 1218, credits: 1262, foot: 1306, cs: 17, rowMax: 100 }
+    : { H, head: 290, hs: 50, cap: 360, capGap: 28, limit: 1590, credits: 1640, foot: 1692, cs: 19, rowMax: 118 };
+  background(ctx, false);
+  const ob = d.kind === 'obertures';
+  netTitle(ctx, { x0: X0, head: F.head, hs: F.hs, colR: X1, t1: ob ? 'Quan obren' : 'Neu nova', t2: ob ? ' les estacions' : ` en ${d.days} dies`, icon: 'snow', accent: NEU_BLUE });
+  ctx.textBaseline = 'middle';
+  let cs = F.cs;
+  font(ctx, 'mono', cs);
+  while (cs > 13 && spacedWidth(ctx, d.caption[0] + d.caption[1], 2) > X1 - X0) font(ctx, 'mono', --cs);
+  ctx.fillStyle = L.ink;
+  const wa = spaced(ctx, d.caption[0], X0, F.cap, 2);
+  ctx.fillStyle = L.mut;
+  spaced(ctx, d.caption[1], X0 + wa + 2, F.cap, 2);
+  let y = F.cap + F.capGap;
+  hline(ctx, X0, X1, y, L.ink, 2);
+
+  if (!ob) {
+    // Una fila per estació: nom, zona i cota del cim, i una barra amb els centímetres (el color, el de l'escala de neu)
+    const rows = d.rows;
+    const RH = Math.min(F.rowMax, Math.floor((F.limit - y) / Math.max(rows.length, 1)));
+    const NX = 120, BX = 590, BAR = 280;
+    // La barra sencera són 20 cm o la nevada més gran: 1 cm no pot omplir tota la barra
+    const max = Math.max(20, ...rows.map((r) => r.cm));
+    rows.forEach((r, i) => {
+      const cy = y + RH / 2;
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'left';
+      font(ctx, 'mono', Math.round(RH * 0.2));
+      ctx.fillStyle = L.rank;
+      ctx.fillText(String(i + 1).padStart(2, '0'), X0, cy);
+      fitFont(ctx, 'head', Math.round(RH * 0.34), 700, r.name, BX - NX - 24, 22);
+      ctx.fillStyle = L.ink;
+      ctx.fillText(r.name, NX, cy - RH * 0.14);
+      fitFont(ctx, 'mono', Math.round(RH * 0.19), 400, r.sub, BX - NX - 24, 13);
+      ctx.fillStyle = L.mut;
+      ctx.fillText(r.sub, NX, cy + RH * 0.2);
+      const cm = Math.round(r.cm);
+      const bw = cm > 0 ? Math.max(10, (r.cm / max) * BAR) : 0;
+      const bh = Math.round(RH * 0.3);
+      if (bw) {
+        ctx.fillStyle = r.color;
+        ctx.beginPath();
+        ctx.roundRect(BX, cy - bh / 2, bw, bh, 4);
+        ctx.fill();
+      }
+      font(ctx, 'mono', Math.round(RH * 0.34), 500);
+      ctx.fillStyle = cm > 0 ? L.ink : L.rank;
+      ctx.fillText(`${cm} cm`, BX + (bw ? bw + 16 : 0), cy + 1);
+      y += RH;
+      hline(ctx, X0, X1, y, L.line);
+    });
+  } else {
+    // Un bloc per data: el dia, quant falta i les estacions que obren. La mida s'ajusta al que hi ha.
+    const block = (k, paint) => {
+      let yy = y + 10 * k;
+      for (const g of d.groups) {
+        yy += 70 * k;
+        if (paint) {
+          ctx.textBaseline = 'alphabetic';
+          ctx.textAlign = 'left';
+          tracking(ctx, -1);
+          fitFont(ctx, 'head', Math.round((g.date ? 50 : 38) * k), 800, g.title, X1 - X0);
+          ctx.fillStyle = g.date ? L.ink : L.ink2;
+          ctx.fillText(g.title, X0, yy);
+          tracking(ctx, 0);
+        }
+        // Quant falta, en una línia pròpia sota la data
+        if (g.when) {
+          yy += 42 * k;
+          if (paint) {
+            font(ctx, 'ui', Math.round(28 * k), 500);
+            ctx.fillStyle = NEU_BLUE;
+            ctx.fillText(g.when, X0, yy);
+          }
+        }
+        font(ctx, 'ui', Math.round((g.date ? 34 : 30) * k), g.date ? 500 : 400);
+        const lh = (g.date ? 48 : 42) * k;
+        yy += 12 * k;
+        for (const l of wrap(ctx, g.names, X1 - X0)) {
+          yy += lh;
+          if (paint) {
+            ctx.fillStyle = g.date ? L.ink2 : L.mut;
+            ctx.fillText(l, X0, yy);
+          }
+        }
+        yy += 32 * k;
+        if (paint) hline(ctx, X0, X1, yy, L.line);
+      }
+      return yy;
+    };
+    let k = post ? 1.5 : 1.8;
+    while (k > 0.7 && block(k, false) > F.limit) k -= 0.05;
+    block(k, true);
+  }
+  netFooter(ctx, { x0: X0, credits: F.credits, foot: F.foot, colR: X1, W, H: F.H, credit: d.credit });
+}
+
 // ------------------------------------------------------------------ Rànquing
 export const RANK_VARS = {
   // t1: títol de la versió completa; short i icon: el de la versió neta ("Pluja del 17 al 20 d'octubre")
@@ -1035,7 +1141,7 @@ function alertPill(ctx, x, y, level, type) {
   // triangle d'avís
   ctx.save();
   ctx.translate(x + 18, y + 12);
-  ctx.strokeStyle = A.bg;
+  ctx.strokeStyle = L.ink;
   ctx.lineWidth = 2.2;
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
@@ -1043,16 +1149,16 @@ function alertPill(ctx, x, y, level, type) {
   ctx.stroke(new Path2D('M12 10v4.5'));
   ctx.stroke(new Path2D('M12 17.3v.2'));
   ctx.restore();
-  ctx.fillStyle = A.bg;
+  ctx.fillStyle = L.ink;
   ctx.textBaseline = 'middle';
   spaced(ctx, label, x + 54, y + 25, 2.2);
 }
 
 function drawCard(ctx, b, st, icons) {
   const { day, index, y } = b;
-  const acc = index === 0 ? A.gold : A.cy;
-  ctx.fillStyle = 'rgba(61,184,255,0.045)';
-  ctx.strokeStyle = 'rgba(61,184,255,0.14)';
+  const acc = index === 0 ? L.warn : L.blue;
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = L.line;
   ctx.lineWidth = 1;
   ctx.beginPath();
   ctx.roundRect(X0 + 0.5, y + 0.5, X1 - X0 - 1, b.height - 1, 20);
@@ -1066,29 +1172,39 @@ function drawCard(ctx, b, st, icons) {
   ctx.fillStyle = acc;
   const lw = spaced(ctx, index === 0 ? 'AVUI' : 'DEMÀ', 104, y + 49, 3.64);
   font(ctx, 'mono', 22);
-  ctx.fillStyle = A.mut2;
+  ctx.fillStyle = L.mut;
   const date = addDays(st.date, index);
   spaced(ctx, `${dayName(date)} ${Number(date.slice(8))}`.toLocaleUpperCase('ca'), 104 + lw + 18, y + 50, 2.64);
 
-  // Símbols: matí i tarda, o un de sol per a tot el dia
+  // Símbols: matí i tarda, o un de sol per a tot el dia. Les icones són clares (pensades per al fons fosc d'abans):
+  // van sobre una rajola del blau fosc de la casa perquè es vegin a la targeta blanca.
+  const tile = (x, w) => {
+    ctx.fillStyle = L.ink;
+    ctx.beginPath();
+    ctx.roundRect(x, y + 14, w, 104, 18);
+    ctx.fill();
+  };
   font(ctx, 'mono', 19);
-  ctx.fillStyle = A.mut2;
   if (day.mode === 'split') {
-    [[day.morning, 810, 'MATÍ'], [day.afternoon, 934, 'TARDA']].forEach(([k, cx, lab]) => {
-      if (!k) return;
-      if (icons[k]) ctx.drawImage(icons[k], cx - 50, y + 14, 100, 100);
-      spaced(ctx, lab, cx, y + 124, 2.28, 'center');
+    const both = [[day.morning, 810, 'MATÍ'], [day.afternoon, 934, 'TARDA']].filter(([k]) => k);
+    both.forEach(([k, cx, lab]) => {
+      tile(cx - 56, 112);
+      if (icons[k]) ctx.drawImage(icons[k], cx - 46, y + 20, 92, 92);
+      ctx.fillStyle = L.mut;
+      spaced(ctx, lab, cx, y + 136, 2.28, 'center');
     });
   } else if (day.weather) {
-    if (icons[day.weather]) ctx.drawImage(icons[day.weather], 928 - 54, y + 12, 108, 108);
-    spaced(ctx, WEATHER[day.weather].toLocaleUpperCase('ca'), 928, y + 130, 2.28, 'center');
+    tile(928 - 56, 112);
+    if (icons[day.weather]) ctx.drawImage(icons[day.weather], 928 - 46, y + 20, 92, 92);
+    ctx.fillStyle = L.mut;
+    spaced(ctx, WEATHER[day.weather].toLocaleUpperCase('ca'), 928, y + 136, 2.28, 'center');
   }
 
   let cy = y + b.start;
   const lh = Math.round(b.hs * 1.04);
   font(ctx, 'head', b.hs, 800);
   tracking(ctx, -0.03 * b.hs);
-  ctx.fillStyle = '#ffffff';
+  ctx.fillStyle = L.ink;
   for (const line of b.title) {
     ctx.fillText(line, 104, cy + lh / 2);
     cy += lh;
@@ -1096,7 +1212,7 @@ function drawCard(ctx, b, st, icons) {
   tracking(ctx, 0);
   if (b.title.length && b.body.length) cy += 20;
   font(ctx, 'ui', b.bs);
-  ctx.fillStyle = A.txt2;
+  ctx.fillStyle = L.ink2;
   for (const line of b.body) {
     if (line) ctx.fillText(line, 104, cy + b.bl / 2);
     cy += line ? b.bl : b.bl * 0.5;
@@ -1106,13 +1222,13 @@ function drawCard(ctx, b, st, icons) {
 
 function drawSummary(ctx, b) {
   const y = b.y + 6;
-  hline(ctx, X0, X1, y, 'rgba(61,184,255,0.22)');
+  hline(ctx, X0, X1, y, L.ink, 2);
   ctx.textBaseline = 'middle';
   font(ctx, 'mono', 22);
-  ctx.fillStyle = A.cy;
+  ctx.fillStyle = L.blue;
   spaced(ctx, 'PRÒXIMS DIES', X0, y + 24 + 13, 3.08);
   font(ctx, 'ui', b.size);
-  ctx.fillStyle = A.txt2;
+  ctx.fillStyle = L.ink2;
   let cy = y + 24 + 26 + 10;
   for (const line of b.lines) {
     if (line) ctx.fillText(line, X0, cy + b.lh / 2);
@@ -1121,9 +1237,11 @@ function drawSummary(ctx, b) {
 }
 
 export function drawPrevisio(ctx, st, icons, layout, page = 0) {
-  background(ctx, true);
-  header(ctx, `Previsió · ${dayName(st.date)} ${dayMonth(st.date)}`, 'El temps', '', A.cy, '#ffffff', A.cy, layout.headTop ?? TOP);
+  // Des del 15 de novembre del 2026, de la família clara de la resta d'imatges: fons clar, targetes blanques i la data
+  // com a títol (abans: fons fosc amb corbes de nivell i el títol fix "El temps").
+  background(ctx, false);
+  header(ctx, 'Previsió del temps', `${cap(dayName(st.date))} ${dayMonth(st.date)}`, '', L.blue, L.ink, L.ink, layout.headTop ?? TOP);
   const items = layout.pages[Math.min(page, layout.pages.length - 1)] || [];
   for (const b of items) b.type === 'day' ? drawCard(ctx, b, st, icons) : drawSummary(ctx, b);
-  footer(ctx, true, layout.pages.length > 1 ? `${page + 1} / ${layout.pages.length}` : '');
+  footer(ctx, false, layout.pages.length > 1 ? `${page + 1} / ${layout.pages.length}` : '');
 }
