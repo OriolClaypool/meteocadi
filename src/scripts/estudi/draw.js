@@ -48,7 +48,11 @@ export function loadIcons() {
           img.src = `/imatges/estudi/${k}.svg`;
         }),
     ),
-  ).then((e) => Object.fromEntries(e));
+  ).then(async (e) => {
+    const out = Object.fromEntries(e);
+    out.__foto = await new Promise((res) => { const img = new Image(); img.onload = () => res(img); img.onerror = () => res(null); img.src = '/imatges/portada-2400.webp'; });
+    return out;
+  });
 }
 
 export function font(ctx, fam, size, weight = 400) {
@@ -1234,6 +1238,253 @@ function drawSummary(ctx, b) {
     if (line) ctx.fillText(line, X0, cy + b.lh / 2);
     cy += line ? b.lh : b.lh * 0.5;
   }
+}
+
+// ------------------------------------------------------------------ Previsió: tres estils nous (15/11/2026, proposta)
+// L'Oriol: la versió clara "visualment no m'agrada, abans estava millor". Tres propostes fosques, que fan servir la
+// lletra a la mida que hi cap (amb poc text, la lletra creix i la imatge no queda mig buida):
+//  - 'nit': com la d'abans (fons fosc amb corbes de nivell), sense caixes: cada dia és una secció amb les icones a la dreta
+//  - 'foto': la foto de muntanya de la portada a dalt, amb la data a sobre, i els dies a sota
+//  - 'avui': avui fa de protagonista (icona gran, centrat) i demà i els pròxims dies van en un plafó a sota
+const PV = { bg: '#060a12', panel: '#0e1a2b', line: 'rgba(61,184,255,0.16)' };
+const dayIcons = (day) =>
+  day.mode === 'split'
+    ? [[day.morning, 'Matí'], [day.afternoon, 'Tarda']].filter(([k]) => k)
+    : day.weather ? [[day.weather, WEATHER[day.weather]]] : [];
+
+// Una secció de dia: etiqueta (AVUI · DIUMENGE 15), icones a la dreta, titular i text. paint=false només mesura.
+function pvDay(ctx, st, icons, day, index, x0, x1, y, k, paint, o = {}) {
+  const big = index === 0;
+  const ic = dayIcons(day);
+  const iz = Math.round((o.icon ?? (big ? 150 : 112)) * k);
+  const iw = ic.length ? ic.length * iz + (ic.length - 1) * 10 * k : 0;
+  const hs = Math.round((o.hs ?? (big ? 78 : 58)) * k);
+  const bs = Math.round((o.bs ?? (big ? 38 : 34)) * k);
+  const lab = Math.round(25 * k);
+  let yy = y;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  if (paint) {
+    font(ctx, 'mono', lab, 600);
+    ctx.fillStyle = big ? A.gold : A.cy;
+    const lw = spaced(ctx, big ? 'AVUI' : 'DEMÀ', x0, yy + lab / 2, lab * 0.14);
+    font(ctx, 'mono', lab);
+    ctx.fillStyle = A.mut2;
+    const date = addDays(st.date, index);
+    spaced(ctx, `${dayName(date)} ${Number(date.slice(8))}`.toLocaleUpperCase('ca'), x0 + lw + 16 * k, yy + lab / 2, lab * 0.12);
+    ic.forEach(([key, label], i) => {
+      const ix = x1 - iw + i * (iz + 10 * k);
+      if (icons[key]) ctx.drawImage(icons[key], ix, yy - 8 * k, iz, iz);
+      font(ctx, 'mono', Math.round(18 * k));
+      ctx.fillStyle = A.mut2;
+      spaced(ctx, label.toLocaleUpperCase('ca'), ix + iz / 2, yy - 8 * k + iz + 14 * k, 2, 'center');
+    });
+  }
+  const iconBottom = y - 8 * k + iz + 28 * k;
+  yy += lab + 26 * k;
+  // el titular es parteix més estret mentre les icones són al costat
+  font(ctx, 'head', hs, 800);
+  tracking(ctx, -0.03 * hs);
+  const head = day.headline.trim() ? nbsp(capFirst(day.headline.trim())) : '';
+  const narrow = x1 - x0 - (iw ? iw + 30 * k : 0);
+  const tl = head ? wrap(ctx, head, narrow) : [];
+  const lh = Math.round(hs * 1.06);
+  tl.forEach((l) => {
+    if (paint) { ctx.fillStyle = '#ffffff'; ctx.fillText(l, x0, yy + lh / 2); }
+    yy += lh;
+  });
+  tracking(ctx, 0);
+  if (tl.length) yy += 14 * k;
+  const body = day.text.trim() ? nbsp(capFirst(day.text.trim())) : '';
+  font(ctx, 'ui', bs);
+  const bl = Math.round(bs * 1.42);
+  const wBody = yy < iconBottom ? narrow : x1 - x0;
+  for (const l of body ? wrap(ctx, body, wBody) : []) {
+    if (paint && l) { ctx.fillStyle = A.txt2; ctx.fillText(l, x0, yy + bl / 2); }
+    yy += l ? bl : bl * 0.5;
+  }
+  if (day.alert && day.alert !== 'none') {
+    yy += 18 * k;
+    if (paint) alertPill(ctx, x0, yy, day.alert, day.alertType);
+    yy += 48;
+  }
+  return Math.max(yy, ic.length ? iconBottom : yy) - y;
+}
+
+function pvSummary(ctx, text, x0, x1, y, k, paint) {
+  const lab = Math.round(23 * k);
+  const s = Math.round(33 * k);
+  if (paint) {
+    ctx.textBaseline = 'middle';
+    font(ctx, 'mono', lab, 600);
+    ctx.fillStyle = A.cy;
+    spaced(ctx, 'PRÒXIMS DIES', x0, y + lab / 2, lab * 0.14);
+  }
+  let yy = y + lab + 20 * k;
+  font(ctx, 'ui', s);
+  const lh = Math.round(s * 1.42);
+  for (const l of wrap(ctx, nbsp(capFirst(text.trim())), x1 - x0)) {
+    if (paint && l) { ctx.fillStyle = A.txt2; ctx.fillText(l, x0, yy + lh / 2); }
+    yy += l ? lh : lh * 0.5;
+  }
+  return yy - y;
+}
+
+const pvSkip = (st, day, i) => (i === 0 ? !!st.noToday : dayEmpty(day));
+// Mesura totes les seccions a una escala k i retorna l'alçada total (amb els separadors)
+function pvMeasure(ctx, st, icons, k, x0, x1, gap, opts) {
+  let h = 0, n = 0;
+  st.days.forEach((day, i) => { if (!pvSkip(st, day, i)) { h += pvDay(ctx, st, icons, day, i, x0, x1, 0, k, false, opts(i)); n++; } });
+  if (st.summary.trim()) { h += pvSummary(ctx, st.summary, x0, x1, 0, k, false); n++; }
+  return h + gap * k * (n - 1);
+}
+// La k més gran (fins a 1,45) amb què tot hi cap entre y0 i y1
+function pvFit(ctx, st, icons, x0, x1, gap, room, opts = () => ({})) {
+  for (let k = 1.45; k > 0.62; k -= 0.03) if (pvMeasure(ctx, st, icons, k, x0, x1, gap, opts) <= room) return k;
+  return 0.62;
+}
+function pvPaint(ctx, st, icons, x0, x1, y, k, gap, opts = () => ({}), sep = PV.line, extra = 0) {
+  const parts = [];
+  st.days.forEach((day, i) => { if (!pvSkip(st, day, i)) parts.push(['d', day, i]); });
+  if (st.summary.trim()) parts.push(['s']);
+  parts.forEach((p, j) => {
+    if (j > 0) {
+      const g = (gap * k + extra) / 2;
+      hline(ctx, x0, x1, y + g - 4, sep);
+      y += g * 2;
+    }
+    y += p[0] === 'd' ? pvDay(ctx, st, icons, p[1], p[2], x0, x1, y, k, true, opts(p[2])) : pvSummary(ctx, st.summary, x0, x1, y, k, true);
+  });
+  return y;
+}
+
+export function drawPrevisioEstil(ctx, st, icons, style) {
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = PV.bg;
+  ctx.fillRect(0, 0, W, H);
+  const LIM = 1640;
+  const dateL1 = cap(dayName(st.date));
+  const dateL2 = dayMonth(st.date);
+
+  if (style === 'nit') {
+    contours(ctx);
+    const y0 = header(ctx, 'Previsió del temps', dateL1, dateL2, A.cy, '#ffffff', A.cy, 230) + 64;
+    const GAP = 92;
+    const k = pvFit(ctx, st, icons, X0, X1, GAP, LIM - y0);
+    const used = pvMeasure(ctx, st, icons, k, X0, X1, GAP, () => ({}));
+    const n = st.days.filter((d, i) => !(i > 0 && dayEmpty(d))).length + (st.summary.trim() ? 1 : 0);
+    const extra = n > 1 ? Math.min(60, (LIM - y0 - used) / (n - 1)) : 0;
+    pvPaint(ctx, st, icons, X0, X1, y0, k, GAP, () => ({}), PV.line, extra);
+  } else if (style === 'foto') {
+    // Foto a dalt (retall vertical de la de la portada), enfosquida cap avall fins al color de fons
+    const PH = 820;
+    const img = icons.__foto;
+    if (img) {
+      const sw = img.width * 0.62, sh = sw * (PH / W);
+      ctx.drawImage(img, img.width * 0.2, img.height * 0.08, sw, sh, 0, 0, W, PH);
+    }
+    const g = ctx.createLinearGradient(0, 0, 0, PH);
+    g.addColorStop(0, 'rgba(6,10,18,0.55)');
+    g.addColorStop(0.35, 'rgba(6,10,18,0.15)');
+    g.addColorStop(0.75, 'rgba(6,10,18,0.7)');
+    g.addColorStop(1, PV.bg);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, PH);
+    ctx.textBaseline = 'middle';
+    font(ctx, 'mono', 24, 600);
+    ctx.fillStyle = '#ffffff';
+    spaced(ctx, 'PREVISIÓ DEL TEMPS', X0, 470, 3.4);
+    tracking(ctx, -3.6);
+    fitFont(ctx, 'head', 104, 800, dateL1, X1 - X0);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillText(dateL1, X0, 560);
+    fitFont(ctx, 'head', 104, 800, dateL2, X1 - X0);
+    ctx.fillStyle = A.cy;
+    ctx.fillText(dateL2, X0, 660);
+    tracking(ctx, 0);
+    const y0 = 760;
+    const GAP = 80;
+    const k = pvFit(ctx, st, icons, X0, X1, GAP, LIM - y0);
+    const used = pvMeasure(ctx, st, icons, k, X0, X1, GAP, () => ({}));
+    const n = st.days.filter((d, i) => !(i > 0 && dayEmpty(d))).length + (st.summary.trim() ? 1 : 0);
+    const extra = n > 1 ? Math.min(50, (LIM - y0 - used) / (n - 1)) : 0;
+    pvPaint(ctx, st, icons, X0, X1, y0, k, GAP, () => ({}), PV.line, extra);
+  } else {
+    // 'avui': avui centrat i gran; demà i pròxims dies en un plafó a sota
+    ctx.textBaseline = 'middle';
+    font(ctx, 'mono', 24, 600);
+    ctx.fillStyle = A.cy;
+    spaced(ctx, `PREVISIÓ · ${dateL1} ${dateL2}`.toLocaleUpperCase('ca'), W / 2, 250, 3, 'center');
+    const day = st.days[0];
+    const rest = { ...st, noToday: true };
+    // plafó de baix (demà i pròxims dies), a mida fixa de lletra
+    const PX0 = X0 + 40, PX1 = X1 - 40;
+    const hasRest = st.days.slice(1).some((d) => !dayEmpty(d)) || !!st.summary.trim();
+    const kr = 0.9;
+    const restH = hasRest ? pvMeasure(ctx, rest, icons, kr, PX0, PX1, 70, () => ({})) : 0;
+    // avui: icona, titular i text centrats, que creixen fins a omplir l'espai de dalt
+    const ic = dayIcons(day);
+    const top = 300, bottom = hasRest ? LIM - restH - 68 - 50 : LIM;
+    const fitAvui = (k, paint) => {
+      let y = top + 20 * k;
+      const iz = Math.round(230 * k);
+      if (ic.length) {
+        const gap = 30 * k;
+        const tw = ic.length * iz + (ic.length - 1) * gap;
+        ic.forEach(([key, label], i) => {
+          const ix = W / 2 - tw / 2 + i * (iz + gap);
+          if (paint && icons[key]) ctx.drawImage(icons[key], ix, y, iz, iz);
+          if (paint && ic.length > 1) { font(ctx, 'mono', Math.round(22 * k)); ctx.fillStyle = A.mut2; spaced(ctx, label.toLocaleUpperCase('ca'), ix + iz / 2, y + iz + 18 * k, 2, 'center'); }
+        });
+        y += iz + (ic.length > 1 ? 56 : 30) * k;
+      }
+      if (paint) { font(ctx, 'mono', Math.round(26 * k), 600); ctx.fillStyle = A.gold; spaced(ctx, 'AVUI', W / 2, y + 13 * k, 4, 'center'); }
+      y += 56 * k;
+      const hs = Math.round(96 * k);
+      tracking(ctx, -0.03 * hs);
+      font(ctx, 'head', hs, 800);
+      const lh = Math.round(hs * 1.05);
+      for (const l of day.headline.trim() ? wrap(ctx, nbsp(capFirst(day.headline.trim())), X1 - X0) : []) {
+        if (paint) { ctx.textAlign = 'center'; ctx.fillStyle = '#ffffff'; ctx.fillText(l, W / 2, y + lh / 2); ctx.textAlign = 'left'; }
+        y += lh;
+      }
+      tracking(ctx, 0);
+      y += 18 * k;
+      const bs = Math.round(40 * k), bl = Math.round(bs * 1.42);
+      font(ctx, 'ui', bs);
+      for (const l of day.text.trim() ? wrap(ctx, nbsp(capFirst(day.text.trim())), X1 - X0 - 40) : []) {
+        if (paint && l) { ctx.textAlign = 'center'; ctx.fillStyle = A.txt2; ctx.fillText(l, W / 2, y + bl / 2); ctx.textAlign = 'left'; }
+        y += l ? bl : bl * 0.5;
+      }
+      if (day.alert && day.alert !== 'none') {
+        y += 22 * k;
+        if (paint) {
+          font(ctx, 'mono', 22, 500);
+          const w = 18 + 24 + 12 + spacedWidth(ctx, `AVÍS ${day.alert} · ${PHENOMENA[day.alertType] || day.alertType}`.toLocaleUpperCase('ca'), 2.2) + 18;
+          alertPill(ctx, W / 2 - w / 2, y, day.alert, day.alertType);
+        }
+        y += 48;
+      }
+      return y;
+    };
+    let k = 1.3;
+    while (k > 0.6 && fitAvui(k, false) > bottom) k -= 0.03;
+    const endA = fitAvui(k, false);
+    // centra avui verticalment a l'espai que té
+    ctx.save();
+    ctx.translate(0, Math.max(0, (bottom - endA) / 2));
+    fitAvui(k, true);
+    ctx.restore();
+    if (hasRest) {
+      const py = LIM - restH - 68;
+      ctx.fillStyle = PV.panel;
+      ctx.beginPath();
+      ctx.roundRect(X0, py, X1 - X0, restH + 68, 28);
+      ctx.fill();
+      pvPaint(ctx, rest, icons, PX0, PX1, py + 34, kr, 70, () => ({}), 'rgba(255,255,255,0.08)');
+    }
+  }
+  footer(ctx, true);
 }
 
 export function drawPrevisio(ctx, st, icons, layout, page = 0) {
