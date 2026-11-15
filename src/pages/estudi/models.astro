@@ -116,7 +116,7 @@ const has90 = !!DATA['90-1-totes'] && DATA['90-1-totes'].days > DATA['30-1-totes
     "800 40px 'Schibsted Grotesk Variable'",
     "700 30px 'Schibsted Grotesk Variable'",
     "400 18px 'Geist Variable'",
-    "500 30px 'Geist Mono Variable'",
+    "500 30px 'Geist Variable'",
   ].map((f) => document.fonts?.load(f).catch(() => null)));
   function draw() {
     const F = FORMATS[st.f as keyof typeof FORMATS];
