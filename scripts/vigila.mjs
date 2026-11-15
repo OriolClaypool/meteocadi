@@ -1,7 +1,9 @@
 // Vigila les estacions de la xarxa Meteocadí. S'executa a GitHub Actions tres cops al dia
 // (.github/workflows/vigila.yml): quan una estació deixa de donar dades o el control de qualitat (src/lib/qc.js) en
 // descarta un sensor, obre una incidència al repositori amb una menció al propietari (GitHub n'avisa per correu i a
-// l'app); quan l'estació torna a funcionar, la tanca sola. També avisa si l'arxiu de la nit no ha desat el dia d'ahir.
+// l'app); quan l'estació torna a funcionar, la tanca sola. També avisa si l'arxiu de la nit no ha desat el dia d'ahir
+// i, des del 15/11/2026, si falla alguna de les altres fonts del web: el radar (de l'11 al 15/11/2026 va estar caigut
+// sense que ningú ho sabés), la pluja del radar de cada nit, la previsió AROME, la neu i les dades del Meteocat.
 // L'autor de les incidències és github-actions (no tu): per això sí que arriben les notificacions.
 //
 // Prova sense tocar GitHub: DRY=1 node scripts/vigila.mjs (ho escriu tot a la consola).
@@ -38,8 +40,10 @@ const TEXT = {
 
 // ara: resposta de /api/ara (o null si no ha respost); yesterday: arxiu d'ahir (o null si no hi és);
 // checkArchive: si ja és l'hora en què l'arxiu d'ahir hi hauria de ser.
+// fonts (opcional): { radar, arome, neu, mesurada, xema } amb la resposta de cada funció (null si no ha respost) i
+// radarAhir (si el fitxer de la pluja del radar d'ahir hi és); si no es passa, les altres fonts no es miren.
 // Retorna { problems: [{ key, id, kind, title, detail }], working: Set de claus que se sap que tornen a funcionar }.
-export function inspect({ ara, yesterday, now = new Date(), checkArchive = true }) {
+export function inspect({ ara, yesterday, now = new Date(), checkArchive = true, fonts = null }) {
   const problems = new Map();
   const working = new Set();
   const add = (id, kind, title, detail) => {
@@ -114,6 +118,34 @@ export function inspect({ ara, yesterday, now = new Date(), checkArchive = true 
   } else if (checkArchive) {
     add('arxiu', 'no-desat', "L'arxiu d'ahir no s'ha desat", "El cron de la nit (api/arxiva.js) no ha desat el fitxer del dia d'ahir a dades/. Mira els registres de Vercel (Logs, /api/arxiva). Si torna a funcionar, l'endemà recupera sol els dies que falten.");
   }
+  // 3) Les altres fonts del web
+  if (fonts) {
+    const check = (id, kind, bad, title, detail) => (bad ? add(id, kind, title, detail) : working.add(`${id}:${kind}`));
+    // Radar: sense llista, amb error, sense imatges o amb la més nova de fa més d'una hora i mitja
+    const r = fonts.radar;
+    const last = r?.frames?.length ? Date.parse(r.frames[r.frames.length - 1].time) : NaN;
+    const old = Number.isFinite(last) ? Math.round((now.getTime() - last) / 60e3) : null;
+    check('radar', 'sense-imatges', !r || r.error || old == null || old > 90, 'El radar no té imatges',
+      `${SITE}/api/capes/radar ${!r ? 'no ha respost' : r.error ? `diu: ${String(r.message || r.error).slice(0, 160)}` : old == null ? 'no porta cap imatge' : `té la imatge més nova de fa ${old} minuts`}. Les imatges surten dels dipòsits oberts d'EUMETNET (el principal i el de reserva, a api/_opera.js); si tots dos són buits o han canviat d'adreça, mira la documentació de l'Open Radar Data (eumetnet.github.io/openradardata-documentation).`);
+    if (checkArchive) {
+      check('radar', 'arxiu', !fonts.radarAhir, "La pluja del radar d'ahir no s'ha desat",
+        "El cron de les 23 h UTC (api/capes/arxiva-pluja) no ha desat el fitxer d'ahir a dades/radar: o el radar no tenia imatges, o hi faltaven més de dues hores, o la funció ha fallat (registres de Vercel, /api/capes/arxiva-pluja). Sense el fitxer, el mapa de pluja d'aquell dia es fa només amb les estacions.");
+    }
+    const a = fonts.arome;
+    check('arome', 'no-respon', !a || a.error || !a.times?.length, 'La previsió AROME no respon',
+      `${SITE}/api/capes/arome ${!a ? 'no ha respost' : a.error ? `diu: ${String(a.message || a.error).slice(0, 160)}` : 'no porta cap hora'}. Afecta el mapa de previsió hora a hora i la cota de neu. Sol ser la clau o el servei de Météo-France (METEOFRANCE_API_KEY a Vercel).`);
+    const n = fonts.neu;
+    check('neu', 'no-respon', !n || n.error || !Object.keys(n.resorts || {}).length, 'La previsió de Meteocadí Neu no respon',
+      `${SITE}/api/neu ${!n ? 'no ha respost' : 'no porta cap estació'}. La previsió ve d'Open-Meteo (10.000 crides al dia al pla gratuït).`);
+    const m = fonts.mesurada;
+    check('neu', 'mesurada', !m || m.error || !m.stations?.length, 'La neu mesurada no arriba',
+      `${SITE}/api/neu/mesurada ${!m ? 'no ha respost' : 'no porta cap sensor'}: els gruixos de neu del Meteocat (XEMA) no arriben i les notes de Neu es fan només amb el model.`);
+    // Meteocat: el portal de dades obertes va sempre entre 45 i 75 minuts endarrerit; s'avisa a partir de tres hores
+    const x = fonts.xema;
+    const lag = Number.isFinite(x?.lag) ? x.lag : null;
+    check('xema', 'endarrerit', !x || x.error || !x.stations?.length || (lag != null && lag > 180), 'Les dades del Meteocat no arriben',
+      `${SITE}/api/xema ${!x ? 'no ha respost' : x.error || !x.stations?.length ? 'no porta estacions' : `porta dades de fa ${lag} minuts`}. És el portal de dades obertes de la Generalitat, que de tant en tant s'atura; el mapa de Catalunya ho diu als visitants i torna sol.`);
+  }
   // Una clau que encara és un problema no pot ser "bona" (p. ex., pluviòmetre dolent avui però bo ahir)
   for (const k of problems.keys()) working.delete(k);
   return { problems: [...problems.values()], working };
@@ -128,6 +160,7 @@ function issueBody(p, owner, now) {
   const lines = [`@${owner}, el control de qualitat ha detectat un problema.`, ''];
   if (s) lines.push(`**${s.name}** (${s.id}, ${s.alt.toLocaleString('ca-ES')} m)`);
   lines.push(p.detail, '');
+  if (!s) lines[0] = `@${owner}, una de les fonts del web falla.`;
   if (s) {
     lines.push("Mentre duri, la web deixa de fer servir aquestes dades (ho fa sola). Aquesta incidència es tancarà sola quan l'estació torni a funcionar.", '');
     lines.push(`- Fitxa a la web: ${SITE}/estacions/${s.slug}`, `- Panell de Weather Underground: https://www.wunderground.com/dashboard/pws/${s.id}`, '');
@@ -180,7 +213,19 @@ async function main() {
   const yesterday = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null;
   // L'arxiu es fa entre les 4 i les 5 UTC; a la primera passada del matí encara pot no ser-hi
   const checkArchive = now.getUTCHours() >= 9;
-  const result = inspect({ ara, yesterday, now, checkArchive });
+  // Les altres fonts: una petició a cada funció (totes passen per la CDN; no gasten cap quota)
+  const get = async (p) => {
+    try {
+      const r = await fetch(`${SITE}${p}`, { signal: AbortSignal.timeout(30000), headers: { 'User-Agent': 'meteocadi-vigila' } });
+      return r.ok ? await r.json() : null;
+    } catch (e) {
+      console.error(`${p}:`, String(e));
+      return null;
+    }
+  };
+  const [radar, arome, neu, mesurada, xema] = await Promise.all(['/api/capes/radar', '/api/capes/arome', '/api/neu', '/api/neu/mesurada', '/api/xema'].map(get));
+  const radarAhir = fs.existsSync(path.join(ROOT, 'dades', 'radar', y.slice(0, 4), `${y}.json`));
+  const result = inspect({ ara, yesterday, now, checkArchive, fonts: { radar, arome, neu, mesurada, xema, radarAhir } });
   console.log(`Problemes: ${result.problems.length ? result.problems.map((p) => p.title).join(' · ') : 'cap'}`);
   if (dry) {
     console.log('(prova: no es toca GitHub)');

@@ -7,8 +7,7 @@
 // (1900 × 2200 per a 2 km). NaN: el radar hi veu i no hi ha pluja (0 mm); -9999000: fora de l'abast (sense dades).
 // Comprovat amb els fitxers ACRR de debò el 20/10/2026 (1900 × 2200, 2 km).
 import { deflateRawSync } from 'node:zlib';
-import { fromUrl } from 'geotiff';
-import { laea, fileUrl } from './_opera.js';
+import { laea, openImage } from './_opera.js';
 
 // La graella del mapa de color (ha de ser la mateixa que camp.js)
 const FB = { lat0: 40.48, lat1: 42.9, lng0: 0.12, lng1: 3.36 };
@@ -43,14 +42,8 @@ function geom(px) {
 }
 
 async function readAcc(t) {
-  let img;
-  try {
-    img = await (await fromUrl(fileUrl(t, 'ACRR'))).getImage(0);
-  } catch (e) {
-    const h = await fetch(fileUrl(t, 'ACRR'), { method: 'HEAD', signal: AbortSignal.timeout(5000) }).catch(() => null);
-    if (h && (h.status === 404 || h.status === 403)) return null;
-    throw e;
-  }
+  const img = await openImage(t, 'ACRR');
+  if (!img) return null;
   const w = img.getWidth(), hgt = img.getHeight();
   const px = EXT_X / w;
   if (Math.abs(EXT_Y / hgt - px) > 1) throw new Error(`graella inesperada: ${w} × ${hgt}`);
