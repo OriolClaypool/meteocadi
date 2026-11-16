@@ -147,7 +147,7 @@ export async function startEstudi() {
   // Estil de la imatge del rànquing: 'net' (per defecte: títol d'una línia, sense frase ni escala) o 'complet'. El
   // mateix que trien les imatges dels mapes i del radar (mc-img-estil, text pla).
   // Estil de la imatge de la previsió (proposta del 15/11/2026: tres estils foscos i la clara)
-  const PV_STYLES = ['nit', 'foto', 'avui', 'clara'];
+  const PV_STYLES = ['nit', 'tauler', 'diari', 'color', 'foto', 'avui', 'clara'];
   let pvSty = PV_STYLES.includes(store.get('meteocadi-estudi-pvsty')) ? store.get('meteocadi-estudi-pvsty') : 'nit';
   document.querySelectorAll('[data-pvsty]').forEach((b) => {
     b.setAttribute('aria-pressed', String(b.dataset.pvsty === pvSty));

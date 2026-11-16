@@ -1,7 +1,7 @@
 // Estudi · dibuix de les imatges verticals (1080 × 1920) per a Stories i X.
 // Tres plantilles amb el mateix sistema: capçalera (data + títol en dues línies, la segona en color),
 // contingut i peu amb meteocadi.cat. Marges pensats per a Stories: capçalera a 180 px, peu a ~1.700 px.
-import { tempColor, num, dayName, dayMonth, cap } from '../../lib/format.js';
+import { num, dayName, dayMonth, cap, parseDay } from '../../lib/format.js';
 import { SCALES, fieldColor, readableOn, inkOn, rainClasses } from '../../lib/escales.js';
 import { iconBadge } from '../icones.js';
 
@@ -1358,7 +1358,301 @@ function pvPaint(ctx, st, icons, x0, x1, y, k, gap, opts = () => ({}), sep = PV.
   return y;
 }
 
+// ------------------------------------------------------------------ Previsió: tres estils més diferents (16/11/2026)
+// L'Oriol: "prefereixo la A, però no pots fer alguns dissenys més diferents? Tots són molt similars".
+//  - 'tauler': rajoles com un tauler de widgets (avui a tota l'amplada; demà i pròxims dies, una al costat de l'altra)
+//  - 'diari': de diari, tipogràfic: el número del dia enorme, el titular com una portada i dues columnes a sota
+//  - 'color': el fons agafa el color del temps d'avui, amb la icona gegant i el titular com un cartell
+const WX_BG = { sol: '#b45309', solnuvol: '#1d5f8f', solpluja: '#1e4d6b', nuvol: '#3d4b5c', pluja: '#1c3a63', tempesta: '#33235c', neu: '#24708f', boira: '#525d69', vent: '#155e63' };
+function lines(ctx, fam, size, weight, text, width, track = 0) {
+  if (!text || !text.trim()) return [];
+  font(ctx, fam, size, weight);
+  tracking(ctx, track);
+  const out = wrap(ctx, nbsp(capFirst(text.trim())), width);
+  tracking(ctx, 0);
+  return out;
+}
+// Pinta (o només mesura) unes línies. Retorna la y on acaben.
+function para(ctx, paint, ls, x, y, { fam = 'ui', size, weight = 400, lh = 1.42, color = '#fff', align = 'left', track = 0 } = {}) {
+  const h = Math.round(size * lh);
+  if (paint) {
+    font(ctx, fam, size, weight);
+    tracking(ctx, track);
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = align;
+    ctx.fillStyle = color;
+  }
+  for (const l of ls) {
+    if (paint && l) ctx.fillText(l, x, y + h / 2);
+    y += l ? h : h * 0.5;
+  }
+  if (paint) { tracking(ctx, 0); ctx.textAlign = 'left'; }
+  return y;
+}
+const label = (ctx, paint, text, x, y, size, color, align = 'left') => {
+  if (!paint) return;
+  ctx.textBaseline = 'middle';
+  font(ctx, 'mono', size, 600);
+  ctx.fillStyle = color;
+  spaced(ctx, text.toLocaleUpperCase('ca'), x, y, size * 0.14, align);
+};
+const alertW = (ctx, day) => { font(ctx, 'mono', 22, 500); return 72 + spacedWidth(ctx, `AVÍS ${day.alert} · ${PHENOMENA[day.alertType] || day.alertType}`.toLocaleUpperCase('ca'), 2.2); };
+const hasAlert = (day) => day.alert && day.alert !== 'none';
+const dayDate = (st, i) => { const d = addDays(st.date, i); return `${dayName(d)} ${Number(d.slice(8))}`; };
+const fitK = (fn, lim, hi = 1.4, lo = 0.6) => { for (let k = hi; k > lo; k -= 0.03) if (fn(k, false) <= lim) return k; return lo; };
+
+function drawTauler(ctx, st, icons) {
+  ctx.fillStyle = '#070d16';
+  ctx.fillRect(0, 0, W, H);
+  const T = '#0f1c2e', R = 30, G = 22, PAD = 44;
+  const d0 = st.days[0], d1 = st.days[1];
+  const has1 = d1 && !dayEmpty(d1), hasS = !!st.summary.trim();
+  // capçalera: data en una línia
+  label(ctx, true, 'Previsió del temps', X0, 252, 24, A.cy);
+  tracking(ctx, -2.6);
+  fitFont(ctx, 'head', 76, 800, `${cap(dayName(st.date))} ${dayMonth(st.date)}`, X1 - X0);
+  ctx.fillStyle = '#fff';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(`${cap(dayName(st.date))} ${dayMonth(st.date)}`, X0, 318);
+  tracking(ctx, 0);
+  const y0 = 384, LIM = 1640;
+  const half = (X1 - X0 - G) / 2;
+  const layout = (k, paint) => {
+    // rajola d'avui: icona(es) a l'esquerra, a sobre; titular i text a sota, a tota l'amplada
+    let y = y0;
+    const ic = dayIcons(d0);
+    const iz = Math.round(170 * k);
+    const head = lines(ctx, 'head', Math.round(76 * k), 800, d0.headline, X1 - X0 - 2 * PAD, -0.03 * 76 * k);
+    const body = lines(ctx, 'ui', Math.round(38 * k), 400, d0.text, X1 - X0 - 2 * PAD);
+    let h = PAD + Math.max(iz, 60 * k) + 30 * k;
+    h += head.length * Math.round(76 * k * 1.05) + (head.length && body.length ? 16 * k : 0);
+    h += body.reduce((n, l) => n + (l ? Math.round(38 * k * 1.42) : 19 * k), 0);
+    if (hasAlert(d0)) h += 24 * k + 48;
+    h += PAD;
+    if (paint) {
+      ctx.fillStyle = T;
+      ctx.beginPath(); ctx.roundRect(X0, y, X1 - X0, h, R); ctx.fill();
+      ic.forEach(([key, lab], i) => { if (icons[key]) ctx.drawImage(icons[key], X0 + PAD + i * (iz + 16 * k), y + PAD - 10 * k, iz, iz); if (ic.length > 1) label(ctx, true, lab, X0 + PAD + i * (iz + 16 * k) + iz / 2, y + PAD + iz + 4 * k, Math.round(18 * k), A.mut2, 'center'); });
+      label(ctx, true, 'Avui', X1 - PAD, y + PAD + 14 * k, Math.round(28 * k), A.gold, 'right');
+      label(ctx, true, dayDate(st, 0), X1 - PAD, y + PAD + 56 * k, Math.round(22 * k), A.mut2, 'right');
+    }
+    let yy = y + PAD + Math.max(iz, 60 * k) + 30 * k;
+    yy = para(ctx, paint, head, X0 + PAD, yy, { fam: 'head', size: Math.round(76 * k), weight: 800, lh: 1.05, track: -0.03 * 76 * k });
+    if (head.length && body.length) yy += 16 * k;
+    yy = para(ctx, paint, body, X0 + PAD, yy, { size: Math.round(38 * k), color: A.txt2 });
+    if (hasAlert(d0)) { yy += 24 * k; if (paint) alertPill(ctx, X0 + PAD, yy, d0.alert, d0.alertType); }
+    y += h + G;
+    if (!has1 && !hasS) return y;
+    // dues rajoles petites: demà i pròxims dies (si només n'hi ha una, a tota l'amplada)
+    const both = has1 && hasS;
+    const w = both ? half : X1 - X0;
+    const cols = [];
+    if (has1) cols.push({ kind: 'd' });
+    if (hasS) cols.push({ kind: 's' });
+    const meas = cols.map((c) => {
+      const tw = w - 2 * PAD;
+      if (c.kind === 'd') {
+        const iz1 = Math.round(110 * k);
+        const hd = lines(ctx, 'head', Math.round(44 * k), 800, d1.headline, tw, -1);
+        const bd = lines(ctx, 'ui', Math.round(32 * k), 400, d1.text, tw);
+        const hh = PAD + iz1 + 28 * k + hd.length * Math.round(44 * k * 1.08) + (hd.length && bd.length ? 10 * k : 0) + bd.reduce((n, l) => n + (l ? Math.round(32 * k * 1.42) : 16 * k), 0) + (hasAlert(d1) ? 20 * k + 48 : 0) + PAD;
+        return { ...c, iz1, hd, bd, hh };
+      }
+      const bd = lines(ctx, 'ui', Math.round(32 * k), 400, st.summary, tw);
+      return { ...c, bd, hh: PAD + 60 * k + bd.reduce((n, l) => n + (l ? Math.round(32 * k * 1.42) : 16 * k), 0) + PAD };
+    });
+    const th = Math.max(...meas.map((m) => m.hh));
+    if (paint) meas.forEach((m, i) => {
+      const x = X0 + i * (half + G);
+      ctx.fillStyle = T;
+      ctx.beginPath(); ctx.roundRect(x, y, w, th, R); ctx.fill();
+      let yy2 = y + PAD;
+      if (m.kind === 'd') {
+        const ic1 = dayIcons(d1);
+        ic1.forEach(([key], j) => { if (icons[key]) ctx.drawImage(icons[key], x + PAD + j * (m.iz1 + 8), yy2 - 8 * k, m.iz1, m.iz1); });
+        label(ctx, true, 'Demà', x + w - PAD, yy2 + 12 * k, Math.round(24 * k), A.cy, 'right');
+        label(ctx, true, dayDate(st, 1), x + w - PAD, yy2 + 46 * k, Math.round(20 * k), A.mut2, 'right');
+        yy2 += m.iz1 + 28 * k;
+        yy2 = para(ctx, true, m.hd, x + PAD, yy2, { fam: 'head', size: Math.round(44 * k), weight: 800, lh: 1.08, track: -1 });
+        if (m.hd.length && m.bd.length) yy2 += 10 * k;
+        yy2 = para(ctx, true, m.bd, x + PAD, yy2, { size: Math.round(32 * k), color: A.txt2 });
+        if (hasAlert(d1)) alertPill(ctx, x + PAD, yy2 + 20 * k, d1.alert, d1.alertType);
+      } else {
+        label(ctx, true, 'Pròxims dies', x + PAD, yy2 + 14 * k, Math.round(24 * k), A.cy);
+        para(ctx, true, m.bd, x + PAD, yy2 + 60 * k, { size: Math.round(32 * k), color: A.txt2 });
+      }
+    });
+    return y + th;
+  };
+  const k = fitK(layout, LIM);
+  layout(k, true);
+  footer(ctx, true);
+}
+
+function drawDiari(ctx, st, icons) {
+  ctx.fillStyle = '#0b1019';
+  ctx.fillRect(0, 0, W, H);
+  const d0 = st.days[0], d1 = st.days[1];
+  const has1 = d1 && !dayEmpty(d1), hasS = !!st.summary.trim();
+  const dd = parseDay(st.date);
+  const num = String(dd.getUTCDate());
+  // el número del dia, enorme, i al costat el dia de la setmana i el mes
+  ctx.textBaseline = 'alphabetic';
+  tracking(ctx, -18);
+  font(ctx, 'head', 400, 800);
+  ctx.fillStyle = A.cy;
+  ctx.fillText(num, X0 - 12, 600);
+  const nw = ctx.measureText(num).width;
+  tracking(ctx, 0);
+  const mx = X0 + nw + 26;
+  label(ctx, true, 'Previsió del temps', mx, 344, 24, A.mut2);
+  font(ctx, 'head', 64, 800);
+  tracking(ctx, -2);
+  ctx.fillStyle = '#fff';
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillText(cap(dayName(st.date)), mx, 450);
+  ctx.fillStyle = A.txt2;
+  const month = dayMonth(st.date).replace(/^\d+ (de |d')/, '');
+  ctx.fillText(cap(month), mx, 526);
+  tracking(ctx, 0);
+  hline(ctx, X0, X1, 640, '#ffffff', 3);
+  const y0 = 690, LIM = 1630;
+  const ic0 = dayIcons(d0);
+  const layout = (k, paint) => {
+    let y = y0;
+    // icones petites al costat de l'etiqueta, com a la capçalera d'un article
+    label(ctx, paint, `Avui${ic0.length ? '' : ''}`, X0, y + 14 * k, Math.round(26 * k), A.gold);
+    const iz = Math.round(78 * k);
+    if (paint) ic0.forEach(([key], i) => { if (icons[key]) ctx.drawImage(icons[key], X1 - (ic0.length - i) * (iz + 8), y - 22 * k, iz, iz); });
+    y += 58 * k;
+    const hs = Math.round(92 * k);
+    const hd = lines(ctx, 'head', hs, 800, d0.headline, X1 - X0, -0.035 * hs);
+    y = para(ctx, paint, hd, X0, y, { fam: 'head', size: hs, weight: 800, lh: 1.02, track: -0.035 * hs });
+    if (hd.length) y += 22 * k;
+    const bs = Math.round(38 * k);
+    y = para(ctx, paint, lines(ctx, 'ui', bs, 400, d0.text, X1 - X0), X0, y, { size: bs, color: A.txt2, lh: 1.45 });
+    if (hasAlert(d0)) { y += 24 * k; if (paint) alertPill(ctx, X0, y, d0.alert, d0.alertType); y += 48; }
+    if (!has1 && !hasS) return y;
+    y += 46 * k;
+    if (paint) hline(ctx, X0, X1, y, 'rgba(255,255,255,0.35)', 1);
+    y += 36 * k;
+    // dues columnes amb una línia al mig
+    const both = has1 && hasS;
+    const cw = both ? (X1 - X0 - 60) / 2 : X1 - X0;
+    const cs = Math.round(31 * k);
+    const col = (x, kind) => {
+      let yy = y;
+      if (kind === 'd') {
+        label(ctx, paint, `Demà · ${dayDate(st, 1)}`, x, yy + 12 * k, Math.round(22 * k), A.cy);
+        const ic1 = dayIcons(d1);
+        const iz1 = Math.round(54 * k);
+        if (paint) ic1.forEach(([key], i) => { if (icons[key]) ctx.drawImage(icons[key], x + cw - (ic1.length - i) * (iz1 + 4), yy - 16 * k, iz1, iz1); });
+        yy += 50 * k;
+        const hd1 = lines(ctx, 'head', Math.round(40 * k), 800, d1.headline, cw, -1);
+        yy = para(ctx, paint, hd1, x, yy, { fam: 'head', size: Math.round(40 * k), weight: 800, lh: 1.08, track: -1 });
+        if (hd1.length) yy += 8 * k;
+        yy = para(ctx, paint, lines(ctx, 'ui', cs, 400, d1.text, cw), x, yy, { size: cs, color: A.txt2 });
+        if (hasAlert(d1)) { yy += 18 * k; if (paint) alertPill(ctx, x, yy, d1.alert, d1.alertType); yy += 48; }
+      } else {
+        label(ctx, paint, 'Pròxims dies', x, yy + 12 * k, Math.round(22 * k), A.cy);
+        yy += 50 * k;
+        yy = para(ctx, paint, lines(ctx, 'ui', cs, 400, st.summary, cw), x, yy, { size: cs, color: A.txt2 });
+      }
+      return yy;
+    };
+    const ends = [];
+    if (has1) ends.push(col(X0, 'd'));
+    if (hasS) ends.push(col(has1 ? X0 + cw + 60 : X0, 's'));
+    const end = Math.max(...ends);
+    if (paint && both) ctx.fillStyle = 'rgba(255,255,255,0.35)', ctx.fillRect(X0 + cw + 29, y - 6, 1, end - y + 6);
+    return end;
+  };
+  const k = fitK(layout, LIM, 1.3);
+  layout(k, true);
+  footer(ctx, true);
+}
+
+function drawColor(ctx, st, icons) {
+  const d0 = st.days[0], d1 = st.days[1];
+  const key0 = d0.mode === 'split' ? d0.afternoon || d0.morning : d0.weather;
+  const bg = WX_BG[key0] || '#1d3557';
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+  const has1 = d1 && !dayEmpty(d1), hasS = !!st.summary.trim();
+  // icona gegant que surt per la dreta
+  const ic = dayIcons(d0);
+  // icona gegant: es dibuixa quan ja se sap on comença el text (si el text puja fins a la icona, es fa més suau)
+  const bigIcon = (top) => {
+    if (!ic.length || !icons[ic[ic.length - 1][0]]) return;
+    ctx.globalAlpha = top < 780 ? 0.28 : 0.95;
+    ctx.drawImage(icons[ic[ic.length - 1][0]], 520, 170, 600, 600);
+    ctx.globalAlpha = 1;
+  };
+  label(ctx, true, `Previsió · ${cap(dayName(st.date))} ${dayMonth(st.date)}`, X0, 250, 24, 'rgba(255,255,255,0.85)');
+  const LIM = 1630;
+  const layout = (k0, paint) => {
+    let k = k0;
+    // de baix a dalt: primer es mesura la franja fosca de baix (demà i pròxims dies), amb lletra fixa
+    const kb = k;
+    k = 1;
+    const cs = 32;
+    const pad = 40;
+    let bandH = 0;
+    const parts = [];
+    if (has1) {
+      const bd = lines(ctx, 'ui', cs, 400, [d1.headline.trim(), d1.text.trim()].filter(Boolean).join('. '), X1 - X0 - 2 * pad - 90);
+      parts.push({ kind: 'd', bd, h: 44 * k + bd.reduce((n, l) => n + (l ? Math.round(cs * 1.42) : cs * 0.7), 0) });
+    }
+    if (hasS) {
+      const bd = lines(ctx, 'ui', cs, 400, st.summary, X1 - X0 - 2 * pad);
+      parts.push({ kind: 's', bd, h: 44 * k + bd.reduce((n, l) => n + (l ? Math.round(cs * 1.42) : cs * 0.7), 0) });
+    }
+    if (parts.length) bandH = pad * 2 + parts.reduce((n, p) => n + p.h, 0) + (parts.length - 1) * 34;
+    const bandY = LIM - bandH;
+    k = kb;
+    // avui: a sobre de la franja, alineat a baix
+    const hs = Math.round(112 * k);
+    const hd = lines(ctx, 'head', hs, 800, d0.headline || (key0 ? WEATHER[key0] : ''), X1 - X0, -0.035 * hs);
+    const bs = Math.round(40 * k);
+    const bd0 = lines(ctx, 'ui', bs, 500, d0.text, X1 - X0 - 40);
+    const avuiH = 60 * k + hd.length * Math.round(hs * 1.0) + (bd0.length ? 26 * k : 0) + bd0.reduce((n, l) => n + (l ? Math.round(bs * 1.4) : bs * 0.7), 0) + (hasAlert(d0) ? 26 * k + 48 : 0);
+    const top = (bandH ? bandY - 60 * k : LIM) - avuiH;
+    if (!paint) return top; // avui ha de quedar per sota de la icona gegant
+    let y = top;
+    label(ctx, true, 'Avui', X0, y + 14 * k, Math.round(28 * k), '#fff');
+    y += 60 * k;
+    y = para(ctx, true, hd, X0, y, { fam: 'head', size: hs, weight: 800, lh: 1.0, track: -0.035 * hs });
+    if (bd0.length) y += 26 * k;
+    y = para(ctx, true, bd0, X0, y, { size: bs, weight: 500, color: 'rgba(255,255,255,0.92)', lh: 1.4 });
+    if (hasAlert(d0)) alertPill(ctx, X0, y + 26 * k, d0.alert, d0.alertType);
+    if (bandH) {
+      ctx.fillStyle = 'rgba(0,0,0,0.28)';
+      ctx.beginPath(); ctx.roundRect(X0 - 24, bandY, X1 - X0 + 48, bandH, 28); ctx.fill();
+      let yy = bandY + pad;
+      parts.forEach((p, i) => {
+        if (i) { hline(ctx, X0 + 16, X1 - 16, yy, 'rgba(255,255,255,0.18)'); yy += 34; }
+        label(ctx, true, p.kind === 'd' ? `Demà · ${dayDate(st, 1)}` : 'Pròxims dies', X0 + 16, yy + 12, 22, 'rgba(255,255,255,0.8)');
+        if (p.kind === 'd') { const ic1 = dayIcons(d1); const iz = 76; ic1.slice(-1).forEach(([kk]) => { if (icons[kk]) ctx.drawImage(icons[kk], X1 - 16 - iz, yy, iz, iz); }); }
+        para(ctx, true, p.bd, X0 + 16, yy + 44, { size: cs, color: '#fff' });
+        yy += p.h;
+      });
+    }
+    return LIM;
+  };
+  // la lletra més gran amb què avui no puja per sobre de la icona gegant (y 900)
+  // la lletra més gran amb què el text cap sota la icona; si cal massa petita (menys de 0,9), el text puja per sobre
+  let k = 1.6;
+  while (k > 0.9 && layout(k, false) < 800) k -= 0.03;
+  while (k > 0.6 && layout(k, false) < 330) k -= 0.03;
+  bigIcon(layout(k, false));
+  layout(k, true);
+  footer(ctx, true);
+}
+
 export function drawPrevisioEstil(ctx, st, icons, style) {
+  if (style === 'tauler') return drawTauler(ctx, st, icons);
+  if (style === 'diari') return drawDiari(ctx, st, icons);
+  if (style === 'color') return drawColor(ctx, st, icons);
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.fillStyle = PV.bg;
   ctx.fillRect(0, 0, W, H);
