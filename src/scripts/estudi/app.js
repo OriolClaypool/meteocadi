@@ -6,7 +6,7 @@ import { todayMadrid, hourMadrid, dayMonth, parseDay } from '../../lib/format.js
 import { archiveFor } from '../arxiu-dades.js';
 import { periodRows } from './periode.js';
 import {
-  loadFonts, loadIcons, drawResum, drawRanking, drawRankingWide, drawNeu, WIDE, POST, drawPrevisio, layoutPrevisio, rankSentence, capFirst, WEATHER, PHENOMENA,
+  loadFonts, loadIcons, drawResum, drawRanking, drawRankingWide, drawNeu, drawPrevisioTauler, WIDE, POST, drawPrevisio, layoutPrevisio, rankSentence, capFirst, WEATHER, PHENOMENA,
 } from './draw.js';
 import { NEU, lleugera } from '../../lib/neu/estacions.js';
 import { groupsOf, mostSnow, snowFill, thousands } from '../../lib/neu/neu.js';
@@ -318,7 +318,10 @@ export async function startEstudi() {
     if (tpl === 'previsio') {
       pvLayout = layoutPrevisio(ctx, pv);
       page = Math.min(page, pvLayout.pages.length - 1);
-      drawPrevisio(ctx, pv, icons, pvLayout, page);
+      // Estil Tauler (16/11/2026): una sola imatge, la lletra s'ajusta al text. La versió en diverses imatges
+      // (drawPrevisio) només queda per si el text no hi cap ni amb la lletra més petita.
+      if (pvLayout.pages.length === 1 || !pvLayout.error) { pvLayout = { ...pvLayout, pages: [pvLayout.pages.flat()] }; page = 0; drawPrevisioTauler(ctx, pv, icons); }
+      else drawPrevisio(ctx, pv, icons, pvLayout, page);
       const n = pvLayout.pages.length;
       $('pageControls').hidden = n < 2;
       $('pageNumber').textContent = `${page + 1} / ${n}`;
