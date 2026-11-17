@@ -514,7 +514,7 @@ function drawScale(ctx, variable, x0, x1, y, { sw = 22, fs = 17, cs = 16, gap = 
 // Rànquing de Catalunya: les 10 primeres de les estacions automàtiques del Meteocat (XEMA). La llicència de les
 // dades obertes demana citar-ne la font.
 export const CAT_TOP = 10;
-const CAT_CREDIT = 'DADES: SERVEI METEOROLÒGIC DE CATALUNYA';
+const CAT_CREDIT = 'DADES: SERVEI METEOROLÒGIC DE CATALUNYA I XARXA METEOCADÍ';
 
 // "Catalunya · dissabte 3 d'octubre" (i, de les darreres 24 hores, fins a quina hora)
 function rankEyebrow(d) {
@@ -563,7 +563,7 @@ function rowSub(ctx, r, cat, x, y, maxW, size, key) {
 // extra: un tros més al final ("FINS A LES 10:06", a la versió neta)
 function networkCaption(ctx, n, x, y, size, sp, align = 'left', total = null, extra = '') {
   const cat = total != null;
-  const a = cat ? 'XARXA DEL METEOCAT' : 'XARXA METEOCADÍ';
+  const a = cat ? 'METEOCAT I METEOCADÍ' : 'XARXA METEOCADÍ';
   const b = (!cat
     ? ` · ${n} ${n === 1 ? 'ESTACIÓ' : 'ESTACIONS'} DEL BERGUEDÀ`
     : total > n ? ` · LES ${n} PRIMERES DE ${total} ESTACIONS` : ` · ${n} ${n === 1 ? 'ESTACIÓ' : 'ESTACIONS'}`) + (extra ? ` · ${extra.toLocaleUpperCase('ca')}` : '');
@@ -737,7 +737,7 @@ export function netFooter(ctx, { x0, credits, foot, colR, W: ww, H: hh, credit }
 
 // "fins a les 10:06" al peu de la llista neta, quan el període arriba a ara (no a la temperatura d'ara, que ja ho diu)
 const upTo = (d) => (d.time && ['avui', 'range', '24h'].includes(d.kind) && d.variable !== 'ara' && d.variable !== 'arafred' ? `fins a les ${d.time}` : '');
-const CAT_CREDIT_NET = 'Dades: Servei Meteorològic de Catalunya (XEMA), dades obertes de la Generalitat.';
+const CAT_CREDIT_NET = 'Dades: Servei Meteorològic de Catalunya (XEMA), dades obertes de la Generalitat, i xarxa Meteocadí.';
 
 // d: { date, when: "d'ahir" | "d'avui" | "del 25 de setembre", variable, rows, sentence, net, kind, time, fmt: 'story' | 'post' }
 export function drawRanking(ctx, d) {
