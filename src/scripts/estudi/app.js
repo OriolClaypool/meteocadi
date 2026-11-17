@@ -207,13 +207,30 @@ export async function startEstudi() {
     let note = `${spanDays(from, to)} dies: pluja total, la màxima més alta, la mínima més baixa i la ratxa més forta del període.${time ? ` Fins a les ${time}.` : ''} Les estacions amb massa lectures que falten no entren a la pluja ni a les temperatures.`;
     if (j.stale) note += " Ara el portal de Meteocat no respon: són les darreres dades bones.";
     if (j.lag > 180) note += ` Atenció: el portal de dades obertes va endarrerit i avui només arriba fins a les ${time}.`;
-    return { date: to, from, to, kind: 'range', time, rows, note, net: 'cat' };
+    return { date: to, from, to, kind: 'range', time, rows: [...rows, ...(await mcRows(() => mcRangeData()))], note, net: 'cat' };
+  }
+
+  // Rànquing de Catalunya (17/11/2026, l'Oriol: "haurien d'incloure les estacions de Meteocadí"): les estacions de la
+  // xarxa Meteocadí entren amb les del Meteocat, amb la comarca i "Meteocadí" a sota del nom. Si l'arxiu o el directe
+  // no arriben, el rànquing surt només amb les del Meteocat.
+  async function mcRows(get, date = null) {
+    try {
+      const d = await get();
+      if (date && d.date !== date) return []; // l'arxiu encara no té aquest dia: no es barregen dies diferents
+      const com = Object.fromEntries(STATIONS.map((s) => [s.id, `${s.comarca} · Meteocadí`]));
+      return (d.rows || []).map((r) => ({ ...r, com: com[r.id] || 'Meteocadí', mc: true }));
+    } catch {
+      return [];
+    }
   }
 
   // Diversos dies a la xarxa pròpia: els dies de l'arxiu i, si el període arriba a avui, el d'avui en directe. A una
   // estació li pot faltar fins a un 10 % dels dies (i avui): hi surt amb una nota ("falta 1 dia"). Vegeu periode.js.
   async function rangeData() {
     if (catMode()) return xemaRangeData();
+    return mcRangeData();
+  }
+  async function mcRangeData() {
     const today = todayMadrid();
     const { from, to } = range;
     const a = await archiveFor(from, to < today ? to : addDays(today, -1));
@@ -256,13 +273,20 @@ export async function startEstudi() {
       if (j.stale) note += " Ara el portal de Meteocat no respon: són les darreres dades bones.";
       if (j.lag > 180) note += ` Atenció: el portal de dades obertes va endarrerit (${Math.round(j.lag / 60)} hores sense dades noves).`;
     }
-    return { date, kind, time, rows, note, net: 'cat' };
+    // Les pròpies: el mateix dia (per a les darreres 24 hores no n'hi ha: només el Meteocat)
+    const own = kind === '24h' ? [] : await mcRows(() => mcDayData(kind === 'avui' ? 'avui' : 'altre', date), date);
+    return { date, kind, time, rows: [...rows, ...own], note, net: 'cat' };
   }
 
   // Retorna { date, kind, time, rows, note }
   async function dayData() {
     if (choice === 'range' && tpl === 'ranquing') return rangeData();
     if (catMode()) return xemaData();
+    return mcDayData(choice, choice === 'altre' ? $('otherDate').value : null);
+  }
+
+  // Les estacions pròpies d'un dia (ahir, avui en directe o un altre dia de l'arxiu)
+  async function mcDayData(choice, other) {
     const today = todayMadrid();
     const yest = addDays(today, -1);
     if (choice === 'avui') {
@@ -276,7 +300,7 @@ export async function startEstudi() {
       const time = hourMadrid(new Date(j.updated));
       return { date: today, kind: 'avui', time, rows, note: `Dades en directe de les ${time}. S'actualitzen cada 15 minuts.` };
     }
-    let want = choice === 'ahir' ? yest : $('otherDate').value || yest;
+    let want = choice === 'ahir' ? yest : other || yest;
     const a = await getArchive(want);
     let day = a.days.find((d) => d.date === want);
     let note = '';
