@@ -15,12 +15,13 @@ const STRIP = ['#22477a', '#47a838', '#be282c', '#fbbd28'];
 const X0 = 64;
 const X1 = 1016;
 
-// map: caixa on s'encaixa Catalunya [x0, y0, x1, y1]
+// map: caixa on s'encaixa Catalunya [x0, y0, x1, y1]; lines: màxim de línies del títol (3 si no es diu); slack: el
+// que pot baixar el mapa si el títol fa més línies (la resta, el mapa es fa més petit)
 const FORMATS = {
   post: { W: 1080, H: 1350, top: 58, size: 62, eyebrow: 22, map: [40, 246, 1040, 1196], credits: 1232, foot: 1300, pill: 21, dot: 6.5, sw: 44 },
-  story: { W: 1080, H: 1920, top: 180, size: 92, eyebrow: 24, map: [28, 440, 1052, 1466], credits: 1516, foot: 1718, pill: 23, dot: 7, sw: 48 },
+  story: { W: 1080, H: 1920, top: 180, size: 92, eyebrow: 24, map: [28, 440, 1052, 1466], slack: 110, credits: 1516, foot: 1718, pill: 23, dot: 7, sw: 48 },
   // Horitzontal: text i llegenda a l'esquerra, mapa a la dreta
-  wide: { W: 1600, H: 900, top: 76, size: 70, eyebrow: 20, map: [650, 26, 1574, 866], x1: 596, legendAt: [64, 372], credits: 700, foot: 836, pill: 20, dot: 6.5, sw: 50 },
+  wide: { W: 1600, H: 900, top: 76, size: 70, eyebrow: 20, map: [650, 26, 1574, 866], x1: 596, lines: 4, legendAt: [64, 372], credits: 700, foot: 836, pill: 20, dot: 6.5, sw: 50 },
 };
 
 const NOTES = {
@@ -72,6 +73,87 @@ function wrapText(ctx, text, width) {
   }
   if (line) lines.push(line);
   return lines;
+}
+
+// Amplada de la data de dalt (majúscules espaiades, com spaced()) a la mida s
+function spacedWidth(ctx, text, s) {
+  font(ctx, 'mono', s);
+  let w = 0;
+  for (const ch of text) w += ctx.measureText(ch).width + s * 0.14;
+  return w - s * 0.14;
+}
+
+// La data de dalt: en una línia, una mica més petita si cal; si encara no hi cap, en dues (pel punt volat que les
+// deixa més iguals)
+function eyebrowLayout(ctx, text, maxW, size) {
+  for (let s = size; s >= size * 0.85; s--) if (spacedWidth(ctx, text, s) <= maxW) return { lines: [text], s };
+  const parts = text.split(' · ');
+  if (parts.length < 2) return { lines: [text], s: Math.floor((size * maxW) / spacedWidth(ctx, text, size)) };
+  let best = null;
+  for (let k = 1; k < parts.length; k++) {
+    const lines = [parts.slice(0, k).join(' · '), parts.slice(k).join(' · ')];
+    const w = Math.max(...lines.map((l) => spacedWidth(ctx, l, size)));
+    if (!best || w < best.w) best = { lines, w };
+  }
+  return { lines: best.lines, s: Math.max(Math.round(size * 0.7), Math.min(size, Math.floor((size * maxW) / best.w))) };
+}
+
+// El títol, en parts: la primera (què) en tinta i la resta (quan, on) en color. Cada part va en una línia o, si és
+// llarga, partida en dues; les de color es poden ajuntar en una sola línia. Si les parts hi caben senceres a una mida
+// raonable, no se'n parteix cap. De les maneres possibles, la que fa menys línies sense que la lletra quedi gaire més
+// petita que amb la millor. Partir una part per dins compta com a pitjor: poc davant d'una preposició ("del 28
+// d'octubre / al 3 de novembre"), molt si la línia acaba en preposició o article ("al 3 de / novembre") o en un
+// número ("al 3 / de novembre"), i entremig a qualsevol altre lloc ("de les darreres / 24 hores").
+// Torna { s: mida, lines: [{ t, ink }] }
+const LINKS = new Set(['a', 'al', 'als', 'de', 'del', 'dels', 'en', 'fins', 'i', 'o', 'per', 'segons', 'les', 'la', 'el', 'els']);
+const cutCost = (prev, next) => {
+  const w = (x) => x.toLocaleLowerCase('ca');
+  if (LINKS.has(w(prev)) || /^\d+$/.test(prev)) return 0.7;
+  return LINKS.has(w(next)) || /^(d|l)['’]/i.test(next) ? 0.93 : 0.82;
+};
+function titleLayout(ctx, parts, maxW, size, maxLines) {
+  tracking(ctx, -0.035 * size);
+  font(ctx, 'head', size, 800);
+  const widths = new Map();
+  const wOf = (t) => {
+    if (!widths.has(t)) widths.set(t, ctx.measureText(t).width);
+    return widths.get(t);
+  };
+  tracking(ctx, 0);
+  const splits = (t) => {
+    const w = t.split(' ');
+    const out = [{ lines: [t], cost: 1 }];
+    for (let k = 1; k < w.length; k++) out.push({ lines: [w.slice(0, k).join(' '), w.slice(k).join(' ')], cost: cutCost(w[k - 1], w[k]) });
+    return out;
+  };
+  const [head = '', ...rest] = parts;
+  // Les maneres d'agrupar les parts de color, sempre en ordre: [a b] o [a] [b]...
+  const groupings = [];
+  for (let m = 0; m < 1 << Math.max(0, rest.length - 1); m++) {
+    const gs = rest.length ? [[rest[0]]] : [];
+    for (let i = 1; i < rest.length; i++) (m & (1 << (i - 1)) ? gs.push([rest[i]]) : gs[gs.length - 1].push(rest[i]));
+    groupings.push(gs.map((g) => g.join(' ')));
+  }
+  const options = [];
+  for (const h of splits(head))
+    for (const gs of groupings) {
+      let combos = [{ lines: [], cost: 1 }];
+      for (const g of gs) combos = combos.flatMap((c) => splits(g).map((sp) => ({ lines: [...c.lines, ...sp.lines], cost: c.cost * sp.cost })));
+      for (const c of combos) {
+        const lines = [...h.lines.map((t) => ({ t, ink: true })), ...c.lines.map((t) => ({ t, ink: false }))];
+        if (lines.length > maxLines && options.length) continue;
+        const s = Math.min(size, Math.floor((size * maxW) / Math.max(...lines.map((l) => wOf(l.t)))));
+        options.push({ lines, s, score: s * h.cost * c.cost });
+      }
+    }
+  const pick = (list) => {
+    const best = Math.max(...list.map((x) => x.score));
+    return list.filter((x) => x.score >= 0.85 * best).sort((a, b) => a.lines.length - b.lines.length || b.score - a.score)[0];
+  };
+  // Si les parts hi caben senceres a una mida raonable, no se'n parteix cap (com sempre)
+  const whole = options.filter((x) => x.score === x.s);
+  const w = whole.length ? pick(whole) : null;
+  return w && w.s >= 0.65 * size ? w : pick(options);
 }
 
 // ctx pot ser el context del canvas o un Path2D (per retallar)
@@ -324,7 +406,7 @@ function drawBody(ctx, o, f, win, windowed, view) {
   return { right, bottom };
 }
 
-// o: { format, title: [l1, l2], accent, today, when: Date, stations: [{ lat, lng, mc, text, bg, fg }] (per prioritat),
+// o: { format, title: [què, quan i on...] (en parts: vegeu titleLayout), accent, today, when: Date, stations: [{ lat, lng, mc, text, bg, fg }] (per prioritat),
 //      hideOverlap (les que no hi caben no surten, en lloc de sortir com a punt),
 //      comarques (GeoJSON), field: { canvas, bounds, alpha, note } | null, legend: { title, steps: [{ color, label }] },
 //      view: { lat0, lat1, lng0, lng1 } (la zona que es veu al web; si s'hi ha fet zoom, la imatge mostra aquesta zona) }
@@ -339,33 +421,45 @@ export async function renderMapImage(o) {
   ctx.fillStyle = C.bg;
   ctx.fillRect(0, 0, f.W, f.H);
 
-  // ---- capçalera: data i hora, i títol de dues línies (la segona en color)
+  // ---- capçalera: data i hora, i el títol (la primera part en tinta i la resta en color), repartit en les línies que
+  // calguin perquè no es talli (Oriol, 25/11/2026: el de les darreres 24 hores sortia tallat a la història)
   const day = todayMadrid(o.when);
   const hour = hourMadrid(o.when);
   // o.eyebrow: capçalera pròpia (darreres 24 hores, un dia anterior)
   const eyebrow = o.eyebrow || `${dayName(day)} ${dayMonth(day)} · ${o.today ? 'fins a les' : 'a les'} ${hour}`.toLocaleUpperCase('ca');
-  ctx.textBaseline = 'middle';
-  font(ctx, 'mono', f.eyebrow);
-  ctx.fillStyle = C.blue;
-  spaced(ctx, eyebrow, X0, f.top + 15, f.eyebrow * 0.14);
-  tracking(ctx, -0.035 * f.size);
-  const [l1, l2] = o.title;
   const TX1 = f.x1 ?? X1;
-  const s = Math.min(fitFont(ctx, 'head', f.size, 800, l1, TX1 - X0), fitFont(ctx, 'head', f.size, 800, l2, TX1 - X0));
-  font(ctx, 'head', s, 800);
-  const y1 = f.top + 15 + 0.81 * f.size;
-  ctx.fillStyle = C.ink;
-  ctx.fillText(l1, X0, y1);
-  ctx.fillStyle = o.accent || C.blue;
-  ctx.fillText(l2, X0, y1 + 0.98 * f.size);
+  const eb = eyebrowLayout(ctx, eyebrow, TX1 - X0, f.eyebrow);
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  font(ctx, 'mono', eb.s);
+  ctx.fillStyle = C.blue;
+  eb.lines.forEach((l, i) => spaced(ctx, l, X0, f.top + 15 + i * eb.s * 1.5, eb.s * 0.14));
+  const ebY = f.top + 15 + (eb.lines.length - 1) * eb.s * 1.5;
+  const tl = titleLayout(ctx, (o.title || []).filter(Boolean), TX1 - X0, f.size, f.lines ?? 3);
+  tracking(ctx, -0.035 * tl.s);
+  font(ctx, 'head', tl.s, 800);
+  // La mateixa separació entre la data i el dalt de les lletres del títol, sigui quina sigui la mida
+  const y1 = ebY + 0.45 * f.size + 0.36 * tl.s;
+  tl.lines.forEach((l, i) => {
+    ctx.fillStyle = l.ink ? C.ink : o.accent || C.blue;
+    ctx.fillText(l.t, X0, y1 + i * 0.98 * tl.s);
+  });
   tracking(ctx, 0);
+  // Quant ha crescut la capçalera respecte de la de sempre (una línia de data i dues de títol a la mida completa).
+  // Si ha crescut, el mapa baixa (a la història, aprofitant l'espai lliure de sota) o es fa una mica més petit; a
+  // l'horitzontal, la llegenda baixa
+  const grow = Math.max(0, Math.round(y1 + (tl.lines.length - 1) * 0.98 * tl.s + 0.5 * tl.s - (f.top + 15 + 0.81 * f.size + 1.48 * f.size)));
+  const shift = f.legendAt ? 0 : Math.min(grow, f.slack ?? 0);
+  const box = f.legendAt ? f.map : [f.map[0], f.map[1] + grow, f.map[2], f.map[3] + shift];
+  const legendAt = f.legendAt && [f.legendAt[0], f.legendAt[1] + grow];
+  const creditsY = f.credits + shift;
 
   // ---- Catalunya (o la zona on s'ha fet zoom al web: llavors el mapa és una finestra retallada i la llegenda va a sota)
   // windowed: el mapa sempre dins una finestra amb la llegenda a sota (imatges del radar)
   const view = zoomedView(o.view);
   const windowed = !!view || !!o.windowed;
   const LG_H = 116;
-  const win = windowed && !f.legendAt ? [f.map[0], f.map[1], f.map[2], f.map[3] - LG_H - 28] : f.map;
+  const win = windowed && !f.legendAt ? [box[0], box[1], box[2], box[3] - LG_H - 28] : box;
   const { right, bottom } = drawBody(ctx, o, f, win, windowed, view);
 
   // ---- llegenda, al mar (cantonada de baix a la dreta de Catalunya), o sota la finestra
@@ -374,7 +468,7 @@ export async function renderMapImage(o) {
   const gap = 5, lp = 20;
   const bw = bar ? Math.min(560, (f.x1 ?? X1) - X0) : steps.length * f.sw + (steps.length - 1) * gap + 2 * lp;
   const bh = 116;
-  const [bx, by] = f.legendAt ?? (windowed ? [X0, win[3] + 28] : [Math.round(right - bw), Math.round(bottom - bh)]);
+  const [bx, by] = legendAt ?? (windowed ? [X0, win[3] + 28] : [Math.round(right - bw), Math.round(bottom - bh)]);
   ctx.save();
   ctx.shadowColor = 'rgba(16, 35, 59, 0.12)';
   ctx.shadowBlur = 16;
@@ -432,17 +526,17 @@ export async function renderMapImage(o) {
     font(ctx, 'ui', 18);
     const blocks = [credit, note].filter(Boolean).map((t) => wrapText(ctx, t, TX1 - X0));
     const height = blocks.reduce((n, b) => n + b.length * 26 + 8, 0);
-    let cy = Math.min(f.credits, f.foot - 52 - height + 26);
+    let cy = Math.min(creditsY, f.foot - 52 - height + 26);
     for (const lines of blocks) {
       for (const line of lines) { ctx.fillText(line, X0, cy); cy += 26; }
       cy += 8;
     }
   } else {
     fitFont(ctx, 'ui', 17, 400, credit, X1 - X0, 13);
-    ctx.fillText(credit, X0, f.credits);
+    ctx.fillText(credit, X0, creditsY);
     if (note) {
       fitFont(ctx, 'ui', 17, 400, note, X1 - X0, 13);
-      ctx.fillText(note, X0, f.credits + 26);
+      ctx.fillText(note, X0, creditsY + 26);
     }
   }
   tracking(ctx, -0.36);
