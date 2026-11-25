@@ -202,7 +202,7 @@ const RADAR_DAYS = radarDays();
   const per = () =>
     period.kind === 'today' ? { leg: "d'avui", short: "d'avui", title: "d'avui" }
     : period.kind === '1h' ? { leg: "de l'última hora", short: '(1 h)', title: "de l'última hora" }
-    : period.kind === '24h' ? { leg: 'de les darreres 24 h', short: '(24 h)', title: 'de les darreres 24 hores' }
+    : period.kind === '24h' ? { leg: 'de les darreres 24 h', short: '(24 h)', title: 'en 24 hores' }
     : period.kind === 'range' ? { leg: delAl(period.from, period.to), short: '(període)', title: delAl(period.from, period.to) }
     : { leg: delAl(period.date, period.date), short: 'del dia', title: delAl(period.date, period.date) };
   const past = () => period.kind === 'day' || period.kind === 'range';
@@ -210,8 +210,9 @@ const RADAR_DAYS = radarDays();
   // Les variables del dia (màxima, mínima, pluja, ratxa) canvien amb el període; les d'ara (temperatura, vent,
   // humitat, neu) són sempre les darreres i no n'hi ha per als dies anteriors
   const legendOf = (v: any) => (v.today ? `${v.noun} ${per().leg} (${v.u})` : v.legend);
-  // Títol de la imatge en parts (què, en tinta; quan i on, en color): la imatge les reparteix en línies segons l'espai
-  const titleOf = (v: any) => (period.kind === 'today' || !v.today ? v.title : [v.t1, per().title, 'a Catalunya']);
+  // Títol de la imatge en parts (què, en tinta; quan, en color), curt: el període ja surt a la data de dalt i el mapa
+  // ja diu on és (Oriol, 25/11/2026: "Temperatura mínima de les darreres 24 hores a Catalunya" era massa llarg)
+  const titleOf = (v: any) => (period.kind === 'today' || !v.today ? v.title : [v.t1, per().title]);
   // Títol curt de la imatge neta (una línia, el quan en color) i la seva icona: "Temperatura a les 15:30",
   // "Pluja d'avui fins a les 15:30", "Pluja del 18 d'octubre"
   const SHORT_NOW: Record<string, string> = { t: 'Temperatura', wind: 'Vent', hr: 'Humitat', snow: 'Gruix de neu' };
