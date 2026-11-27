@@ -4,6 +4,7 @@ import Forecast from '../../components/Forecast.astro';
 import { STATIONS, BY_SLUG, GROUPS, fmtAlt } from '../../lib/stations.js';
 import { PLACES } from '../../lib/places.js';
 import { stationHistory, stationRecords, stationYears, stationClimate } from '../../lib/archive.js';
+import { ESTACIONS_APADRINADES } from '../../lib/comercial.js';
 import { tempColorLight, num, dayMonth, dayName, longDate, fullDate, desDe, monthName, cap } from '../../lib/format.js';
 
 export function getStaticPaths() {
@@ -11,6 +12,7 @@ export function getStaticPaths() {
 }
 
 const s = BY_SLUG[Astro.params.slug];
+const padrina = (ESTACIONS_APADRINADES as Record<string, { nom: string; url?: string; frase?: string }>)[s.slug] || null;
 const hist = stationHistory(s.id);
 const rec = stationRecords(s.id);
 const yrs = stationYears(s.id);
@@ -189,6 +191,21 @@ const VARS = [
           {near.map((x) => <a class="btn btn--line" style="height:44px;font-size:15px;" href={`/estacions/${x.slug}`}>{x.name} · {fmtAlt(x.alt)}</a>)}
         </div>
       </div>
+
+      {padrina ? (
+        <div class="card" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px;background:var(--pale);box-shadow:none;">
+          <div>
+            <span style="font-size:13px;color:var(--muted);">Estació mantinguda amb el suport de</span>
+            <p style="font-size:19px;font-weight:800;color:var(--ink);margin-top:2px;">{padrina.nom}</p>
+            {padrina.frase && <p style="font-size:14.5px;color:var(--ink2);margin-top:2px;">{padrina.frase}</p>}
+          </div>
+          {padrina.url && <a class="btn btn--line" style="height:42px;font-size:14.5px;" href={padrina.url} rel="sponsored noopener" target="_blank">Visita el web →</a>}
+        </div>
+      ) : (
+        <p style="font-size:14.5px;color:var(--muted);border-top:1px solid var(--line);padding-top:20px;">
+          Tens un allotjament, restaurant, refugi o entitat a {s.loc}? <a href="/colabora#estacions" style="font-weight:700;">Apadrina el manteniment d'aquesta estació →</a>
+        </p>
+      )}
     </div>
   </section>
 </Base>

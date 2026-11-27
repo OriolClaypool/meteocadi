@@ -100,14 +100,22 @@ import EstudiTop from '../components/EstudiTop.astro';
           <div class="st-edhead"><div><p class="st-eyebrow">METEOCADÍ NEU</p><h1>La neu</h1></div></div>
           <div class="st-field">
             <label>Quina imatge</label>
-            <div class="st-seg" id="neuKind"><button type="button" data-nkind="n3" aria-pressed="true">Neu en 3 dies</button><button type="button" data-nkind="n7" aria-pressed="false">Neu en 7 dies</button><button type="button" data-nkind="ob" aria-pressed="false">Quan obren</button></div>
+            <div class="st-seg" id="neuKind"><button type="button" data-nkind="parte" aria-pressed="false">Parte matí</button><button type="button" data-nkind="n3" aria-pressed="true">3 dies</button><button type="button" data-nkind="n7" aria-pressed="false">7 dies</button><button type="button" data-nkind="ob" aria-pressed="false">Quan obren</button></div>
+          </div>
+          <div class="st-field" id="neuLeadField" hidden>
+            <label for="neuLead">Comentari breu <span>Opcional</span></label>
+            <textarea id="neuLead" rows="2" maxlength="140" placeholder="Ex.: Enfarinada a les cotes altes i bon fred per fer neu…"></textarea>
           </div>
           <div class="st-field">
             <label>Format</label>
             <div class="st-seg" id="neuFmt"><button type="button" data-nfmt="post" aria-pressed="false">Publicació 4:5</button><button type="button" data-nfmt="story" aria-pressed="true">Història 9:16</button></div>
           </div>
+          <div class="st-field">
+            <label for="neuSponsor">Patrocinat per <span>Opcional</span></label>
+            <input id="neuSponsor" type="text" maxlength="56" placeholder="Ex.: Esports Cerdanya · Puigcerdà" />
+          </div>
           <p class="st-note" id="neuNote"></p>
-          <p class="st-note">La neu nova és la que preveu el model al cim de cada estació d'esquí (les deu primeres). Les dates d'obertura són les de <code>src/lib/neu/temporada.js</code>.</p>
+          <p class="st-note">El parte del matí mostra el gruix de neu i el canvi en 24 h als sensors d'alta muntanya del Meteocat. La neu en 3 o 7 dies és la prevista al cim de cada estació; les obertures vénen de <code>src/lib/neu/temporada.js</code>.</p>
         </div>
       </section>
 
@@ -151,8 +159,9 @@ import EstudiTop from '../components/EstudiTop.astro';
   .st-field { margin-bottom: 22px; }
   .st-field > label { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; font-weight: 600; font-size: 15px; }
   .st-field > label span { font-weight: 400; font-size: 13px; color: var(--mut); }
-  .st textarea { display: block; width: 100%; resize: vertical; border: 1px solid #d6dfe8; border-radius: 9px; background: #fcfdfe; padding: 11px 12px; font-size: 16px; line-height: 1.5; color: var(--ink); }
-  .st textarea:focus { border-color: var(--acc); background: #fff; outline: none; }
+  .st textarea, .st input[type='text'] { display: block; width: 100%; border: 1px solid #d6dfe8; border-radius: 9px; background: #fcfdfe; padding: 11px 12px; font-size: 16px; line-height: 1.5; color: var(--ink); }
+  .st textarea { resize: vertical; }
+  .st textarea:focus, .st input[type='text']:focus { border-color: var(--acc); background: #fff; outline: none; }
   .st-headline { font-weight: 700; font-size: 19px !important; }
   .st-seg { display: flex; gap: 4px; padding: 4px; border-radius: 9px; background: #eef3f8; }
   .st-seg[hidden] { display: none; }

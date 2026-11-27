@@ -1,0 +1,175 @@
+---
+// Dossier comercial i de patrocini (noindex: pensat per enviar l'enllaç directe per WhatsApp, Instagram o correu).
+import Base from '../layouts/Base.astro';
+import { STATIONS, fmtAlt } from '../lib/stations.js';
+
+const email = import.meta.env.CONTACT_EMAIL || process.env.CONTACT_EMAIL || '';
+const maxAlt = Math.max(...STATIONS.map((s) => s.alt));
+
+const STATS = [
+  ['12.000', 'Seguidors a Instagram (@meteocadi), amb alta participació a les històries diàries'],
+  ['6.400', 'Seguidors a X (@meteocadi), compte històric de referència des del 2011'],
+  ['180.000+', 'Aparicions mensuals a Google (75 % des del mòbil, consultes en ruta i cap de setmana)'],
+  [`${STATIONS.length} estacions`, `Xarxa pròpia fins als ${fmtAlt(maxAlt)}, en col·laboració amb el Parc Natural del Cadí-Moixeró`],
+];
+
+const PACKS = [
+  {
+    name: 'Pack Desembre (Pont + Nadal)',
+    price: '300 €',
+    unit: 'desembre complet',
+    desc: 'Pensat per provar el retorn immediat durant les setmanes clau d’inici de temporada i festes de Nadal.',
+    items: [
+      'Menció «Amb el suport de [Marca]» a 4 partes de neu i avisos de nevada a Instagram (post + Stories) i X.',
+      'Presència destacada a la pàgina principal de Meteocadí Neu (/neu) durant tot el mes.',
+      'Enllaç directe a la teva web o reserva i opció de codi promocional mesurable.',
+    ],
+  },
+  {
+    name: 'Patrocini del Parte de Neu',
+    price: '300 €/mes',
+    unit: 'o 950 € tota la temporada (desembre – març)',
+    desc: 'Màxima visibilitat setmana rere setmana davant d’esquiadors i muntanyencs de tot Catalunya i Andorra.',
+    items: [
+      'Exclusivitat al parte de neu setmanal i a les alertes de nevada generades des de l’Estudi de Meteocadí.',
+      'Espai principal de patrocinador a Meteocadí Neu durant tot el període contractat.',
+      '1 menció dedicada mensual a Stories d’Instagram amb enllaç directe.',
+    ],
+  },
+  {
+    name: 'Patrocini de Zona o Guia Familiar',
+    price: '350 €',
+    unit: 'tota la temporada d’hivern',
+    desc: 'Ideal per a lloguers d’esquís i raquetes, hotels, restaurants i comerços del Berguedà, la Cerdanya, el Solsonès o el Ripollès.',
+    items: [
+      '3 zones disponibles sense competència directa: Cerdanya-Ripollès, Berguedà-Solsonès o Andorra-Pallars.',
+      'Recomanació destacada a les fitxes de la zona i a la guia «Neu amb nens i trineus prop de Barcelona».',
+      'Opció d’oferir un avantatge (ex. 10 % amb codi METEOCADI10) per saber exactament quants clients vénen.',
+    ],
+  },
+  {
+    name: 'Estació Apadrinada (12 mesos)',
+    price: '350 €',
+    unit: 'any complet',
+    desc: 'Vincula el teu negoci, refugi o municipi a una de les 12 estacions oficials de la xarxa (Pedraforca, Coll de Pal, Bagà, Gósol, la Pobla…).',
+    items: [
+      'Menció permanent a la pàgina en directe de l’estació escollida durant els 365 dies de l’any.',
+      '4 agraïments anuals als resums d’episodis i rànquings de la xarxa a Instagram i X.',
+      'Contribueix directament al manteniment dels sensors d’alta muntanya del territori.',
+    ],
+  },
+  {
+    name: 'Previsió Oficial per a Curses i Esdeveniments',
+    price: 'des de 350 €',
+    unit: 'per esdeveniment',
+    desc: 'Seguretat per a l’organització i valor afegit per als inscrits en curses de muntanya, esquí de muntanya i marxes.',
+    items: [
+      'Butlletí tècnic per cotes d’altitud 72 h i 24 h abans de la sortida (pel briefing i xarxes de la prova).',
+      'Infografia personalitzada amb la imatge de l’esdeveniment difosa als canals de Meteocadí.',
+    ],
+  },
+];
+---
+<Base
+  title="Dossier de patrocini · Temporada 2026–2027 | Meteocadí"
+  description="Dades d'audiència, formats i tarifes de patrocini de Meteocadí i Meteocadí Neu per a la temporada d'hivern 2026–2027."
+  path="/dossier"
+  noindex
+  current="contacte"
+>
+  <section class="phead">
+    <div class="wrap">
+      <h1>Dossier de patrocini · Hivern 2026–2027</h1>
+      <p>Connecta el teu negoci amb una comunitat fidel d'esquiadors, excursionistes i amants del Pirineu, amb formats integrats i sense publicitat intrusiva.</p>
+    </div>
+  </section>
+
+  <section class="sec" style="padding-bottom:32px;">
+    <div class="wrap ds-wrap">
+      <div class="ds-stats">
+        {STATS.map(([v, l]) => (
+          <div class="card ds-stat">
+            <strong class="ds-stat__v">{v}</strong>
+            <p>{l}</p>
+          </div>
+        ))}
+      </div>
+
+      <div class="prose ds-why">
+        <h2>Per què anunciar-se a Meteocadí</h2>
+        <ul>
+          <li><strong>Públic amb decisió immediata:</strong> Qui mira <a href="/neu">Meteocadí Neu</a> o les històries de dijous i divendres està decidint on pujar el cap de setmana, on llogar material, quina carretera agafar i on dinar o dormir.</li>
+          <li><strong>Cap bàner automàtic:</strong> A Meteocadí no hi ha anuncis programàtics que tapin mapes ni alentint el mòbil. El patrocinador surt sol, integrat amb cura i llegibilitat.</li>
+          <li><strong>Credibilitat local des del 2011:</strong> No som un portal genèric: mantenim estacions físiques pròpies al Cadí-Moixeró i el Berguedà i coneixem el territori de primera mà.</li>
+        </ul>
+      </div>
+
+      <div id="modalitats">
+        <h2 class="ds-h2">Modalitats i tarifes orientatives</h2>
+        <div class="ds-packs">
+          {PACKS.map((p) => (
+            <article class="card ds-pack">
+              <div class="ds-pack__head">
+                <div>
+                  <h3>{p.name}</h3>
+                  <p class="ds-pack__unit">{p.unit}</p>
+                </div>
+                <span class="ds-pack__price">{p.price}</span>
+              </div>
+              <p class="ds-pack__desc">{p.desc}</p>
+              <ul class="ds-pack__list">
+                {p.items.map((it) => <li>{it}</li>)}
+              </ul>
+            </article>
+          ))}
+        </div>
+        <p class="ds-note">Tarifes orientatives de llançament per a la temporada 2026–2027 (impostos no inclosos). Si vols combinar diverses zones, proposar un intercanvi tècnic o preparar una acció a mida, escriu-nos i ho ajustem.</p>
+      </div>
+
+      <div class="card ds-cta">
+        <div>
+          <h2>Vols veure una mostra amb el nom del teu negoci?</h2>
+          <p>Envia'ns un missatge per Instagram, X o correu electrònic dient quina opció t'interessa i et passem sense compromís una previsualització real de la imatge del parte i de la fitxa web.</p>
+        </div>
+        <div class="ds-cta__btns">
+          {email && <a class="btn btn--blue ds-btn" href={`mailto:${email}?subject=${encodeURIComponent('Patrocini Meteocadí 2026-2027')}`}>{email}</a>}
+          <a class="btn btn--blue ds-btn" href="https://www.instagram.com/meteocadi/" rel="noopener" target="_blank">Escriu per Instagram (@meteocadi)</a>
+          <a class="btn btn--line ds-btn" href="https://x.com/meteocadi" rel="noopener" target="_blank">Missatge a X (@meteocadi)</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .ds-wrap { display: flex; flex-direction: column; gap: 40px; }
+  .ds-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+  .ds-stat { padding: 22px; display: flex; flex-direction: column; gap: 6px; }
+  .ds-stat__v { font-family: var(--f-ui); font-variant-numeric: tabular-nums; font-size: 32px; font-weight: 700; letter-spacing: -0.02em; color: var(--ink); line-height: 1.1; }
+  .ds-stat p { font-size: 14.5px; line-height: 1.45; color: var(--ink2); }
+  .ds-why { max-width: 860px; }
+  .ds-h2 { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 18px; }
+  .ds-packs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+  .ds-pack { padding: 26px; display: flex; flex-direction: column; gap: 12px; }
+  .ds-pack__head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+  .ds-pack h3 { font-size: 21px; font-weight: 800; letter-spacing: -0.02em; color: var(--ink); line-height: 1.2; }
+  .ds-pack__unit { font-family: var(--f-ui); font-size: 13.5px; color: var(--muted); margin-top: 3px; }
+  .ds-pack__price { flex: none; font-family: var(--f-ui); font-variant-numeric: tabular-nums; font-size: 20px; font-weight: 700; color: var(--blue); background: var(--pale); padding: 6px 12px; border-radius: 10px; white-space: nowrap; }
+  .ds-pack__desc { font-size: 15.5px; line-height: 1.55; color: var(--ink2); }
+  .ds-pack__list { margin: 2px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; font-size: 14.5px; line-height: 1.5; color: var(--ink2); }
+  .ds-note { font-size: 14px; color: var(--muted); margin-top: 14px; }
+  .ds-cta { display: flex; align-items: center; justify-content: space-between; gap: 28px; padding: 28px 32px; background: var(--pale); box-shadow: none; }
+  .ds-cta h2 { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 6px; }
+  .ds-cta p { font-size: 15.5px; line-height: 1.55; color: var(--ink2); max-width: 620px; }
+  .ds-cta__btns { display: flex; flex-wrap: wrap; gap: 10px; flex: none; }
+  .ds-btn { height: 44px; font-size: 15px; padding: 0 20px; }
+  @media (max-width: 1020px) {
+    .ds-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .ds-packs { grid-template-columns: 1fr; }
+    .ds-cta { flex-direction: column; align-items: flex-start; padding: 24px; }
+  }
+  @media (max-width: 560px) {
+    .ds-stats { grid-template-columns: 1fr; }
+    .ds-pack__head { flex-direction: column; gap: 8px; }
+  }
+</style>

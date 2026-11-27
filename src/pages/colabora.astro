@@ -1,0 +1,116 @@
+---
+import Base from '../layouts/Base.astro';
+import { STATIONS, fmtAlt } from '../lib/stations.js';
+import { AMICS_SUPORT } from '../lib/comercial.js';
+
+const email = import.meta.env.CONTACT_EMAIL || process.env.CONTACT_EMAIL || '';
+const maxAlt = Math.max(...STATIONS.map((s) => s.alt));
+const suportHref = AMICS_SUPORT.url || (email ? `mailto:${email}?subject=${encodeURIComponent('Col·laboració amb Meteocadí')}` : 'https://www.instagram.com/meteocadi/');
+---
+<Base
+  title="Col·labora i patrocina Meteocadí: neu, muntanya i xarxa d'estacions | Meteocadí"
+  description="Patrocina Meteocadí Neu, apadrina el manteniment d'una estació d'alta muntanya, demana una previsió a mida per a curses i esdeveniments o dona suport a la xarxa."
+  path="/colabora"
+  current="contacte"
+>
+  <section class="phead">
+    <div class="wrap">
+      <h1>Col·labora amb Meteocadí</h1>
+      <p>Meteocadí combina {STATIONS.length} estacions pròpies fins als {fmtAlt(maxAlt)} d'altitud amb previsions de neu i muntanya per a tot el Pirineu i una comunitat de més de 18.000 seguidors a les xarxes. Sense bàners invasius: així pots fer-hi visible el teu projecte o ajudar a mantenir la xarxa.</p>
+    </div>
+  </section>
+
+  <section class="sec">
+    <div class="wrap cl-wrap">
+      <div class="cl-grid">
+        <article class="card cl-card" id="neu">
+          <h2>Patrocina Meteocadí Neu</h2>
+          <p>Pensat per a botigues i lloguers d'esquí i raquetes, allotjaments, restaurants de muntanya, escoles i agències d'esquí. Quan s'acosta el cap de setmana o una nevada, milers d'esquiadors i famílies consulten les nostres previsions per decidir on pujar.</p>
+          <ul class="cl-list">
+            <li>Presència integrada («Amb el suport de…») a les imatges del parte de neu d'Instagram (@meteocadi, 12.000 seguidors) i X (6.400 seguidors).</li>
+            <li>Espai natiu i net a <a href="/neu">Meteocadí Neu</a> o per zones (Cerdanya-Ripollès, Berguedà-Solsonès o Andorra-Pallars).</li>
+            <li>Opció d'incloure un codi de descompte propi perquè puguis mesurar quants clients en vénen.</li>
+          </ul>
+          <div class="cl-foot">
+            <a class="btn btn--blue cl-btn" href="/dossier">Veure formats i tarifes d'hivern</a>
+          </div>
+        </article>
+
+        <article class="card cl-card" id="estacions">
+          <h2>Apadrina una estació de la xarxa</h2>
+          <p>Mantenir estacions en llocs com el Pedraforca (2.270&nbsp;m), Tancalaporta (2.440&nbsp;m) o el Coll de Pal (2.090&nbsp;m) implica renovar anemòmetres glaçats, garites solars, bateries de liti i pujar-hi després dels temporals.</p>
+          <ul class="cl-list">
+            <li>Un refugi, hotel, restaurant, comerç local o ajuntament pot apadrinar l'estació del seu poble o cim durant tot l'any.</li>
+            <li>Menció fixa a la pàgina en directe de l'estació i reconeixement periòdic als resums de la xarxa a xarxes socials.</li>
+            <li>Ajuda directa a mantenir obertes i fiables les dades d'alta muntanya del territori.</li>
+          </ul>
+          <div class="cl-foot">
+            <a class="btn btn--line cl-btn" href="/dossier#modalitats">Com funciona l'apadrinament</a>
+          </div>
+        </article>
+
+        <article class="card cl-card" id="esdeveniments">
+          <h2>Curses, esdeveniments i ajuntaments</h2>
+          <p>Preparem seguiments meteorològics a mida per a curses per muntanya, esquí de muntanya, marxes populars i esdeveniments a l'aire lliure al Pirineu i el Prepirineu, així com convenis amb ens locals.</p>
+          <ul class="cl-list">
+            <li>Butlletí específic per cotes d'altitud (vent, sensació tèrmica, cota de neu i tempesta) 72&nbsp;h i 24&nbsp;h abans de la prova.</li>
+            <li>Infografia pròpia preparada a l'Estudi de Meteocadí per compartir amb els corredors i a les nostres xarxes.</li>
+            <li>Per a ajuntaments i patronats: integració de les dades en directe del municipi i resum climàtic anual.</li>
+          </ul>
+          <div class="cl-foot">
+            <a class="cl-link" href="/contacte">Demana una proposta a mida →</a>
+          </div>
+        </article>
+
+        <article class="card cl-card" id="amics">
+          <h2>Amics de Meteocadí i noves estacions</h2>
+          <p>Totes les dades i previsions de Meteocadí són obertes i gratuïtes. Si les fas servir sovint abans de sortir a la muntanya o d'anar a la neu, hi pots contribuir a títol individual.</p>
+          <ul class="cl-list">
+            <li>Aportacions voluntàries destinades íntegrament a recanvis de sensors, suport tècnic i manteniment d'estacions.</li>
+            <li>Si tens una estació meteorològica ben instal·lada al Berguedà, la Cerdanya o l'Alt Urgell, també la podem connectar a la xarxa.</li>
+            <li>Compartir els mapes i el parte de <a href="/neu">Meteocadí Neu</a> ens ajuda tant com qualsevol aportació.</li>
+          </ul>
+          <div class="cl-foot">
+            {AMICS_SUPORT.url ? (
+              <a class="btn btn--line cl-btn" href={AMICS_SUPORT.url} rel="noopener" target="_blank">{AMICS_SUPORT.cta}</a>
+            ) : (
+              <a class="cl-link" href={suportHref} rel={AMICS_SUPORT.url || !email ? 'noopener' : undefined} target={!email ? '_blank' : undefined}>Escriu-nos per col·laborar amb la xarxa →</a>
+            )}
+          </div>
+        </article>
+      </div>
+
+      <div class="card cl-cta" id="negocis">
+        <div>
+          <h2>Parlem-ne directament</h2>
+          <p>Sense intermediaris ni agències: escriu-nos un missatge directe a Instagram o X, o envia'ns un correu, i et responem el mateix dia amb una mostra real de com quedaria el teu negoci.</p>
+        </div>
+        <div class="cl-cta__btns">
+          {email && <a class="btn btn--blue cl-btn" href={`mailto:${email}`}>{email}</a>}
+          <a class="btn btn--blue cl-btn" href="https://www.instagram.com/meteocadi/" rel="noopener" target="_blank">Instagram @meteocadi</a>
+          <a class="btn btn--line cl-btn" href="https://x.com/meteocadi" rel="noopener" target="_blank">X @meteocadi</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<style>
+  .cl-wrap { display: flex; flex-direction: column; gap: 28px; }
+  .cl-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+  .cl-card { display: flex; flex-direction: column; gap: 12px; padding: 28px; }
+  .cl-card h2 { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; color: var(--ink); line-height: 1.15; }
+  .cl-card p { font-size: 16px; line-height: 1.6; color: var(--ink2); }
+  .cl-list { margin: 4px 0 0; padding-left: 18px; display: flex; flex-direction: column; gap: 8px; font-size: 15px; line-height: 1.55; color: var(--ink2); }
+  .cl-foot { margin-top: auto; padding-top: 12px; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .cl-btn { height: 44px; font-size: 15px; padding: 0 20px; }
+  .cl-link { font-size: 15px; font-weight: 700; color: var(--blue); }
+  .cl-cta { display: flex; align-items: center; justify-content: space-between; gap: 28px; padding: 28px 32px; background: var(--pale); box-shadow: none; }
+  .cl-cta h2 { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 6px; }
+  .cl-cta p { font-size: 16px; line-height: 1.55; color: var(--ink2); max-width: 620px; }
+  .cl-cta__btns { display: flex; flex-wrap: wrap; gap: 10px; flex: none; }
+  @media (max-width: 860px) {
+    .cl-grid { grid-template-columns: 1fr; }
+    .cl-cta { flex-direction: column; align-items: flex-start; padding: 24px; }
+  }
+</style>

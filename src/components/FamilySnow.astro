@@ -1,0 +1,376 @@
+---
+// Guia d'hivern «Neu amb nens i trineus prop de Barcelona» (/neu-amb-nens i /es/nieve-con-ninos):
+// combina les dades en directe de la xarxa al Cadí-Moixeró, l'estat de les carreteres d'accés (SCT), els 7 millors
+// indrets a 1 h 30 – 2 h 15 de Barcelona, l'equipament bàsic amb enllaços d'afiliat d'Amazon (meteocadi08-21) i espai
+// per a negocis locals recomanats.
+import Base from '../layouts/Base.astro';
+import StationTable from './StationTable.astro';
+import RoadStatus from './RoadStatus.astro';
+import MountainNotice from './MountainNotice.astro';
+import { amazon } from '../lib/afiliats.js';
+import { RECOMANATS_FAMILIA } from '../lib/comercial.js';
+
+interface Props { lang?: 'ca' | 'es' }
+const { lang = 'ca' } = Astro.props;
+const es = lang === 'es';
+const path = es ? '/es/nieve-con-ninos' : '/neu-amb-nens';
+const alts = { ca: '/neu-amb-nens', es: '/es/nieve-con-ninos' };
+
+const SPOTS = es
+  ? [
+      {
+        name: 'Rasos de Peguera',
+        meta: 'Berguedà · 1.850–2.050 m · ~1 h 35 min desde Barcelona',
+        badge: 'Acceso libre · Sin remontes',
+        text: 'La opción clásica más cercana al área metropolitana para jugar con la nieve, tirarse en trineo en pendientes suaves o salir con raquetas cuando ha nevado en el Prepirineo.',
+        warn: 'Los remontes llevan años cerrados: no hay alquiler ni restaurante fijo arriba. Sube con todo el equipo y vigila las placas de hielo en los últimos kilómetros de la BV-4243 desde Berga.',
+        href: '/es/tiempo/rasos-de-peguera',
+        cta: 'El tiempo en Rasos de Peguera',
+      },
+      {
+        name: 'Port del Comte (zona Estivella / Sucre)',
+        meta: 'Solsonès · 1.700–2.300 m · ~1 h 50 min',
+        badge: 'Zona de trineos y servicios',
+        text: 'Estación muy familiar rodeada de bosque de pino negro, protegida del viento. Cuenta con zona acotada para trineos con cinta transportadora, alquiler de trineos y raquetas y cafetería a pie de pista.',
+        warn: 'Se accede desde Solsona (LV-4241) o Sant Llorenç de Morunys. Revisa si la zona lúdica está abierta antes de subir.',
+        href: '/es/tiempo/port-del-comte',
+        cta: 'Previsión en Port del Comte',
+      },
+      {
+        name: 'Refugi de Rebost y Coll de Pal',
+        meta: 'Berguedà · 1.640–2.090 m · ~1 h 45 min',
+        badge: 'Parque Natural Cadí-Moixeró',
+        text: 'Subiendo desde Bagà por la BV-4024. El entorno de Rebost (1.640 m) es ideal cuando nieva a cotas medias; arriba en Coll de Pal (2.090 m) tenemos estación propia de Meteocadí.',
+        warn: 'Coll de Pal es muy ventoso y el Servei Català de Trànsit corta a menudo el tramo alto de la BV-4024 por nieve o ventisca. Aparca siempre sin invadir la calzada.',
+        href: '/es/tiempo/coll-de-pal',
+        cta: 'Datos en directo en Coll de Pal',
+      },
+      {
+        name: 'La Molina',
+        meta: 'Cerdanya · 1.700 m · ~1 h 55 min (también en tren R3)',
+        badge: 'Acceso en tren · Pistas de trineos',
+        text: 'Zonas reguladas para trineos, alquiler completo, restauración y la gran ventaja de poder subir en tren (Rodalies R3 + autobús lanzadera) sin preocuparse por cadenas ni retenciones en la C-16.',
+        warn: 'En festivos y puentes los aparcamientos de Pista Llarga se llenan antes de las 9:30 h.',
+        href: '/es/tiempo/la-molina',
+        cta: 'Previsión en La Molina',
+      },
+      {
+        name: 'Tuixent-La Vansa',
+        meta: 'Alt Urgell · 1.830–2.150 m · ~2 h 05 min',
+        badge: 'Raquetas en familia',
+        text: 'Estación de esquí nórdico tranquila y soleada en la cara norte del Port del Comte, con itinerarios señalizados para raquetas de nieve, alquiler de material y restaurante con vistas al Cadí y al Pedraforca.',
+        warn: 'Carretera de montaña desde Gósol o la Seu d’Urgell: lleva siempre cadenas o fundas en el maletero.',
+        href: '/es/tiempo/tuixent-la-vansa',
+        cta: 'Previsión en Tuixent-La Vansa',
+      },
+      {
+        name: 'Vall de Núria',
+        meta: 'Ripollès · 1.964 m · ~2 h 15 min + cremallera',
+        badge: 'Sin coches · Parc Lúdic',
+        text: 'Se sube únicamente con el tren cremallera desde Ribes de Freser o Queralbs. Arriba no hay tráfico y el Parc Lúdic tiene pistas de trineos y tubbing pensadas para niños.',
+        warn: 'Conviene reservar los billetes del cremallera con antelación los fines de semana de invierno.',
+        href: '/es/tiempo/vall-de-nuria',
+        cta: 'Previsión en Vall de Núria',
+      },
+      {
+        name: 'Lles de Cerdanya (Cap del Rec)',
+        meta: 'Cerdanya · 1.960 m · ~2 h 10 min',
+        badge: 'Sol y vistas al Cadí',
+        text: 'Orientada al sur, muy soleada y resguardada, frente a la muralla norte de la sierra del Cadí. Muy buena opción para iniciarse en las raquetas con niños y comer en el refugio.',
+        warn: 'Los últimos kilómetros desde el pueblo de Lles ganan mucha altitud: ojo al hielo a primera y última hora.',
+        href: '/es/tiempo/estacio-de-lles',
+        cta: 'Previsión en Lles',
+      },
+    ]
+  : [
+      {
+        name: 'Rasos de Peguera',
+        meta: 'Berguedà · 1.850–2.050 m · ~1 h 35 min des de Barcelona',
+        badge: 'Accés lliure · Sense remuntadors',
+        text: "L'opció clàssica més propera a l'àrea metropolitana per jugar amb la neu, baixar amb trineu en pendents suaus o caminar amb raquetes quan ha nevat al Prepirineu.",
+        warn: "Els remuntadors fa anys que no obren: a dalt no hi ha lloguer ni bar fix. Puja amb tot el que necessitis i vigila el gel als últims quilòmetres de la BV-4243 des de Berga.",
+        href: '/temps/rasos-de-peguera',
+        cta: 'El temps als Rasos de Peguera',
+      },
+      {
+        name: 'Port del Comte (zona Estivella / Sucre)',
+        meta: 'Solsonès · 1.700–2.300 m · ~1 h 50 min',
+        badge: 'Pista de trineus i serveis',
+        text: "Estació molt familiar envoltada de bosc de pi negre i arrecerada del vent. Té zona tancada per a trineus amb cinta transportadora, lloguer de trineus i raquetes i restauració a peu de pista.",
+        warn: "S'hi puja des de Solsona (LV-4241) o Sant Llorenç de Morunys. Comprova abans de sortir si la zona lúdica és oberta.",
+        href: '/neu/port-del-comte',
+        cta: 'Previsió a Port del Comte',
+      },
+      {
+        name: 'Refugi de Rebost i Coll de Pal',
+        meta: 'Berguedà · 1.640–2.090 m · ~1 h 45 min',
+        badge: 'Parc Natural Cadí-Moixeró',
+        text: "Pujant des de Bagà per la BV-4024. L'entorn de Rebost (1.640 m) és molt agraït quan neva a cotes mitjanes; a dalt al Coll de Pal (2.090 m) hi tenim estació pròpia de la xarxa.",
+        warn: "El Coll de Pal és molt ventós i Trànsit talla sovint el tram alt de la BV-4024 per neu o torb. Aparca sempre fora de la calçada.",
+        href: '/temps/coll-de-pal',
+        cta: 'Dades en directe al Coll de Pal',
+      },
+      {
+        name: 'La Molina',
+        meta: 'Cerdanya · 1.700 m · ~1 h 55 min (també en tren R3)',
+        badge: 'Accés amb tren · Zones de trineus',
+        text: "Zones condicionades per a trineus, tots els serveis i el gran avantatge de poder-hi arribar amb tren (Rodalies R3 + bus llançadora) sense patir per cadenes ni cues de tornada a la C-16.",
+        warn: 'Els caps de setmana i ponts els aparcaments de Pista Llarga s’omplen abans de dos quarts de deu.',
+        href: '/neu/la-molina',
+        cta: 'Previsió a la Molina',
+      },
+      {
+        name: 'Tuixent-La Vansa',
+        meta: 'Alt Urgell · 1.830–2.150 m · ~2 h 05 min',
+        badge: 'Raquetes en família',
+        text: "Estació d'esquí nòrdic tranquil·la i assolellada al vessant nord del Port del Comte, amb circuits senyalitzats per a raquetes, lloguer de material i restaurant amb vistes al Pedraforca i al Cadí.",
+        warn: 'Carretera de muntanya des de Gósol o la Seu d’Urgell: porta sempre fundes o cadenes al maleter.',
+        href: '/neu/tuixent-la-vansa',
+        cta: 'Previsió a Tuixent-La Vansa',
+      },
+      {
+        name: 'Vall de Núria',
+        meta: 'Ripollès · 1.964 m · ~2 h 15 min + cremallera',
+        badge: 'Sense cotxes · Parc Lúdic',
+        text: "S'hi accedeix únicament amb el tren cremallera des de Ribes de Freser o Queralbs. A dalt no hi ha cotxes i el Parc Lúdic té pistes segures de trineus per als més menuts.",
+        warn: 'Convé reservar els bitllets del cremallera amb antelació els caps de setmana d’hivern.',
+        href: '/neu/vall-de-nuria',
+        cta: 'Previsió a la Vall de Núria',
+      },
+      {
+        name: 'Lles de Cerdanya (Cap del Rec)',
+        meta: 'Cerdanya · 1.960 m · ~2 h 10 min',
+        badge: 'Sol i vistes al Cadí',
+        text: "Orientada a migdia, molt assolellada i davant per davant de la paret nord del Cadí. Molt bona opció per estrenar-se amb les raquetes de neu en família i dinar al refugi.",
+        warn: 'Els últims quilòmetres des del poble de Lles guanyen molta cota: atenció al gel a primera i última hora.',
+        href: '/neu/estacio-de-lles',
+        cta: 'Previsió a Lles',
+      },
+    ];
+
+const GEAR = es
+  ? [
+      {
+        tag: 'Imprescindible en el coche',
+        name: 'Fundas textiles de nieve homologadas (EN 16662-1)',
+        q: 'fundas nieve coche homologadas EN 16662-1',
+        text: 'Ocupan muy poco en el maletero y se montan en dos minutos incluso con manos frías. En accesos como Rasos de Peguera, Port del Comte o Tuixent te pueden pedir equipamiento de invierno aunque haya nevado el día anterior.',
+        alt: { name: 'cadenas metálicas clásicas', q: 'cadenas nieve coche metalicas' },
+      },
+      {
+        tag: 'Contra las placas de hielo',
+        name: 'Crampones flexibles antideslizantes para bota',
+        q: 'crampones antideslizantes nieve botas senderismo',
+        text: 'Cuando pasan días sin nevar, los aparcamientos y caminos pisados se vuelven puro hielo. Unas puntas ligeras de goma en la mochila evitan los resbalones más frecuentes.',
+      },
+      {
+        tag: 'Para deslizarse seguro',
+        name: 'Trineo infantil con frenos y dirección',
+        q: 'trineo nieve infantil con frenos',
+        text: 'Mucho más estable y duradero que las palas de plástico fino que se rompen en la primera piedra. Fuera de zonas acotadas, escoge siempre laderas suaves sin árboles, vallas ni carretera al final.',
+      },
+      {
+        tag: 'Ropa seca para niños',
+        name: 'Guantes impermeables de caña larga y descansos',
+        q: 'guantes nieve impermeables niños',
+        text: 'Los guantes de lana o punto se empapan en cinco minutos tocando nieve y se acaba la salida. Busca guantes impermeables que cubran la manga y lleva siempre un par de calcetines y guantes secos de recambio.',
+        alt: { name: 'botas de nieve impermeables infantiles', q: 'botas nieve impermeables niños' },
+      },
+    ]
+  : [
+      {
+        tag: 'Imprescindible al maleter',
+        name: 'Fundes tèxtils de neu homologades (EN 16662-1)',
+        q: 'fundas nieve coche homologadas EN 16662-1',
+        text: "Ocupen molt poc espai i es posen en dos minuts fins i tot amb fred. Als accessos als Rasos de Peguera, Port del Comte o Tuixent poden ser obligatòries encara que hagi nevat el dia abans.",
+        alt: { name: 'cadenes metàl·liques clàssiques', q: 'cadenas nieve coche metalicas' },
+      },
+      {
+        tag: 'Contra el gel als camins',
+        name: 'Grampons flexibles antilliscants per a bota',
+        q: 'crampones antideslizantes nieve botas senderismo',
+        text: 'Quan fa dies que no neva, els aparcaments i les pistes trepitjades es converteixen en gel viu. Uns grampons lleugers de goma a la motxilla estalvien les patinades més habituals.',
+      },
+      {
+        tag: 'Per baixar amb control',
+        name: 'Trineu amb frens laterals',
+        q: 'trineo nieve infantil con frenos',
+        text: "Molt més segur i resistent que els plàstics prims que es trenquen a la primera pedra. Fora de les pistes tancades d'estació, tria sempre pendents suaus sense arbres, tanques ni carretera al final.",
+      },
+      {
+        tag: 'Mans i peus secs',
+        name: 'Guants impermeables de canya llarga i botes de neu',
+        q: 'guantes nieve impermeables niños',
+        text: "Els guants de llana es xopen en cinc minuts tocant neu i s'acaba l'excursió. Calen guants impermeables que tapin el puny de la jaqueta i un recanvi sec de mitjons i guants al cotxe.",
+        alt: { name: 'botes de neu impermeables per a nens', q: 'botas nieve impermeables niños' },
+      },
+    ];
+
+const title = es
+  ? 'Dónde ir a la nieve con niños cerca de Barcelona: trineos, raquetas y estado en directo | Meteocadí'
+  : 'On anar a la neu amb nens prop de Barcelona: trineus, raquetes i temps en directe | Meteocadí';
+const description = es
+  ? 'Los 7 mejores sitios para tocar nieve, tirarse en trineo o hacer raquetas en familia a menos de 2 horas de Barcelona (Rasos de Peguera, Port del Comte, Coll de Pal, La Molina, Núria…), con temperatura y carreteras en directo.'
+  : 'Els 7 millors llocs per tocar neu, anar en trineu o fer raquetes en família a menys de 2 hores de Barcelona (Rasos de Peguera, Port del Comte, Coll de Pal, la Molina, Núria…), amb temperatura i carreteres en directe.';
+---
+<Base title={title} description={description} path={path} lang={lang} alternates={alts} current="muntanya">
+  <section class="phead">
+    <div class="wrap">
+      <nav class="crumbs" aria-label="Ruta">
+        <a href="/">{es ? 'Inicio' : 'Inici'}</a><span>›</span>
+        <a href={es ? '/es/esqui' : '/neu'}>{es ? 'Nieve y esquí' : 'Neu i esquí'}</a><span>›</span>
+        <span>{es ? 'Nieve con niños' : 'Neu amb nens'}</span>
+      </nav>
+      <h1>{es ? 'Dónde ir a la nieve con niños cerca de Barcelona' : 'On anar a la neu amb nens prop de Barcelona'}</h1>
+      <p>{es
+        ? 'Siete lugares del Berguedà, el Solsonès, la Cerdanya, el Ripollès y el Alt Urgell para jugar con la nieve, bajar en trineo o caminar con raquetas sin pagar forfet de esquí alpino, con la temperatura real en montaña ahora mismo.'
+        : 'Set llocs del Berguedà, el Solsonès, la Cerdanya, el Ripollès i l’Alt Urgell per jugar amb la neu, baixar en trineu o caminar amb raquetes sense pagar forfet d’esquí alpí, amb la temperatura real a muntanya ara mateix.'}</p>
+    </div>
+  </section>
+
+  <section class="sec sec--dark" style="padding:44px 0 52px;" id="ara">
+    <div class="wrap" style="position:relative;">
+      <div class="sec__head">
+        <div>
+          <h2 class="h2">{es ? 'Qué temperatura y viento hace ahora arriba' : 'Quina temperatura i vent fa ara a dalt'}</h2>
+          <p class="sec__lead">{es
+            ? 'Lecturas en directo de nuestras estaciones entre 1.450 y 2.270 m en el Berguedà y el Cadí-Moixeró.'
+            : 'Lectures en directe de les nostres estacions entre 1.450 i 2.270 m al Berguedà i el Cadí-Moixeró.'}</p>
+        </div>
+        <a href={es ? '/es/esqui' : '/neu'} style="color:#7fd0ff;font-size:15px;">{es ? 'Ver previsión de nieve en todo el Pirineo →' : 'Veure previsió de neu a tot el Pirineu →'}</a>
+      </div>
+      <StationTable ids={['IGUARD34', 'IGSOL7', 'IBAG67', 'IGSOL4']} lang={lang} />
+    </div>
+  </section>
+
+  <section class="sec" style="padding-bottom:32px;">
+    <div class="wrap fs-wrap">
+      <div>
+        <h2 class="fs-h2">{es ? 'Siete lugares a menos de dos horas y cuarto' : 'Set llocs a menys de dues hores i quart'}</h2>
+        <p class="fs-sub">{es
+          ? 'Antes de salir, comprueba siempre en la ficha de cada lugar si ha nevado recientemente y a qué altitud está la cota de nieve.'
+          : 'Abans de sortir de casa, comprova sempre a la fitxa de cada lloc si hi ha neu a terra i a quina altitud queda la cota de neu.'}</p>
+        <div class="fs-grid">
+          {SPOTS.map((s) => (
+            <article class="card fs-spot">
+              <div class="fs-spot__top">
+                <span class="fs-badge">{s.badge}</span>
+                <h3>{s.name}</h3>
+                <p class="fs-meta">{s.meta}</p>
+              </div>
+              <p class="fs-txt">{s.text}</p>
+              <p class="fs-warn"><strong>{es ? 'Ten en cuenta:' : 'Tingues en compte:'}</strong> {s.warn}</p>
+              <a class="fs-go" href={s.href}>{s.cta} →</a>
+            </article>
+          ))}
+        </div>
+      </div>
+
+      <MountainNotice short lang={lang} />
+    </div>
+  </section>
+
+  <section class="sec sec--pale" style="padding:56px 0;">
+    <div class="wrap">
+      <RoadStatus
+        roads={[
+          { road: 'C-16', from: 95, to: 135, label: es ? 'la C-16 (Berga – Túnel del Cadí)' : 'la C-16 (Berga – Túnel del Cadí)' },
+          { road: 'BV-4024', label: 'la BV-4024 (Bagà – Coll de Pal)' },
+        ]}
+        lang={lang}
+      />
+    </div>
+  </section>
+
+  <section class="sec" style="padding-top:56px;">
+    <div class="wrap fs-wrap">
+      <div>
+        <h2 class="fs-h2">{es ? 'Qué llevar en el coche y en la mochila' : 'Què portar al cotxe i a la motxilla'}</h2>
+        <p class="fs-disc">{es
+          ? 'Este apartado incluye enlaces de afiliado de Amazon: si compras a través de ellos, Meteocadí recibe una pequeña comisión sin coste adicional para ti, que nos ayuda a mantener las estaciones.'
+          : 'Aquest apartat inclou enllaços d’afiliat d’Amazon: si hi compres, Meteocadí rep una petita comissió sense cap cost extra per a tu, que ens ajuda a mantenir les estacions.'}</p>
+        <div class="fs-gear">
+          {GEAR.map((g) => (
+            <article class="card fs-gcard">
+              <span class="fs-gtag">{g.tag}</span>
+              <h3>{g.name}</h3>
+              <p>{g.text}</p>
+              <div class="fs-gcta">
+                <a class="btn btn--blue fs-btn" href={amazon(g.q)} rel="sponsored nofollow noopener" target="_blank">{es ? 'Ver en Amazon' : 'Mira-ho a Amazon'}</a>
+                {g.alt && <a class="fs-alt" href={amazon(g.alt.q)} rel="sponsored nofollow noopener" target="_blank">{es ? `o bien ${g.alt.name}` : `o bé ${g.alt.name}`}</a>}
+              </div>
+            </article>
+          ))}
+        </div>
+        <p class="fs-small">{es
+          ? 'Como Afiliado de Amazon, Meteocadí obtiene ingresos por las compras adscritas que cumplen los requisitos aplicables.'
+          : "Com a Afiliat d'Amazon, Meteocadí obté ingressos per les compres adscrites que compleixen els requisits aplicables."}</p>
+      </div>
+
+      <div class="fs-local">
+        <h2 class="fs-h2">{es ? 'Dónde alquilar material y dónde comer por la zona' : 'On llogar material i on dinar per la zona'}</h2>
+        {RECOMANATS_FAMILIA.length > 0 && (
+          <div class="fs-gear" style="margin-bottom:18px;">
+            {RECOMANATS_FAMILIA.map((b: any) => (
+              <article class="card fs-gcard">
+                <span class="fs-gtag">{b.tipus} · {b.zona}</span>
+                <h3>{b.nom}</h3>
+                <p>{b.frase}</p>
+                {b.codi && <p class="fs-code">{es ? 'Código descuento:' : 'Codi descompte:'} <strong>{b.codi}</strong></p>}
+                <div class="fs-gcta">
+                  <a class="fs-go" href={b.url} rel="sponsored noopener" target="_blank">{es ? 'Ver web' : 'Veure web'} →</a>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+        <div class="card fs-biz">
+          <div>
+            <h3>{es ? '¿Tienes un alquiler de trineos/raquetas, restaurante o alojamiento en la zona?' : 'Tens un lloguer de trineus o raquetes, un restaurant o un allotjament a la zona?'}</h3>
+            <p>{es
+              ? 'Seleccionamos pocos negocios locales del Berguedà, el Solsonès, la Cerdanya y el Alt Urgell para recomendarlos en esta guía durante toda la temporada de invierno.'
+              : 'Seleccionem pocs negocis locals del Berguedà, el Solsonès, la Cerdanya i l’Alt Urgell per recomanar-los en aquesta guia durant tota la temporada d’hivern.'}</p>
+          </div>
+          <a class="btn btn--line fs-btn" href="/colabora#negocis">{es ? 'Cómo aparecer aquí' : 'Com sortir-hi'}</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</Base>
+
+<script>
+  import { startLive } from '../scripts/live.js';
+  startLive();
+</script>
+
+<style>
+  .fs-wrap { display: flex; flex-direction: column; gap: 36px; }
+  .fs-h2 { font-size: 28px; font-weight: 800; letter-spacing: -0.02em; color: var(--ink); }
+  .fs-sub, .fs-disc { font-size: 15.5px; line-height: 1.55; color: var(--muted); margin-top: 6px; margin-bottom: 18px; max-width: 820px; }
+  .fs-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+  .fs-spot { display: flex; flex-direction: column; gap: 10px; padding: 24px; }
+  .fs-spot__top { display: flex; flex-direction: column; gap: 4px; }
+  .fs-badge { align-self: flex-start; font-family: var(--f-ui); font-size: 12.5px; font-weight: 600; color: var(--blue); background: var(--pale); padding: 4px 10px; border-radius: 8px; margin-bottom: 4px; }
+  .fs-spot h3 { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; color: var(--ink); }
+  .fs-meta { font-family: var(--f-ui); font-size: 14px; color: var(--muted); }
+  .fs-txt { font-size: 15.5px; line-height: 1.55; color: var(--ink2); }
+  .fs-warn { font-size: 14px; line-height: 1.5; color: var(--ink2); background: #f8fafc; border-left: 3px solid #cbd5e1; padding: 10px 12px; border-radius: 0 8px 8px 0; }
+  .fs-go { margin-top: auto; padding-top: 6px; font-size: 15px; font-weight: 700; color: var(--blue); }
+  .fs-gear { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+  .fs-gcard { display: flex; flex-direction: column; gap: 10px; padding: 24px; }
+  .fs-gtag { font-family: var(--f-ui); font-size: 13px; font-weight: 600; color: var(--muted); }
+  .fs-gcard h3 { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; color: var(--ink); }
+  .fs-gcard p { font-size: 15.5px; line-height: 1.55; color: var(--ink2); }
+  .fs-gcta { margin-top: auto; padding-top: 8px; display: flex; align-items: center; flex-wrap: wrap; gap: 14px; }
+  .fs-btn { height: 42px; font-size: 14.5px; padding: 0 18px; flex: none; }
+  .fs-alt { font-size: 14px; font-weight: 600; color: var(--blue); }
+  .fs-small { font-size: 13.5px; color: var(--muted); margin-top: 14px; }
+  .fs-code { font-family: var(--f-ui); font-size: 14px; color: var(--blue); }
+  .fs-biz { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 24px 28px; background: var(--pale); box-shadow: none; margin-top: 14px; }
+  .fs-biz h3 { font-size: 19px; font-weight: 800; letter-spacing: -0.015em; margin-bottom: 4px; }
+  .fs-biz p { font-size: 15px; line-height: 1.5; color: var(--ink2); max-width: 640px; }
+  @media (max-width: 820px) {
+    .fs-grid, .fs-gear { grid-template-columns: 1fr; }
+    .fs-biz { flex-direction: column; align-items: flex-start; padding: 22px; }
+  }
+</style>
