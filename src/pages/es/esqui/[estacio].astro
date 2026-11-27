@@ -1,0 +1,10 @@
+---
+// Fitxa d'una estació de Meteocadí Neu en castellà: la mateixa que /neu/<estació> (components/neu/NeuFitxa.astro).
+import NeuFitxa from '../../../components/neu/NeuFitxa.astro';
+import { NEU } from '../../../lib/neu/estacions.js';
+
+export function getStaticPaths() {
+  return NEU.map((r) => ({ params: { estacio: r.slug } }));
+}
+---
+<NeuFitxa slug={Astro.params.estacio as string} lang="es" />

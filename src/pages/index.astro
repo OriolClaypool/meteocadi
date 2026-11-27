@@ -24,8 +24,12 @@ const altLo = fmtAlt(Math.min(...STATIONS.map((s) => s.alt))).replace(' m', '');
 const altHi = fmtAlt(Math.max(...STATIONS.map((s) => s.alt))).replace(' m', '');
 const who = (e) => (e ? `${e.station.name.split(' - ')[0]} · ${fmtAlt(e.station.alt)}` : '');
 const dateLabel = day ? `${dayShort(day.date)} ${dayMonthShort(day.date)}` : '';
-// Frase de la capçalera amb el darrer dia arxivat; el directe la canvia per les lectures d'ara (script de sota)
-const nowSsr = ex?.min && ex?.max ? `${cap(longDate(day.date))}: de ${num(ex.min.v)}° a ${num(ex.max.v)}°.` : '';
+// Frase de la capçalera amb el darrer dia arxivat i on es van registrar la mínima i la màxima; el directe la canvia
+// per les lectures d'ara (script de sota)
+const onEs = (e) => (e?.station?.a ? ` ${e.station.a}` : '');
+const nowSsr = ex?.min && ex?.max
+  ? `${cap(longDate(day.date))}: mínima de ${num(ex.min.v)}°${onEs(ex.min)} i màxima de ${num(ex.max.v)}°${onEs(ex.max)}.`
+  : '';
 
 const CONT = 'M-200 -20C-190 -140 -40 -190 80 -160C200 -130 260 -40 230 60C200 160 60 190 -60 170C-170 150 -210 80 -200 -20Z';
 const contours = [...Array(10).keys()].map((j) => `translate(1180 260) rotate(${-8 + 3 * j}) scale(${(0.35 + 0.34 * j + 0.03 * j * j).toFixed(2)})`);

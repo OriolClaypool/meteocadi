@@ -212,11 +212,11 @@ const skiFacts = p.ski
     <section class="sec" style="padding:64px 0;">
       <div class="wrap">
         {NEU_BY_SLUG[p.slug] && (
-          <a class="pp-neubox" href={`/neu/${p.slug}`}>
+          <a class="pp-neubox" href={es ? `/es/esqui/${p.slug}` : `/neu/${p.slug}`}>
             <div>
               <b>{es ? `${p.name} en Meteocadí Neu` : `Mira ${p.name} a Meteocadí Neu`}</b>
               <span>{es
-                ? 'Nota de 0 a 10 para esquiar, nieve medida cerca, cota de nieve y previsión hora a hora (en catalán).'
+                ? 'Nota de 0 a 10 para esquiar, espesor medido en los sensores cercanos, cota de nieve y previsión hora a hora.'
                 : 'Nota de 0 a 10 per esquiar, gruix mesurat als sensors propers, cota de neu i previsió hora a hora.'}</span>
             </div>
             <span class="pp-neubox__go">{es ? 'Abrir ficha de nieve →' : 'Obrir fitxa de neu →'}</span>
@@ -243,7 +243,7 @@ const skiFacts = p.ski
           <p class="skilinks">
             <a href={p.ski.web} rel="noopener" target="_blank">{es ? 'Web oficial de la estación' : "Web oficial de l'estació"}</a>
             {p.ski.webcams && <a href={p.ski.webcams} rel="noopener" target="_blank">Webcams</a>}
-            {!es && NEU_BY_SLUG[p.slug] && <a href={`/neu/${p.slug}`}>Aquesta estació a Meteocadí Neu →</a>}
+            {NEU_BY_SLUG[p.slug] && <a href={es ? `/es/esqui/${p.slug}` : `/neu/${p.slug}`}>{es ? 'Esta estación en Meteocadí Neu →' : 'Aquesta estació a Meteocadí Neu →'}</a>}
             <a href={skiPath}>{es ? 'Todas las estaciones de esquí' : "Totes les estacions d'esquí"} →</a>
           </p>
           <p class="skifacts__note">{es

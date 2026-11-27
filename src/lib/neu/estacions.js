@@ -44,6 +44,8 @@ export const NEU = PLACES.filter((p) => p.ski && !FORA.has(p.slug))
       region: p.region,
       zone: p.ski.region,
       zoneA: reg?.a ?? `a ${p.ski.region}`,
+      // En castellà (/es/esqui): "en la Cerdanya", "en el Valle de Arán"
+      zoneAEs: reg?.es?.a ?? `en ${p.ski.region}`,
       country: p.region === 'andorra' ? 'and' : 'cat',
       type: p.ski.type === 'nordic' ? 'fons' : 'alpi',
       base: p.ski.base,
@@ -59,7 +61,7 @@ export const NEU = PLACES.filter((p) => p.ski && !FORA.has(p.slug))
       // Incidències de trànsit (Servei Català de Trànsit) a menys d'aquests km: només a Catalunya
       roadsKm: p.region === 'andorra' ? null : p.near ?? 14,
       tren: TREN.has(p.slug),
-      // Quan obre aquesta temporada (temporada.js): obre, obreDes, obreNota, obreFont
+      // Quan obre aquesta temporada (temporada.js): obre, obreDes, obreNota, obreNotaEs, obreFont
       ...obertura(p.slug),
       // Punts de la previsió: el cim (primer) i la base (darrer)
       points: [pts[0], pts[pts.length - 1]].filter(Boolean).map(({ label, lat, lng, alt }) => ({ label, lat, lng, alt })),
@@ -72,9 +74,9 @@ export const NEU_BY_SLUG = Object.fromEntries(NEU.map((r) => [r.slug, r]));
 
 // El que necessita el navegador per pintar les llistes, el mapa i les fitxes
 export const lleugera = (r) => ({
-  slug: r.slug, name: r.name, short: r.short, zone: r.zone, zoneA: r.zoneA, country: r.country, type: r.type,
+  slug: r.slug, name: r.name, short: r.short, zone: r.zone, zoneA: r.zoneA, zoneAEs: r.zoneAEs, country: r.country, type: r.type,
   base: r.base, top: r.top, lat: r.lat, lng: r.lng, points: r.points, ...(r.tren ? { tren: true } : {}),
-  obre: r.obre, obreDes: r.obreDes, ...(r.obreNota ? { obreNota: r.obreNota } : {}),
+  obre: r.obre, obreDes: r.obreDes, ...(r.obreNota ? { obreNota: r.obreNota } : {}), ...(r.obreNotaEs ? { obreNotaEs: r.obreNotaEs } : {}),
 });
 
 // Butlletí de perill d'allaus de la zona de cada estació

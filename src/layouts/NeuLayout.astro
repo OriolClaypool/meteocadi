@@ -17,11 +17,13 @@ interface Props {
   card?: { kicker?: string; title?: string; sub?: string; lat?: number; lng?: number; label?: string; pins?: [number, number][] };
   credits?: string; // fonts de la pàgina, al peu
   lang?: 'ca' | 'es'; // els textos de la plantilla (textos.js, lay)
+  alternates?: { ca: string; es: string }; // la mateixa pàgina en l'altra llengua: hreflang i l'enllaç CA / ES de dalt
 }
-const { title, description, path, current = 'avui', back, share = false, card, credits, lang = 'ca' } = Astro.props;
+const { title, description, path, current = 'avui', back, share = false, card, credits, lang = 'ca', alternates } = Astro.props;
 const tx = textos(lang);
 const T = tx.lay;
 const H = tx.home;
+const other = alternates ? { href: lang === 'es' ? alternates.ca : alternates.es, ...T.other } : null;
 
 const NAV = [
   { k: 'avui', href: H, label: T.nav.avui, d: '<path d="m8 3 4 8 5-5 5 15H2L8 3z"/><path d="M4.14 15.08c2.62-1.57 5.24-1.43 7.86.42 2.74 1.94 5.49 2 8.23.19"/>' },
@@ -39,7 +41,7 @@ const seg = (off: number, mirror: boolean) => (mirror ? [...pts].reverse().map((
 const ridge = [0, 1, 2, 3, 4, 5].flatMap((k) => seg(k * 390, k % 2 === 1).slice(k ? 1 : 0));
 const ridgeD = `M0 46V${ridge[0][1]}${ridge.map(([x, y]) => `L${x} ${y}`).join('')}V46Z`;
 ---
-<Base title={title} description={description} path={path} lang={lang} bare card={{ kicker: 'Meteocadí Neu', tone: 'neu', ...card }}>
+<Base title={title} description={description} path={path} lang={lang} alternates={alternates} bare card={{ kicker: 'Meteocadí Neu', tone: 'neu', ...card }}>
   <div class="nv">
     <header class="nv-hero">
       <div class="nv-in">
@@ -57,6 +59,7 @@ const ridgeD = `M0 46V${ridge[0][1]}${ridge.map(([x, y]) => `L${x} ${y}`).join('
             <nav class="nv-top__nav" aria-label="Meteocadí Neu">
               {NAV.map((n) => <a class="nv-top__l" href={n.href} aria-current={n.k === current ? 'page' : undefined}>{n.label}</a>)}
             </nav>
+            {other && <a class="nv-top__l nv-top__lang" href={other.href} hreflang={other.hreflang} lang={other.hreflang} aria-label={other.aria}>{other.label}</a>}
             {share && (
               <button type="button" class="nv-top__l nv-share" data-share aria-label={T.share}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="m8.59 13.51 6.83 3.98M15.41 6.51l-6.82 3.98" /></svg>
@@ -68,7 +71,7 @@ const ridgeD = `M0 46V${ridge[0][1]}${ridge.map(([x, y]) => `L${x} ${y}`).join('
         <slot name="hero" />
         {PATROCINI_NEU.actiu && PATROCINI_NEU.nom && (
           <a class="nv-spon" href={PATROCINI_NEU.url || '/colabora'} rel="sponsored noopener" target={PATROCINI_NEU.url ? '_blank' : undefined}>
-            <span>{PATROCINI_NEU.etiqueta || T.suport}</span>
+            <span>{(lang === 'ca' && PATROCINI_NEU.etiqueta) || T.suport}</span>
             <b>{PATROCINI_NEU.nom}</b>
             {PATROCINI_NEU.frase && <em>· {PATROCINI_NEU.frase}</em>}
           </a>

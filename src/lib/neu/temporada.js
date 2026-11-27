@@ -10,7 +10,7 @@
 // - obre: 'AAAA-MM-DD', el dia anunciat
 // - obre: null, sense data anunciada (obren quan hi ha prou neu): compten com a obertes des de PER_DEFECTE
 // - incert: true, no se sap si obrirà: no té nota fins que es posi una data
-// - nota: frase curta que surt a la fitxa i a la llista d'obertures
+// - nota: frase curta que surt a la fitxa i a la llista d'obertures; nota_es, la mateixa en castellà (/es/esqui)
 // Quan una estació sense data obre, o una n'anuncia una de nova, s'hi posa el dia: no cal tocar res més.
 
 // Revisat el 27/11/2026 amb: nota de premsa del Govern del 6/11/2026 (Pirineu365: les sis estacions d'FGC, del 4 de
@@ -27,7 +27,7 @@ export const PER_DEFECTE = '2026-12-04';
 const FGC = 'Ferrocarrils de la Generalitat (Pirineu365)';
 const GVR = 'Grandvalira Resorts';
 export const OBERTURES = {
-  'baqueira-beret': { obre: null, nota: "Obertura prevista el 28 de novembre ajornada per falta de neu; pendent de nova data.", font: 'Baqueira Beret' },
+  'baqueira-beret': { obre: null, nota: "Obertura prevista el 28 de novembre ajornada per falta de neu; pendent de nova data.", nota_es: 'Apertura prevista el 28 de noviembre aplazada por falta de nieve; pendiente de nueva fecha.', font: 'Baqueira Beret' },
   'la-molina': { obre: '2026-12-04', font: FGC },
   'vall-de-nuria': { obre: '2026-12-04', font: FGC },
   vallter: { obre: '2026-12-04', font: FGC },
@@ -37,9 +37,9 @@ export const OBERTURES = {
   grandvalira: { obre: '2026-12-04', font: GVR },
   'pal-arinsal': { obre: '2026-12-04', font: GVR },
   'ordino-arcalis': { obre: '2026-12-04', font: GVR },
-  masella: { obre: null, nota: 'Obrirà el primer dia que la neu ho permeti.' },
+  masella: { obre: null, nota: 'Obrirà el primer dia que la neu ho permeti.', nota_es: 'Abrirá el primer día que la nieve lo permita.' },
   'port-del-comte': { obre: null },
-  tavascan: { obre: null, incert: true, nota: "L'obertura de l'esquí alpí aquesta temporada no està confirmada." },
+  tavascan: { obre: null, incert: true, nota: "L'obertura de l'esquí alpí aquesta temporada no està confirmada.", nota_es: 'La apertura del esquí alpino esta temporada no está confirmada.' },
 };
 // Les estacions de nòrdic (i qualsevol que no surti a la llista): sense data, obren quan hi ha prou neu
 const SENSE = { obre: null };
@@ -51,7 +51,7 @@ export const PRIMERA = Object.values(OBERTURES).map((o) => o.obre).filter(Boolea
 // a oberta; null si no se sap si obrirà) i obreNota
 export function obertura(slug) {
   const o = OBERTURES[slug] ?? SENSE;
-  return { obre: o.obre ?? null, obreDes: o.incert ? null : o.obre ?? PER_DEFECTE, obreNota: o.nota ?? null, obreFont: o.font ?? null };
+  return { obre: o.obre ?? null, obreDes: o.incert ? null : o.obre ?? PER_DEFECTE, obreNota: o.nota ?? null, obreNotaEs: o.nota_es ?? null, obreFont: o.font ?? null };
 }
 
 // És oberta el dia iso? Una estació sense aquests camps (dades antigues, o ?temporada per fer proves) compta com a oberta

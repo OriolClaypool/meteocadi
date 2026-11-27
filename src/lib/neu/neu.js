@@ -253,7 +253,7 @@ export function neuFor(tx) {
       const max = tot[0].cm;
       const what = tx.pt.what(max);
       const kf = snowK[0], kl = snowK[snowK.length - 1];
-      const when = kf === kl ? dw(kf) : kf === 0 ? tx.pt.fins(dw(kl)) : tx.pt.deA(dw(kf), dw(kl));
+      const when = kf === kl ? tx.pt.on(dw(kf)) : kf === 0 ? tx.pt.fins(dw(kl)) : tx.pt.deA(dw(kf), dw(kl));
       const zones = [...new Set(tot.filter((x) => x.cm >= Math.max(1, max * 0.5)).map((x) => tx.zoneA(x.g.resort)))].slice(0, 2);
       out.title = tx.pt.title(what, when, list(zones));
       const lines = snowK.flatMap((k) => per[k].map((g) => lineOf(g.top.days[i0 + k]))).filter((v) => v != null);

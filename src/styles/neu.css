@@ -33,7 +33,8 @@ body:has(.nv) { background: #f2f5f9; }
 .nv-top__l:hover { color: #fff !important; background: rgba(255, 255, 255, 0.06); }
 .nv-top__l[aria-current='page'] { color: #fff !important; box-shadow: inset 0 -2px 0 var(--ice); border-radius: 0; }
 .nv-top__nav { display: none; }
-.nv-top__lang { font-family: var(--f-mono); font-size: 12px; }
+.nv-top__lang { font-size: 13px; font-weight: 700; letter-spacing: 0.04em; }
+.nv-top__nav + .nv-top__lang { margin-left: 6px; }
 /* Fitxa, al mòbil: la tornada ocupa el lloc de la marca */
 .nv-top--back .nv-brand { display: none; }
 .nv-top .nv-back { margin-left: -6px; }

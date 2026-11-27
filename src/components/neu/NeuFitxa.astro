@@ -15,6 +15,7 @@ import { neuFor } from '../../lib/neu/neu.js';
 import { notaFor, depthToday } from '../../lib/neu/nota.js';
 import { isOpen, temporadaFor } from '../../lib/neu/temporada.js';
 import { textos } from '../../lib/neu/textos.js';
+import { PLACES_ES } from '../../lib/places-es.js';
 import { inSeason } from '../../lib/ski.js';
 import { todayMadrid, num } from '../../lib/format.js';
 
@@ -64,13 +65,15 @@ const FACTS = [
 ].filter(([, v]) => v != null) as [string, string, boolean][];
 
 const title = F.title(r.name);
-const description = F.desc(r, cotes);
+// En castellà, el lloc amb la preposició de places-es.js ("en La Molina")
+const description = F.desc({ ...r, aEs: PLACES_ES[r.slug]?.a ?? null }, cotes);
 ---
 <NeuLayout
   lang={lang}
   title={title}
   description={description}
   path={`${tx.base}${r.slug}`}
+  alternates={{ ca: `/neu/${r.slug}`, es: `/es/esqui/${r.slug}` }}
   current="estacions"
   back={{ href: `${tx.home}#estacions`, label: tx.pg.estacions }}
   share
