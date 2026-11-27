@@ -169,13 +169,11 @@ button { font: inherit; }
 .hero__img, .hero__img img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 40%; }
 .hero__shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(6, 14, 28, 0.45) 0%, rgba(6, 14, 28, 0) 18%, rgba(6, 14, 28, 0) 44%, rgba(6, 14, 28, 0.72) 100%); }
 .hero__shade2 { position: absolute; inset: 0; background: linear-gradient(90deg, rgba(6, 14, 28, 0.62) 0%, rgba(6, 14, 28, 0.25) 40%, rgba(6, 14, 28, 0) 62%); }
-.hero__wind { position: absolute; left: 0; top: 0; width: 100%; height: 600px; pointer-events: none; }
 .hero__body { position: relative; z-index: 2; min-height: 820px; display: flex; align-items: flex-end; justify-content: space-between; gap: 48px; padding-top: 120px; padding-bottom: 56px; }
 .hero__text { max-width: 740px; display: flex; flex-direction: column; padding-bottom: 20px; }
 /* El títol de la pàgina és una línia petita i la frase gran és la lectura d'ara (.hero__now): primer la dada */
 .hero h1 { font-size: 18px; font-weight: 600; line-height: 1.3; letter-spacing: 0; color: rgba(255, 255, 255, 0.9); margin-bottom: 14px; }
-.hero__now { font-size: clamp(36px, 4.5vw, 66px); font-weight: 800; line-height: 1; letter-spacing: -0.035em; text-wrap: balance; min-height: 2em; margin-bottom: 24px; transition: opacity 0.35s ease; }
-.hero__now.is-wait { opacity: 0; }
+.hero__now { font-size: clamp(36px, 4.5vw, 66px); font-weight: 800; line-height: 1; letter-spacing: -0.035em; text-wrap: balance; min-height: 2em; margin-bottom: 24px; }
 .hero__now:empty { display: none; }
 .hero__lead { font-size: 20px; line-height: 1.5; color: rgba(255, 255, 255, 0.9); max-width: 600px; margin-bottom: 28px; }
 .hero__btns { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
@@ -225,9 +223,7 @@ button { font: inherit; }
   .stat:nth-child(2n) { padding: 16px 0 16px 14px; }
 }
 
-/* ---------- cinta "ara" ---------- */
-.ticker { height: 60px; background: var(--a-bg); border-bottom: 1px solid rgba(61, 184, 255, 0.1); display: flex; align-items: center; overflow: hidden; font-family: var(--f-ui); }
-.ticker__live { position: relative; z-index: 1; height: 60px; display: flex; align-items: center; padding: 0 24px 0 var(--pad); background: var(--a-bg); box-shadow: 18px 0 24px var(--a-bg); flex-shrink: 0; }
+/* ---------- insígnia de directe ---------- */
 .live { display: inline-flex; align-items: center; gap: 10px; padding: 8px 14px; border: 1px solid rgba(52, 211, 153, 0.3); border-radius: 999px; font-size: 12.5px; font-weight: 500; letter-spacing: 0.03em; font-variant-numeric: tabular-nums; color: #6ee7b7; white-space: nowrap; }
 .live__dot { position: relative; width: 8px; height: 8px; }
 .live__dot i { position: absolute; inset: 0; border-radius: 50%; background: #34d399; }
@@ -235,17 +231,6 @@ button { font: inherit; }
 .live__dot i:last-child { animation: pulse 2s ease-in-out infinite; }
 .live--off { color: var(--a-mut); border-color: rgba(255, 255, 255, 0.15); }
 .live--off .live__dot i { background: var(--a-mut); animation: none; }
-.ticker__track { flex: 1; overflow: hidden; }
-.ticker__move { display: flex; width: max-content; white-space: nowrap; animation: marquee 70s linear infinite; }
-.ticker:hover .ticker__move { animation-play-state: paused; }
-.ticker__set { display: flex; align-items: center; gap: 28px; padding-right: 28px; }
-.tk { display: inline-flex; align-items: baseline; gap: 10px; color: var(--a-txt); }
-.tk:hover { color: #fff; }
-.tk b { font-size: 15px; font-weight: 500; }
-.tk .a { font-size: 12px; font-variant-numeric: tabular-nums; color: var(--a-mut2); }
-.tk .t { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.tk .w { font-size: 12.5px; font-variant-numeric: tabular-nums; color: var(--a-mut); }
-.tk-sep { width: 1px; height: 18px; background: rgba(61, 184, 255, 0.2); align-self: center; }
 
 /* ---------- seccions ---------- */
 .sec { padding: 104px 0; }
@@ -267,7 +252,6 @@ button { font: inherit; }
 
 /* contorns animats (A) */
 .contours { position: absolute; left: 0; top: 0; width: 1440px; height: 900px; pointer-events: none; }
-.contours { animation: cdrift 36s ease-in-out infinite alternate; will-change: transform; }
 
 /* ---------- filtres ---------- */
 .filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
@@ -402,30 +386,18 @@ button { font: inherit; }
 @media (max-width: 980px) { .charts { grid-template-columns: 1fr; } }
 
 /* ---------- animacions ---------- */
-@keyframes flow { to { stroke-dashoffset: -480; } }
-@keyframes streak { to { stroke-dashoffset: -1600; } }
-@keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-@keyframes rise { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: none; } }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
 @keyframes ring { 0% { opacity: 0.6; transform: scale(0.6); } 100% { opacity: 0; transform: scale(2.4); } }
 @keyframes draw { from { stroke-dashoffset: 2000; } to { stroke-dashoffset: 0; } }
 @keyframes grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 @keyframes pop { from { opacity: 0; transform: scale(0.2); } to { opacity: 1; transform: scale(1); } }
 @keyframes sweep { to { transform: rotate(360deg); } }
-@keyframes bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
-@keyframes merc { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2px); } }
-@keyframes windash { to { stroke-dashoffset: -17; } }
-@keyframes droppulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
 @keyframes flash { 0%, 86%, 100% { opacity: 0; } 88% { opacity: 1; } 90% { opacity: 0.2; } 93% { opacity: 1; } 97% { opacity: 0; } }
 @keyframes cell { 0%, 100% { opacity: 0.75; transform: scale(1); } 50% { opacity: 1; transform: scale(1.12); } }
 @keyframes drift1 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(18px, -12px); } }
 @keyframes drift2 { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(-16px, 14px); } }
-@keyframes cdrift { from { transform: translate(0, 0); } to { transform: translate(-46px, 20px); } }
 @keyframes spark { from { stroke-dashoffset: 400; } to { stroke-dashoffset: 0; } }
 
-.w-dot { stroke-dasharray: 1.5 22.5; animation: flow 12s linear infinite; }
-.w-streak { stroke-dasharray: 90 710; animation: streak 9s linear infinite; }
-.a-rise { animation: rise 1s 0.15s cubic-bezier(0.2, 0.7, 0.2, 1) both; }
 .a-draw { stroke-dasharray: 2000; animation: draw 2.4s 0.2s cubic-bezier(0.4, 0, 0.2, 1) both; }
 .a-grow { transform-box: fill-box; transform-origin: 50% 100%; animation: grow 0.9s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
 .a-pop { transform-box: fill-box; transform-origin: center; animation: pop 0.5s cubic-bezier(0.3, 1.6, 0.5, 1) both; }
@@ -435,10 +407,6 @@ button { font: inherit; }
 .a-drift1 { animation: drift1 9s ease-in-out infinite; }
 .a-drift2 { animation: drift2 11s ease-in-out infinite; }
 .a-spark { stroke-dasharray: 400; animation: spark 1.8s cubic-bezier(0.4, 0, 0.2, 1) both; }
-.ic-bob { animation: bob 2s ease-in-out infinite; }
-.ic-merc { animation: merc 3s ease-in-out infinite; }
-.ic-wind { stroke-dasharray: 12 5; animation: windash 1.6s linear infinite; }
-.ic-drop { transform-box: fill-box; transform-origin: center; animation: droppulse 3s ease-in-out infinite; }
 
 /* seccions fora de pantalla: animacions en pausa */
 .is-off, .is-off * { animation-play-state: paused !important; }
@@ -659,7 +627,6 @@ button { font: inherit; }
 /* Enllaços de la secció Explora (el que ja no és al menú de dalt) */
 
 /* Resum de la portada mentre arriben les dades d'avui */
-.resum.is-wait .stat__val, .resum.is-wait .stat__who { opacity: 0.25; transition: opacity 0.3s; }
 .resum .stat__val, .resum .stat__who { transition: opacity 0.3s; }
 
 /* Taules de color de l'historial (HeatTable.astro): estació × mes */

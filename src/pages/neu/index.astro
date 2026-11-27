@@ -61,9 +61,12 @@ const BULLETINS = [
   description="Previsió de neu per a les estacions d'esquí de Catalunya i Andorra: on anar a esquiar, la nota de cada estació, on nevarà, cota de neu, vent al cim i gruix de neu mesurat."
   path="/neu"
   current="avui"
+  card={{ pins: NEU.map((r) => [r.lat, r.lng]) }}
 >
   <div slot="hero" class="nv-hero__in" data-neu={JSON.stringify({ resorts: lite, today, built: !!groups, parte: parteJson })}>
-    <h1 class="nv-h1" data-nv-title>{topText}</h1>
+    {/* El títol de la pàgina (per a Google) és fix i petit; la frase del dia (el parte o l'automàtica) va a sota, gran */}
+    <h1 class="nv-kick">Neu i esquí al Pirineu, avui</h1>
+    <p class="nv-h1" data-nv-title>{topText}</p>
     <p class="nv-sign" data-nv-sign hidden={!signat?.signa}>{signat?.signa}</p>
     <p class="nv-lead" data-nv-sub hidden={!topSub}>{topSub}</p>
     <p class="nv-pre" data-nv-pre hidden={!pre}><a href="#obertures">{pre}</a></p>

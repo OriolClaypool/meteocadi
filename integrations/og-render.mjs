@@ -21,6 +21,8 @@ const NET = [[42.2838, 1.7371], [42.2402, 1.7014], [42.2991, 1.9252], [42.2872, 
 const W = 1200, H = 630;
 const INK = '#10233b', MUTED = '#5b7086', BG = '#eef2f6';
 const STRIP = ['#22477a', '#47a838', '#be282c', '#fbbd28'];
+// Color dels punts: vermell (el del logo) i, a Meteocadí Neu i a la guia de la neu, el blau de Neu
+const PIN = { neu: '#1d5fd1' };
 
 // Projecció de Mercator encaixada a la caixa del mapa (a la dreta)
 const BOX = { x: 700, y: 46, w: 440, h: 500 };
@@ -38,6 +40,7 @@ const AND_D = AND.coordinates.map(ring).join('');
 function mapSvg(card) {
   // Sense variant: el punt de la pàgina si en té (lat/lng) i, si no, les estacions de la xarxa
   const v = card.v || (card.lat != null || card.pins ? 'pin' : 'net');
+  const pin = PIN[card.tone] ?? STRIP[2];
   const parts = [];
   parts.push(`<defs>
     <linearGradient id="fg" x1="0" y1="0" x2="0.35" y2="1">
@@ -67,13 +70,13 @@ function mapSvg(card) {
   if (card.pins) {
     for (const [lat, lng] of card.pins) {
       const [x, y] = proj(lng, lat);
-      parts.push(`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="6.5" fill="${STRIP[2]}" stroke="#fff" stroke-width="2.4"/>`);
+      parts.push(`<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="6.5" fill="${pin}" stroke="#fff" stroke-width="2.4"/>`);
     }
   }
   if (card.lat != null && card.lng != null && v !== 'radar') {
     const [x, y] = proj(card.lng, card.lat);
-    parts.push(`<circle cx="${x}" cy="${y}" r="30" fill="${STRIP[2]}" fill-opacity="0.16"/>`);
-    parts.push(`<circle cx="${x}" cy="${y}" r="12" fill="${STRIP[2]}" stroke="#fff" stroke-width="4"/>`);
+    parts.push(`<circle cx="${x}" cy="${y}" r="30" fill="${pin}" fill-opacity="0.16"/>`);
+    parts.push(`<circle cx="${x}" cy="${y}" r="12" fill="${pin}" stroke="#fff" stroke-width="4"/>`);
   }
   // Franja de colors del logo a baix, com al web
   const strip = STRIP.map((c, i) => `<rect x="${(i * W) / 4}" y="${H - 12}" width="${W / 4 + 1}" height="12" fill="${c}"/>`).join('');

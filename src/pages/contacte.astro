@@ -17,7 +17,7 @@ const email = import.meta.env.CONTACT_EMAIL || process.env.CONTACT_EMAIL || '';
   </section>
   <section class="sec">
     <div class="wrap grid2" style="gap:48px;align-items:start;">
-      <div style="display:flex;flex-direction:column;gap:16px;">
+      <div id="canals" style="display:flex;flex-direction:column;gap:16px;scroll-margin-top:12px;">
         {email && (
           <a class="card" href={`mailto:${email}`} style="display:flex;flex-direction:column;gap:6px;color:var(--ink);">
             <span class="eyebrow">Correu electrònic</span>
@@ -37,7 +37,7 @@ const email = import.meta.env.CONTACT_EMAIL || process.env.CONTACT_EMAIL || '';
       </div>
       <div class="prose">
         <h2 style="margin-top:0;">Patrocinis, curses i ajuntaments</h2>
-        <p>Si tens un negoci de muntanya o neu, organitzes una cursa o esdeveniment, o vols apadrinar una estació de la xarxa, mira totes les opcions a la pàgina de <a href="/colabora">col·laboració i patrocini</a> o consulta directament el <a href="/dossier">dossier d'hivern</a>.</p>
+        <p>Si tens un negoci de muntanya o neu, organitzes una cursa o esdeveniment, o vols apadrinar una estació de la xarxa, mira totes les opcions a la pàgina de <a href="/colabora">col·laboració i patrocini</a> o demana'ns el dossier d'hivern, amb els formats i les tarifes, per <a href="#canals">correu o per missatge directe</a>.</p>
         <h2>Noves estacions</h2>
         <p>Si tens una estació meteorològica al Berguedà, la Cerdanya o qualsevol zona del Cadí-Moixeró i vols formar part de la xarxa, posa't en contacte amb nosaltres.</p>
         <h2>Incidències</h2>

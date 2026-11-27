@@ -25,7 +25,7 @@ interface Props {
   // (integrations/og-cards.mjs). Per defecte el títol i el subtítol surten del <title> ("Títol: subtítol | Meteocadí")
   // i l'avantítol, de la secció. lat/lng: punt marcat al mapa; label: etiqueta del punt; variant: field (mapa de
   // color), radar o net (estacions de la xarxa). Amb `image` es fa servir aquesta imatge i no se'n genera cap.
-  card?: { kicker?: string; title?: string; sub?: string; lat?: number; lng?: number; label?: string; variant?: 'field' | 'radar' | 'net'; pins?: [number, number][] };
+  card?: { kicker?: string; title?: string; sub?: string; lat?: number; lng?: number; label?: string; variant?: 'field' | 'radar' | 'net'; pins?: [number, number][]; tone?: 'neu' };
 }
 
 const { title, description, path, image, card = {}, jsonLd = [], noindex = false, header = 'solid', current = '', preload, bare = false, lang = 'ca', alternates } = Astro.props;
@@ -59,7 +59,7 @@ const ogCard = path === '/' || image ? null : {
   k: card.kicker ?? (kick ? kick[es ? 2 : 1] : 'Meteocadí'),
   t: card.title ?? (cut > 0 ? bare_.slice(0, cut) : bare_.replace(/^Estudi · /, '')),
   s: card.sub ?? (cut > 0 ? cap(bare_.slice(cut + 2)) : shortDesc),
-  lat: card.lat, lng: card.lng, m: card.label, v: card.variant, pins: card.pins,
+  lat: card.lat, lng: card.lng, m: card.label, v: card.variant, pins: card.pins, tone: card.tone,
 };
 const imgPath = ogCard ? ogCard.o : image ?? '/imatges/og-meteocadi.jpg';
 const img = imgPath.startsWith('http') ? imgPath : site + imgPath;
@@ -123,7 +123,7 @@ const graph = [
     <slot name="head" />
   </head>
   <body>
-    <div class="strip" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    <!-- La franja de quatre colors del logo només va al peu (Footer.astro), com a signatura -->
     <!-- A dalt de tot, abans de la capçalera (la franja de Meteocadí Neu de la portada, de novembre a abril) -->
     <slot name="top" />
     <!-- La capçalera de la portada va sobre la foto (hdr--overlay, absoluta): es col·loca respecte d'aquest bloc -->
@@ -138,7 +138,7 @@ const graph = [
       // Pausa les animacions de les seccions que no es veuen (menys feina mentre es desplaça la pàgina)
       if ('IntersectionObserver' in window) {
         const io = new IntersectionObserver((es) => es.forEach((e) => e.target.classList.toggle('is-off', !e.isIntersecting)), { rootMargin: '100px' });
-        document.querySelectorAll('main > section, main > .ticker').forEach((el) => io.observe(el));
+        document.querySelectorAll('main > section').forEach((el) => io.observe(el));
       }
       const hdr = document.querySelector('.hdr');
       const btn = document.querySelector('.nav-btn');

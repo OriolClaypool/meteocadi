@@ -1,6 +1,5 @@
 ---
 import Base from '../layouts/Base.astro';
-import WindLines from '../components/WindLines.astro';
 import Icon from '../components/Icons.astro';
 import StationTable from '../components/StationTable.astro';
 import Forecast from '../components/Forecast.astro';
@@ -51,13 +50,11 @@ const contours = [...Array(10).keys()].map((j) => `translate(1180 260) rotate(${
     </picture>
     <div class="hero__shade"></div>
     <div class="hero__shade2"></div>
-    <WindLines />
     <div class="wrap hero__body">
       <div class="hero__text">
         <h1>El temps a Catalunya i al Cadí-Moixeró, en directe</h1>
         {/* La lectura d'ara, en una frase: de l'estació més alta a la més baixa amb dades (la posa el script) */}
         <p class="hero__now" data-hero-now>{nowSsr}</p>
-        <script is:inline>document.currentScript.previousElementSibling.classList.add('is-wait');</script>
         <p class="hero__lead">Les estacions automàtiques de tot Catalunya en un sol mapa, el radar de pluja en directe, la previsió hora a hora i la xarxa Meteocadí: {STATIONS.length} estacions pròpies al Cadí-Moixeró, dels {altLo} als {altHi}&nbsp;metres.</p>
         <div class="hero__btns">
           <a href="/mapa/catalunya" class="btn btn--light">El mapa de Catalunya <Fragment set:html={ARROW} /></a>
@@ -65,33 +62,33 @@ const contours = [...Array(10).keys()].map((j) => `translate(1180 260) rotate(${
         </div>
       </div>
       {ex && (
-        <aside class="panel resum a-rise" style="animation-delay:.3s" aria-labelledby="resum-t">
+        <aside class="panel resum" aria-labelledby="resum-t">
           <div class="resum__head">
             <div style="display:flex;flex-direction:column;gap:6px;">
-              <span class="eyebrow" id="resum-t" data-resum-label data-date={day.date}>Resum · {dateLabel}</span>
-              <span style="font-size:15px;color:#c3cfde;" data-rs-sub>Xarxa Meteocadí · els extrems de les {ex.n} estacions</span>
+              <span class="eyebrow" id="resum-t">Xarxa Meteocadí al Cadí-Moixeró</span>
+              <span style="font-size:15px;color:#c3cfde;" data-resum-label data-date={day.date}>Resum del {dateLabel} · els extrems de les {ex.n} estacions pròpies</span>
             </div>
             <a href="/historial" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;">Historial <Fragment set:html={ARROW} /></a>
           </div>
           <div class="resum__grid">
             <div class="stat">
               <span class="stat__lab"><Icon name="up" color="#ef4444" />Màxima</span>
-              <span class="stat__val" data-rsv="max"><span data-count={ex.max?.v}>{num(ex.max?.v)}</span><small>°C</small></span>
+              <span class="stat__val" data-rsv="max"><span data-num>{num(ex.max?.v)}</span><small>°C</small></span>
               <span class="stat__who" data-rsw="max">{who(ex.max)}</span>
             </div>
             <div class="stat">
               <span class="stat__lab"><Icon name="down" color="#2dd4bf" />Mínima</span>
-              <span class="stat__val" data-rsv="min"><span data-count={ex.min?.v}>{num(ex.min?.v)}</span><small>°C</small></span>
+              <span class="stat__val" data-rsv="min"><span data-num>{num(ex.min?.v)}</span><small>°C</small></span>
               <span class="stat__who" data-rsw="min">{who(ex.min)}</span>
             </div>
             <div class="stat">
               <span class="stat__lab"><Icon name="wind" />Ratxa màxima</span>
-              <span class="stat__val" data-rsv="gust"><span data-count={ex.gust?.v}>{num(ex.gust?.v)}</span><small>km/h</small></span>
+              <span class="stat__val" data-rsv="gust"><span data-num>{num(ex.gust?.v)}</span><small>km/h</small></span>
               <span class="stat__who" data-rsw="gust">{who(ex.gust)}</span>
             </div>
             <div class="stat">
               <span class="stat__lab"><Icon name="drop" />Pluja</span>
-              <span class="stat__val" data-rsv="rain"><span data-count={ex.rain?.v ?? 0}>{num(ex.rain?.v ?? 0)}</span><small>mm</small></span>
+              <span class="stat__val" data-rsv="rain"><span data-num>{num(ex.rain?.v ?? 0)}</span><small>mm</small></span>
               <span class="stat__who" data-rsw="rain">{(ex.rain?.v ?? 0) > 0 ? `${who(ex.rain)} · ${ex.rainyStations} estacions amb pluja` : "Cap estació n'ha recollit"}</span>
             </div>
           </div>
@@ -103,26 +100,6 @@ const contours = [...Array(10).keys()].map((j) => `translate(1180 260) rotate(${
       )}
     </div>
   </section>
-
-  <div class="ticker" aria-label="Temperatura actual a les estacions">
-    <div class="ticker__live"><span class="live live--off" data-live-badge><span class="live__dot"><i></i><i></i></span><span data-live-text>CONNECTANT…</span></span></div>
-    <div class="ticker__track">
-      <div class="ticker__move">
-        {[0, 1].map((copy) => (
-          <div class="ticker__set" aria-hidden={copy === 1 ? 'true' : undefined}>
-            {STATIONS.map((s) => (
-              <>
-                <a class="tk" href={`/estacions/${s.slug}`} data-tk={s.id} tabindex={copy === 1 ? '-1' : undefined}>
-                  <b>{s.name.split(' - ')[0]}</b><span class="a">{fmtAlt(s.alt)}</span><span class="t">—</span><span class="w"></span>
-                </a>
-                <span class="tk-sep"></span>
-              </>
-            ))}
-          </div>
-        ))}
-      </div>
-    </div>
-  </div>
 
   {recent && (
     <a class={`epstrip ep--${recent.type}`} href={`/episodis/${recent.slug}`}>
@@ -143,6 +120,7 @@ const contours = [...Array(10).keys()].map((j) => `translate(1180 260) rotate(${
     <div class="wrap" style="position:relative;">
       <div class="sec__head">
         <div>
+          <span class="eyebrow" style="display:block;margin-bottom:12px;"><span class="live live--off" data-live-badge style="padding:6px 12px;"><span class="live__dot"><i></i><i></i></span><span data-live-text>CONNECTANT…</span></span></span>
           <h2 class="h2">La xarxa Meteocadí, ara</h2>
           <p class="sec__lead"><span data-live-count>{STATIONS.length} estacions</span> al Cadí-Moixeró i el Berguedà, dels {altLo} als {altHi}&nbsp;metres.</p>
         </div>
@@ -173,7 +151,7 @@ const contours = [...Array(10).keys()].map((j) => `translate(1180 260) rotate(${
   const lab = document.querySelector('[data-resum-label]') as HTMLElement | null;
   if (lab) {
     const y = new Date(Date.now() - 86400000);
-    if (lab.dataset.date === todayMadrid(y)) lab.textContent = `Resum d'ahir · ${lab.textContent?.split('· ')[1] ?? ''}`;
+    if (lab.dataset.date === todayMadrid(y)) lab.textContent = lab.textContent!.replace(/^Resum del /, "Resum d'ahir, ");
   }
 
   // Estacions de vall de la taula: les quatre amb les dades més destacades (pluja, vent, calor, fred).
@@ -216,32 +194,11 @@ const contours = [...Array(10).keys()].map((j) => `translate(1180 260) rotate(${
   pick(null);
   document.addEventListener('meteocadi:ara', (e) => pick((e as CustomEvent).detail));
 
-  // Recompte animat del resum
-  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const fmt1 = (v: number) => v.toFixed(1).replace('.', ',').replace('-', '−');
-  function countUp(els: HTMLElement[], delay = 500) {
-    const targets = els.map((el) => ({ el, v: Number(el.dataset.count) }));
-    if (reduce) { targets.forEach(({ el, v }) => { if (!isNaN(v)) el.textContent = fmt1(v); }); return; }
-    const t0 = performance.now() + delay;
-    const tick = (now: number) => {
-      const p = Math.max(0, Math.min(1, (now - t0) / 1600));
-      const e = 1 - Math.pow(1 - p, 3);
-      targets.forEach(({ el, v }) => { if (!isNaN(v)) el.textContent = fmt1(v * e); });
-      if (p < 1) requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
-  }
-
   // Resum d'avui fins ara (a partir de les 8 del matí, amb les dades en directe). Abans de les 8, o si les dades
-  // en directe no arriben, es queda el resum del darrer dia arxivat (ahir).
+  // en directe no arriben, es queda el resum del darrer dia arxivat (ahir), que ja es veu des del primer moment.
   const card = document.querySelector<HTMLElement>('.resum');
   const hourNow = Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Madrid', hour: '2-digit', hourCycle: 'h23' }).format(new Date()));
   const todayMode = !!card && hourNow >= 8;
-  let todayShown = false;
-  if (todayMode) {
-    card!.classList.add('is-wait');
-    setTimeout(() => { if (!todayShown) { card!.classList.remove('is-wait'); countUp(Array.from(card!.querySelectorAll<HTMLElement>('[data-count]')), 0); } }, 4000);
-  } else if (card) countUp(Array.from(card.querySelectorAll<HTMLElement>('[data-count]')));
 
   const whoOf = (s: any) => `${s.name.split(' - ')[0]} · ${fmtAlt(s.alt)}`;
   function today(j: any) {
@@ -258,10 +215,9 @@ const contours = [...Array(10).keys()].map((j) => `translate(1180 260) rotate(${
     const rainy = live.filter((x) => ok(x.d.rain, 0.1, 500)).length;
     const set = (k: string, v: number | undefined, whoTxt: string) => {
       const val = card.querySelector<HTMLElement>(`[data-rsv="${k}"]`);
-      const n = val?.querySelector<HTMLElement>('[data-count]');
+      const n = val?.querySelector<HTMLElement>('[data-num]');
       if (!val || !n || v == null) return;
-      n.dataset.count = String(v);
-      if (todayShown) n.textContent = fmt1(v);
+      n.textContent = num(v);
       const w = card.querySelector<HTMLElement>(`[data-rsw="${k}"]`);
       if (w) w.textContent = whoTxt;
     };
@@ -271,23 +227,15 @@ const contours = [...Array(10).keys()].map((j) => `translate(1180 260) rotate(${
     const r = rn?.d.rain ?? 0;
     set('rain', r, r > 0 && rn ? `${whoOf(rn.s)} · ${rainy} ${rainy === 1 ? 'estació' : 'estacions'} amb pluja` : "Cap estació n'ha recollit");
     const lab = card.querySelector<HTMLElement>('[data-resum-label]');
-    if (lab) lab.textContent = `Avui fins ara · ${hourMadrid(new Date(j.updated || Date.now()))}`;
-    const sub = card.querySelector<HTMLElement>('[data-rs-sub]');
-    if (sub) sub.textContent = `Xarxa Meteocadí · les ${live.length} estacions en directe`;
+    if (lab) lab.textContent = `Avui fins a les ${hourMadrid(new Date(j.updated || Date.now()))} · ${live.length} estacions pròpies en directe`;
     const foot = card.querySelector<HTMLElement>('[data-rs-foot]');
     if (foot) foot.textContent = "En directe · s'actualitza cada 15 minuts";
-    if (!todayShown) {
-      todayShown = true;
-      card.classList.remove('is-wait');
-      countUp(Array.from(card.querySelectorAll<HTMLElement>('[data-count]')), 0);
-    }
   }
   document.addEventListener('meteocadi:ara', (e) => today((e as CustomEvent).detail));
 
   // La frase de la capçalera: la temperatura d'ara a l'estació més alta i a la més baixa que tenen dades.
-  // Si el directe no arriba, es queda la del darrer dia arxivat.
+  // Si el directe no arriba, es queda la del darrer dia arxivat (ja es veu des del primer moment).
   const nowEl = document.querySelector<HTMLElement>('[data-hero-now]');
-  const showNow = () => nowEl?.classList.remove('is-wait');
   function heroNow(j: any) {
     if (!nowEl) return;
     const live = STATIONS.map((s) => ({ s, d: j?.stations?.[s.id] })).filter((x) => x.d && !x.d.stale && !x.d.down && typeof x.d.temp === 'number' && x.d.temp > -40 && x.d.temp < 48);
@@ -296,9 +244,7 @@ const contours = [...Array(10).keys()].map((j) => `translate(1180 260) rotate(${
       const low = live.reduce((a, b) => (b.s.alt < a.s.alt ? b : a));
       nowEl.textContent = `Ara fa ${num(top.d.temp)}° ${top.s.a} i ${num(low.d.temp)}° ${low.s.a}.`;
     }
-    showNow();
   }
   document.addEventListener('meteocadi:ara', (e) => heroNow((e as CustomEvent).detail));
-  setTimeout(showNow, 2500);
   startLive();
 </script>
