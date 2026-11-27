@@ -211,6 +211,25 @@ const skiFacts = p.ski
   {p.ski && (
     <section class="sec" style="padding:64px 0;">
       <div class="wrap">
+        {NEU_BY_SLUG[p.slug] && (
+          <a class="pp-neubox" href={`/neu/${p.slug}`}>
+            <div>
+              <b>{es ? `${p.name} en Meteocadí Neu` : `Mira ${p.name} a Meteocadí Neu`}</b>
+              <span>{es
+                ? 'Nota de 0 a 10 para esquiar, nieve medida cerca, cota de nieve y previsión hora a hora (en catalán).'
+                : 'Nota de 0 a 10 per esquiar, gruix mesurat als sensors propers, cota de neu i previsió hora a hora.'}</span>
+            </div>
+            <span class="pp-neubox__go">{es ? 'Abrir ficha de nieve →' : 'Obrir fitxa de neu →'}</span>
+          </a>
+        )}
+        {['rasos-de-peguera', 'port-del-comte', 'coll-de-pal', 'tuixent-la-vansa', 'la-molina', 'vall-de-nuria', 'estacio-de-lles'].includes(p.slug) && (
+          <p style="margin:0 0 22px;font-size:15px;color:var(--ink2);">
+            {es ? '¿Subes en familia a jugar con la nieve o en trineo? ' : 'Hi puges en família a jugar amb la neu o en trineu? '}
+            <a href={es ? '/es/nieve-con-ninos' : '/neu-amb-nens'} style="font-weight:700;">
+              {es ? 'Guía de nieve con niños cerca de Barcelona →' : 'Guia de neu amb nens prop de Barcelona →'}
+            </a>
+          </p>
+        )}
         <div class="sec__head">
           <div>
             <span class="eyebrow" style="color:#0e6e8c;">{es ? 'PREVISIÓN · 7 DÍAS' : 'PREVISIÓ · 7 DIES'}</span>
@@ -277,6 +296,9 @@ const skiFacts = p.ski
         {p.zona === 'cadi' && (es
           ? <p><a href="/cap-de-setmana">El tiempo este fin de semana en toda la zona (en catalán) →</a></p>
           : <p><a href="/cap-de-setmana">Què farà aquest cap de setmana {p.a} i a la resta de la zona →</a></p>)}
+        {['coll-de-pal', 'refugi-de-rebost', 'baga', 'gosol', 'saldes'].includes(p.slug) && (
+          <p><a href={es ? '/es/nieve-con-ninos' : '/neu-amb-nens'}>{es ? 'Dónde ir a la nieve con niños y trineos por la zona →' : 'On anar a la neu amb nens i trineus per la zona →'}</a></p>
+        )}
         <p><a href={`${base}${region.slug}`}>{es ? `El tiempo en todos los lugares ${deA(region.a, lang)}` : `El temps a tots els llocs ${deA(region.a, lang)}`} →</a></p>
       </div>
       <div style="display:flex;flex-direction:column;gap:16px;">
@@ -347,6 +369,12 @@ const skiFacts = p.ski
   .nearp__i:hover { border-color: var(--blue); color: var(--ink); }
   .nearp__n { font-weight: 800; font-size: 16px; }
   .nearp__s { font-family: var(--f-mono); font-size: 12.5px; color: var(--muted); }
+  .pp-neubox { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 18px 22px; margin-bottom: 20px; border-radius: 16px; background: #0b1a2c; color: #fff !important; text-decoration: none; }
+  .pp-neubox:hover { background: #132840; }
+  .pp-neubox b { display: block; font-size: 18px; font-weight: 800; color: #fff; }
+  .pp-neubox span { display: block; font-size: 14.5px; color: #b7c6d8; margin-top: 3px; line-height: 1.45; }
+  .pp-neubox .pp-neubox__go { flex: none; font-size: 14.5px; font-weight: 700; color: #8fd3ff; margin-top: 0; white-space: nowrap; }
+  @media (max-width: 680px) { .pp-neubox { flex-direction: column; align-items: flex-start; gap: 10px; } }
 </style>
 
 <script>

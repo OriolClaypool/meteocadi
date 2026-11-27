@@ -476,3 +476,18 @@ a.nv-dchip:hover { border-color: #3a5a86; }
 .nv-verd__closed svg { flex: none; margin-top: 2px; }
 .nv-tdlv.is-closed { font-weight: 600; font-size: 12px; color: var(--muted); }
 .nv-pin.is-closed .nv-pin__lab span { color: var(--muted); }
+
+/* ---------- patrocini i guia familiar ---------- */
+.nv-spon { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin-top: 14px; padding: 10px 14px; border-radius: 12px; background: var(--night2); border: 1px solid var(--nline); color: #fff !important; font-size: 13.5px; text-decoration: none; }
+.nv-spon:hover { border-color: #3a5a86; }
+.nv-spon span { color: var(--ice2); }
+.nv-spon b { font-weight: 700; color: #fff; }
+.nv-spon em { font-style: normal; color: var(--ice); }
+.nv-xtra { margin-top: 18px; display: flex; flex-direction: column; gap: 12px; }
+.nv-xcard { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 16px; color: var(--ink) !important; text-decoration: none; }
+.nv-xcard:hover { box-shadow: 0 0 0 1px #b9c6d6; }
+.nv-xcard b { display: block; font-size: 15px; font-weight: 700; color: var(--ink); }
+.nv-xcard small { display: block; margin-top: 2px; font-size: 13px; color: var(--ink2); line-height: 1.4; }
+.nv-xcard svg { flex: none; color: var(--acc); }
+.nv-spnote { font-size: 13px; color: var(--muted); }
+.nv-spnote a { font-weight: 600; }

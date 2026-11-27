@@ -13,18 +13,19 @@
 // - nota: frase curta que surt a la fitxa i a la llista d'obertures
 // Quan una estació sense data obre, o una n'anuncia una de nova, s'hi posa el dia: no cal tocar res més.
 
-// Revisat el 15/11/2026 amb: nota de premsa del Govern del 6/11/2026 (Pirineu365: les sis estacions d'FGC, del 4 de
+// Revisat el 27/11/2026 amb: nota de premsa del Govern del 6/11/2026 (Pirineu365: les sis estacions d'FGC, del 4 de
 // desembre al 4 d'abril); grandvalira.com, palarinsal.com i ordinoarcalis.com (obertura prevista el 4 de desembre);
-// Baqueira Beret (objectiu: 28 de novembre). Masella diu que obrirà el primer dia que la neu ho permeti; Port del
-// Comte i les estacions de nòrdic no han anunciat data; a Tavascan, l'obertura de l'esquí alpí no està confirmada.
+// Baqueira Beret (obertura del 28 de novembre ajornada per falta de gruixos; pendent de nova data). Masella diu que
+// obrirà el primer dia que la neu ho permeti; Port del Comte i les estacions de nòrdic no han anunciat data; a
+// Tavascan, l'obertura de l'esquí alpí no està confirmada.
 export const TEMPORADA = '2026-27';
-export const REVISAT = '2026-11-15';
+export const REVISAT = '2026-11-27';
 // El dia que obre la majoria (pont de la Puríssima): les estacions sense data hi compten com a obertes
 export const PER_DEFECTE = '2026-12-04';
 const FGC = 'Ferrocarrils de la Generalitat (Pirineu365)';
 const GVR = 'Grandvalira Resorts';
 export const OBERTURES = {
-  'baqueira-beret': { obre: '2026-11-28', font: 'Baqueira Beret' },
+  'baqueira-beret': { obre: null, nota: "Obertura prevista el 28 de novembre ajornada per falta de neu; pendent de nova data.", font: 'Baqueira Beret' },
   'la-molina': { obre: '2026-12-04', font: FGC },
   'vall-de-nuria': { obre: '2026-12-04', font: FGC },
   vallter: { obre: '2026-12-04', font: FGC },

@@ -340,11 +340,12 @@ export function drawResum(ctx, d) {
   netFooter(ctx, { x0: X0, credits: 1640, foot: 1692, colR: X1, W, H, credit: '' });
 }
 
-// ------------------------------------------------------------------ Neu (15 de novembre del 2026)
-// Dues imatges de Meteocadí Neu, de la família neta: la neu nova prevista al cim de cada estació d'esquí (les deu
-// primeres, a 3 o 7 dies) i, a la pretemporada, quan obre cada estació. Vertical 9:16 o publicació 4:5.
-// d: { kind: 'nevada' | 'obertures', fmt: 'story' | 'post', days, caption: [negre, gris], credit,
-//      rows: [{ name, sub, cm, color }], groups: [{ date, title, when, names }] }
+// ------------------------------------------------------------------ Neu (15 i 27 de novembre del 2026)
+// Imatges de Meteocadí Neu, de la família neta: el parte del matí (gruix de neu i canvi en 24 h als sensors d'alta
+// muntanya del Meteocat), la neu nova prevista al cim de cada estació d'esquí (les deu primeres, a 3 o 7 dies) i, a la
+// pretemporada, quan obre cada estació. Vertical 9:16 o publicació 4:5, amb línia opcional de patrocinador al peu.
+// d: { kind: 'parte' | 'nevada' | 'obertures', fmt: 'story' | 'post', days, when, lead, sponsor, caption: [negre, gris],
+//      credit, rows: [{ name, sub, delta, cm, color }], groups: [{ date, title, when, names }] }
 const NEU_BLUE = '#1d4ed8';
 export function drawNeu(ctx, d) {
   const post = d.fmt === 'post';
@@ -353,7 +354,13 @@ export function drawNeu(ctx, d) {
     : { H, head: 290, hs: 50, cap: 360, capGap: 28, limit: 1590, credits: 1640, foot: 1692, cs: 19, rowMax: 118 };
   background(ctx, false);
   const ob = d.kind === 'obertures';
-  netTitle(ctx, { x0: X0, head: F.head, hs: F.hs, colR: X1, t1: ob ? 'Quan obren' : 'Neu nova', t2: ob ? ' les estacions' : ` en ${d.days} dies`, icon: 'snow', accent: NEU_BLUE });
+  const pt = d.kind === 'parte';
+  netTitle(ctx, {
+    x0: X0, head: F.head, hs: F.hs, colR: X1,
+    t1: ob ? 'Quan obren' : pt ? 'Gruix de neu' : 'Neu nova',
+    t2: ob ? ' les estacions' : pt ? (d.when || ' al Pirineu') : ` en ${d.days} dies`,
+    icon: 'snow', accent: NEU_BLUE,
+  });
   ctx.textBaseline = 'middle';
   let cs = F.cs;
   font(ctx, 'mono', cs);
@@ -363,15 +370,28 @@ export function drawNeu(ctx, d) {
   ctx.fillStyle = L.mut;
   spaced(ctx, d.caption[1], X0 + wa + 2, F.cap, 2);
   let y = F.cap + F.capGap;
+  if (pt && d.lead && d.lead.trim()) {
+    const lsSize = post ? 25 : 29;
+    const lsLh = Math.round(lsSize * 1.38);
+    font(ctx, 'ui', lsSize, 400);
+    ctx.fillStyle = L.ink2;
+    ctx.textAlign = 'left';
+    const ls = wrap(ctx, nbsp(capFirst(d.lead.trim())), X1 - X0).slice(0, 3);
+    ls.forEach((line) => {
+      ctx.fillText(line, X0, y + lsLh * 0.45);
+      y += lsLh;
+    });
+    y += 14;
+  }
   hline(ctx, X0, X1, y, L.ink, 2);
 
   if (!ob) {
-    // Una fila per estació: nom, zona i cota del cim, i una barra amb els centímetres (el color, el de l'escala de neu)
+    // Una fila per estació/sensor: nom, zona o cota (+ canvi 24 h), i barra amb els centímetres
     const rows = d.rows;
     const RH = Math.min(F.rowMax, Math.floor((F.limit - y) / Math.max(rows.length, 1)));
     const NX = 120, BX = 590, BAR = 280;
-    // La barra sencera són 20 cm o la nevada més gran: 1 cm no pot omplir tota la barra
-    const max = Math.max(20, ...rows.map((r) => r.cm));
+    // Al parte de gruix, l'escala base és de 50 cm; a la neu nova de 3/7 dies, de 20 cm
+    const max = Math.max(pt ? 50 : 20, ...rows.map((r) => r.cm));
     rows.forEach((r, i) => {
       const cy = y + RH / 2;
       ctx.textBaseline = 'middle';
@@ -382,9 +402,15 @@ export function drawNeu(ctx, d) {
       fitFont(ctx, 'head', Math.round(RH * 0.34), 700, r.name, BX - NX - 24, 22);
       ctx.fillStyle = L.ink;
       ctx.fillText(r.name, NX, cy - RH * 0.14);
-      fitFont(ctx, 'mono', Math.round(RH * 0.19), 400, r.sub, BX - NX - 24, 13);
+      const subFull = r.delta ? `${r.sub} · ${r.delta}` : r.sub;
+      fitFont(ctx, 'mono', Math.round(RH * 0.19), 400, subFull, BX - NX - 24, 13);
       ctx.fillStyle = L.mut;
-      ctx.fillText(r.sub, NX, cy + RH * 0.2);
+      const headSub = r.delta ? `${r.sub} · ` : r.sub;
+      ctx.fillText(headSub, NX, cy + RH * 0.2);
+      if (r.delta) {
+        ctx.fillStyle = r.deltaUp ? NEU_BLUE : L.mut;
+        ctx.fillText(r.delta, NX + ctx.measureText(headSub).width, cy + RH * 0.2);
+      }
       const cm = Math.round(r.cm);
       const bw = cm > 0 ? Math.max(10, (r.cm / max) * BAR) : 0;
       const bh = Math.round(RH * 0.3);
@@ -443,7 +469,7 @@ export function drawNeu(ctx, d) {
     while (k > 0.7 && block(k, false) > F.limit) k -= 0.05;
     block(k, true);
   }
-  netFooter(ctx, { x0: X0, credits: F.credits, foot: F.foot, colR: X1, W, H: F.H, credit: d.credit });
+  netFooter(ctx, { x0: X0, credits: F.credits, foot: F.foot, colR: X1, W, H: F.H, credit: d.credit, sponsor: d.sponsor });
 }
 
 // ------------------------------------------------------------------ Rànquing
@@ -713,8 +739,8 @@ export function netTitle(ctx, { x0, head, hs, colR, t1, t2, icon, accent, two = 
   return head + (split ? s * 1.12 : 0) + s * 0.3;
 }
 
-// Peu de la versió neta: crèdits en petit (si n'hi ha), meteocadi.cat i la franja de colors
-export function netFooter(ctx, { x0, credits, foot, colR, W: ww, H: hh, credit }) {
+// Peu de la versió neta: crèdits en petit (si n'hi ha), meteocadi.cat, patrocinador opcional a la dreta i la franja
+export function netFooter(ctx, { x0, credits, foot, colR, W: ww, H: hh, credit, sponsor = '' }) {
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
   if (credit) {
@@ -728,6 +754,17 @@ export function netFooter(ctx, { x0, credits, foot, colR, W: ww, H: hh, credit }
   ctx.fillStyle = L.ink;
   ctx.fillText('meteocadi.cat', x0, foot);
   tracking(ctx, 0);
+  if (sponsor && sponsor.trim()) {
+    const sp = sponsor.trim();
+    ctx.textAlign = 'right';
+    font(ctx, 'ui', 14, 500);
+    ctx.fillStyle = L.mut;
+    ctx.fillText('Amb el suport de', colR, foot - 12);
+    fitFont(ctx, 'head', 21, 700, sp, colR - x0 - 270, 15);
+    ctx.fillStyle = L.blue;
+    ctx.fillText(sp, colR, foot + 11);
+    ctx.textAlign = 'left';
+  }
   const sw = ww / 4;
   STRIP.forEach((c, i) => {
     ctx.fillStyle = c;

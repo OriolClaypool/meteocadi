@@ -3,6 +3,7 @@
 // Capçalera fosca (la marca i, a l'escriptori, el menú) que cada pàgina omple amb el slot "hero"; peu propi i, al
 // mòbil, el menú a baix. Publicada el 20/10/2026 (fins aleshores, noindex, robots i fora del mapa del web).
 import Base from './Base.astro';
+import { PATROCINI_NEU, CANAL_AVISOS } from '../lib/comercial.js';
 import '../styles/neu.css';
 
 interface Props {
@@ -60,6 +61,13 @@ const ridgeD = `M0 46V${ridge[0][1]}${ridge.map(([x, y]) => `L${x} ${y}`).join('
           </div>
         </div>
         <slot name="hero" />
+        {PATROCINI_NEU.actiu && PATROCINI_NEU.nom && (
+          <a class="nv-spon" href={PATROCINI_NEU.url || '/colabora'} rel="sponsored noopener" target={PATROCINI_NEU.url ? '_blank' : undefined}>
+            <span>{PATROCINI_NEU.etiqueta || 'Amb el suport de'}</span>
+            <b>{PATROCINI_NEU.nom}</b>
+            {PATROCINI_NEU.frase && <em>· {PATROCINI_NEU.frase}</em>}
+          </a>
+        )}
       </div>
       <svg class="nv-ridge" viewBox="0 0 2340 46" preserveAspectRatio="xMinYMax slice" aria-hidden="true"><path d={ridgeD} fill="#F2F5F9" /></svg>
     </header>
@@ -76,6 +84,9 @@ const ridgeD = `M0 46V${ridge[0][1]}${ridge.map(([x, y]) => `L${x} ${y}`).join('
         </p>
         <p>Les previsions són orientatives. A la muntanya, cadascú n'assumeix el risc.</p>
         <div class="nv-foot__soc">
+          {CANAL_AVISOS.url && (
+            <a href={CANAL_AVISOS.url} rel="noopener" target="_blank">{CANAL_AVISOS.nom}</a>
+          )}
           <a href="https://www.instagram.com/meteocadi/" rel="noopener" target="_blank">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><path d="M17.5 6.5h.01" /></svg>
             Instagram @meteocadi
@@ -86,7 +97,7 @@ const ridgeD = `M0 46V${ridge[0][1]}${ridge.map(([x, y]) => `L${x} ${y}`).join('
             <span class="nv-share__ok" hidden>Enllaç copiat</span>
           </button>
         </div>
-        <p class="nv-foot__l"><a href="/">meteocadi.cat</a><a href="/avis-legal">Avís legal</a><a href="/contacte">Contacte</a></p>
+        <p class="nv-foot__l"><a href="/">meteocadi.cat</a><a href="/neu-amb-nens">Neu amb nens</a><a href="/colabora">Patrocina</a><a href="/avis-legal">Avís legal</a><a href="/contacte">Contacte</a></p>
       </div>
     </footer>
 

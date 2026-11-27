@@ -9,7 +9,7 @@ import {
   loadFonts, loadIcons, drawResum, drawRanking, drawRankingWide, drawNeu, drawPrevisioTauler, WIDE, POST, drawPrevisio, layoutPrevisio, rankSentence, capFirst, WEATHER, PHENOMENA,
 } from './draw.js';
 import { NEU, lleugera } from '../../lib/neu/estacions.js';
-import { groupsOf, mostSnow, snowFill, thousands } from '../../lib/neu/neu.js';
+import { groupsOf, mostSnow, snowFill, depthFill, usefulSensors, thousands } from '../../lib/neu/neu.js';
 import { obertures, isOpen, diaLlarg, diaMes, elDia, falten, TEMPORADA, REVISAT } from '../../lib/neu/temporada.js';
 
 const $ = (id) => document.getElementById(id);
@@ -19,6 +19,7 @@ const store = {
 };
 const K_TAB = 'meteocadi-estudi-tab';
 const K_NEU = 'meteocadi-estudi-neu';
+const K_NEU_SP = 'meteocadi-estudi-neu-sponsor';
 const K_NET = 'meteocadi-estudi-xarxa';
 const K_FMT = 'meteocadi-estudi-format';
 const K_PV = 'meteocadi-estudi-previsio-v1';
@@ -405,23 +406,63 @@ export async function startEstudi() {
   }
 
   // ------------------------------------------------------------------ neu
-  // Neu nova prevista al cim de cada estació d'esquí (les deu primeres) o les dates d'obertura de la temporada
-  let neuKind = ['n3', 'n7', 'ob'].includes(store.get(K_NEU)) ? store.get(K_NEU) : 'n3';
+  // Parte del matí (gruix mesurat als sensors d'alta muntanya), neu prevista a 3 o 7 dies, o dates d'obertura
+  let neuKind = ['parte', 'n3', 'n7', 'ob'].includes(store.get(K_NEU)) ? store.get(K_NEU) : 'n3';
   let neuFmt = 'story';
   let neuFc = null;
+  let neuMe = null;
+  let neuLead = '';
+  let neuSponsor = String(store.get(K_NEU_SP) || '');
+  if ($('neuSponsor')) $('neuSponsor').value = neuSponsor;
   const iLlista = (a) => (a.length > 1 ? `${a.slice(0, -1).join(', ')} i ${a[a.length - 1]}` : a[0] || '');
   const majus = (t) => t.charAt(0).toUpperCase() + t.slice(1);
   async function neuData() {
     const today = todayMadrid();
     const lite = NEU.map(lleugera);
+    const sponsor = neuSponsor.trim();
     if (neuKind === 'ob') {
       const gs = obertures(lite, today);
       return {
-        kind: 'obertures', fmt: neuFmt,
+        kind: 'obertures', fmt: neuFmt, sponsor,
         caption: [`TEMPORADA ${TEMPORADA}`, ' · DATES ANUNCIADES PER LES ESTACIONS'],
         groups: gs.map((g) => ({ date: g.date, title: g.date ? majus(diaLlarg(g.date)) : 'Sense data anunciada', when: g.date ? falten(g.date, today) : '', names: iLlista(g.items.map((r) => r.short || r.name)) })),
         credit: `Dates anunciades per les estacions, si la neu ho permet. Revisades ${elDia(REVISAT)}.`,
         note: gs.length ? '' : 'Ja no queda cap estació amb data per obrir.',
+      };
+    }
+    if (neuKind === 'parte') {
+      if (!neuMe) {
+        const r = await fetch('/api/neu/mesurada');
+        if (!r.ok) throw new Error('neu');
+        const j = await r.json();
+        if (j.error) throw new Error('neu');
+        neuMe = j;
+      }
+      const sens = usefulSensors(lite, neuMe.stations || []).filter((s) => s.now != null && s.alt >= 1500);
+      const rows = [...sens]
+        .sort((a, b) => Math.round(b.now) - Math.round(a.now) || Math.round(b.d24 ?? 0) - Math.round(a.d24 ?? 0) || b.alt - a.alt)
+        .slice(0, 10)
+        .map((s) => {
+          const d24 = s.d24 != null ? Math.round(s.d24) : null;
+          const delta = d24 == null || d24 === 0 ? '' : d24 > 0 ? `+${d24} cm en 24 h` : `${d24} cm en 24 h`;
+          return {
+            name: s.name.split(' - ')[0],
+            sub: `${thousands(s.alt)} m`,
+            delta,
+            deltaUp: (d24 ?? 0) > 0,
+            cm: s.now,
+            color: depthFill(Math.max(1, s.now)),
+          };
+        });
+      const newest = sens.map((s) => s.time).filter(Boolean).sort().pop();
+      const hTxt = newest ? hourMadrid(new Date(newest)) : '';
+      return {
+        kind: 'parte', fmt: neuFmt, sponsor, lead: neuLead,
+        when: ` ${delDia(today)}`,
+        caption: ['SENSORS METEOCAT (> 1.500 M)', hTxt ? ` · LECTURA DE LES ${hTxt}` : ` · ${diaMes(today).toLocaleUpperCase('ca')}`],
+        rows,
+        credit: 'Dades: Servei Meteorològic de Catalunya (XEMA), dades obertes de la Generalitat de Catalunya.',
+        note: rows.some((r) => Math.round(r.cm) > 0) ? '' : 'Cap sensor d’alta muntanya marca gruix de neu ara mateix.',
       };
     }
     if (!neuFc) {
@@ -442,7 +483,7 @@ export async function startEstudi() {
       });
     const end = ms.end || today;
     return {
-      kind: 'nevada', fmt: neuFmt, days,
+      kind: 'nevada', fmt: neuFmt, days, sponsor,
       caption: ['PREVISIÓ AL CIM DE CADA ESTACIÓ', ` · DEL ${diaMes(today).toLocaleUpperCase('ca')} AL ${diaMes(end).toLocaleUpperCase('ca')}`],
       rows,
       credit: 'Previsió: Open-Meteo. Neu nova prevista al cim de cada estació d\'esquí.',
@@ -464,9 +505,16 @@ export async function startEstudi() {
       draw();
     }),
   );
+  $('neuLead')?.addEventListener('input', (e) => { neuLead = e.target.value; draw(); });
+  $('neuSponsor')?.addEventListener('input', (e) => {
+    neuSponsor = e.target.value;
+    store.set(K_NEU_SP, neuSponsor);
+    draw();
+  });
   function paintNeu() {
     document.querySelectorAll('[data-nkind]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.nkind === neuKind)));
     document.querySelectorAll('[data-nfmt]').forEach((x) => x.setAttribute('aria-pressed', String(x.dataset.nfmt === neuFmt)));
+    if ($('neuLeadField')) $('neuLeadField').hidden = neuKind !== 'parte';
   }
   paintNeu();
 
@@ -816,7 +864,7 @@ export async function startEstudi() {
     if (tpl === 'previsio') return `meteocadi-previsio-${n(pv.date)}${pvLayout?.pages.length > 1 ? `-${page + 1}` : ''}.png`;
     const date = lastData?.date || todayMadrid();
     if (tpl === 'resum') return `meteocadi-resum-${n(date)}.png`;
-    if (tpl === 'neu') return `meteocadi-neu-${neuKind === 'ob' ? 'obertures' : neuKind === 'n7' ? '7dies' : '3dies'}-${n(date)}.png`;
+    if (tpl === 'neu') return `meteocadi-neu-${neuKind === 'parte' ? 'parte' : neuKind === 'ob' ? 'obertures' : neuKind === 'n7' ? '7dies' : '3dies'}-${n(date)}${neuFmt === 'post' ? '-4x5' : ''}.png`;
     const cat = lastData?.net === 'cat';
     if (lastData?.kind === 'range') return `meteocadi-ranquing-${cat ? 'catalunya-' : ''}${rankVar}-${n(lastData.from)}-${n(lastData.to)}${lastData.time ? `-${lastData.time.replace(':', '')}` : ''}${rankFmt === 'wide' ? '-horitzontal' : rankFmt === 'post' ? '-4x5' : ''}.png`;
     return `meteocadi-ranquing-${cat ? 'catalunya-' : ''}${rankVar}-${n(date)}${cat && lastData.kind === '24h' ? `-24h-${lastData.time.replace(':', '')}` : isAra() && lastData.time ? `-${lastData.time.replace(':', '')}` : ''}${rankFmt === 'wide' ? '-horitzontal' : rankFmt === 'post' ? '-4x5' : ''}.png`;

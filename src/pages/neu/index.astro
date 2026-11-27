@@ -12,6 +12,7 @@ import { NEU, lleugera, ALLAUS } from '../../lib/neu/estacions.js';
 import { previsioBuild } from '../../lib/neu/build.js';
 import { groupsOf, parte, parteSignat, topHTML, forecastCardsHTML, measuredCardHTML, listHTML, allNotes, dayLabel, todayIdx, scaleHTML, icon, aLes, preText, openingsHTML } from '../../lib/neu/neu.js';
 import { isOpen, TEMPORADA } from '../../lib/neu/temporada.js';
+import { PATROCINI_NEU } from '../../lib/comercial.js';
 import parteJson from '../../data/parte-neu.json';
 import { inSeason } from '../../lib/ski.js';
 import { todayMadrid, longDate, cap } from '../../lib/format.js';
@@ -174,6 +175,15 @@ const BULLETINS = [
           <p>Una estació no té nota fins al dia que obre. La nota encara no sap quines pistes són obertes: abans d’anar-hi, mira l’estat de pistes de l’estació.</p>
         </div>
       </details>
+      <div class="nv-xtra">
+        <a class="nv-card nv-xcard" href="/neu-amb-nens">
+          <span><b>Neu amb nens i trineus prop de Barcelona</b><small>Set llocs per jugar amb la neu o anar amb raquetes sense pagar forfet, amb temperatura i carreteres en directe.</small></span>
+          <Fragment set:html={icon('next', 18)} />
+        </a>
+        {!PATROCINI_NEU.actiu && (
+          <p class="nv-spnote">Tens un negoci de muntanya, lloguer d'esquí o allotjament? <a href="/colabora#neu">Patrocina Meteocadí Neu →</a></p>
+        )}
+      </div>
     </div>
   </section>
 
