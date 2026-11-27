@@ -1,0 +1,556 @@
+---
+// Meteocadí Neu, portada: el parte del dia, on anar (mapa i rànquing per la nota de cada estació) i el perill d'allaus.
+// Al build es pinta amb la previsió d'aquell moment (si Open-Meteo respon); al navegador es torna a pintar amb
+// /api/neu, /api/neu/mesurada i /api/transit?neu (memòria cau de la CDN: una crida a Open-Meteo per hora per a tothom).
+// En temporada (o amb ?temporada), la nota de 0 a 10 (src/lib/neu/nota.js) ordena el rànquing, pinta el mapa i tria
+// el millor dia; fora de temporada, la llista va per la neu prevista i el mapa ensenya la neu.
+// La temporada comença quan obre la primera estació (src/lib/neu/temporada.js). Una estació que encara no ha obert no
+// té nota, i un dia que no n'hi ha cap d'oberta es pinta com fora de temporada. Mentre en queden per obrir, a dalt hi
+// ha la frase de quan obre la primera i, sota, la targeta "Quan obren".
+// Des del 27/11/2026 és un component amb l'idioma (lang): /neu (català) i, amb els mateixos textos de textos.js, el
+// castellà. La pàgina només el crida.
+import NeuLayout from '../../layouts/NeuLayout.astro';
+import { NEU, lleugera, ALLAUS } from '../../lib/neu/estacions.js';
+import { previsioBuild } from '../../lib/neu/build.js';
+import { neuFor } from '../../lib/neu/neu.js';
+import { textos } from '../../lib/neu/textos.js';
+import { isOpen, TEMPORADA } from '../../lib/neu/temporada.js';
+import { PATROCINI_NEU } from '../../lib/comercial.js';
+import parteJson from '../../data/parte-neu.json';
+import { inSeason } from '../../lib/ski.js';
+import { todayMadrid } from '../../lib/format.js';
+
+interface Props { lang?: 'ca' | 'es' }
+const { lang = 'ca' } = Astro.props;
+const tx = textos(lang);
+const P = tx.pg;
+const { groupsOf, parte, parteSignat, topHTML, forecastCardsHTML, measuredCardHTML, listHTML, allNotes, dayLabel, todayIdx, scaleHTML, icon, aLes, preText, openingsHTML } = neuFor(tx);
+
+const today = todayMadrid();
+const lite = NEU.map(lleugera);
+// seasonAll: ja ha obert alguna estació aquesta temporada, o n'obre alguna dins dels 7 dies de la previsió;
+// season: avui n'hi ha alguna d'oberta (el que es pinta al build és avui)
+const in6 = new Date(Date.parse(`${today}T12:00:00Z`) + 6 * 864e5).toISOString().slice(0, 10);
+const seasonAll = inSeason(today) || inSeason(in6);
+const season = seasonAll && lite.some((r) => isOpen(r, today));
+const pre = preText(lite, today);
+const obInit = openingsHTML(lite, today);
+const fc = await previsioBuild();
+const groups = groupsOf(lite, fc);
+const pt = groups ? parte(groups, today) : null;
+// Parte signat de l'Oriol (src/data/parte-neu.json): mana sobre la frase automàtica mentre té 4 dies o menys
+const signat = parteSignat(parteJson, today);
+const topText = signat ? signat.text : pt ? `${pt.title} ${pt.accent}`.trim() : P.topFallback;
+const topSub = signat ? '' : pt?.sub || '';
+// Al build no hi ha sensors ni trànsit: la nota fa servir el gruix del model (el navegador la refà amb els sensors)
+const notes = groups && seasonAll ? allNotes(groups, today) : null;
+const TYPE = 'alpi';
+
+// Els 7 dies dels botons (de la previsió o, sense previsió, a partir d'avui)
+const d0 = new Date(`${today}T12:00:00Z`).getTime();
+const days = groups
+  ? groups[0].top.days.slice(todayIdx(groups[0].top.days, today)).slice(0, 7).map((d) => d.date)
+  : [0, 1, 2, 3, 4, 5, 6].map((k) => new Date(d0 + k * 864e5).toISOString().slice(0, 10));
+
+const of = (type) => lite.filter((r) => type === 'totes' || r.type === type);
+const count = (type) => ({ totes: of(type).length, cat: of(type).filter((r) => r.country === 'cat').length, and: of(type).filter((r) => r.country === 'and').length });
+const cnt = count(seasonAll ? TYPE : 'totes');
+const topInit = groups ? topHTML(groups, { today, k: 0, season, notes, type: seasonAll ? TYPE : 'totes' }) : '';
+const listInit = groups ? listHTML(groups, { today, stations: null, season, notes, type: seasonAll ? TYPE : 'totes' }).replace(/<ol class="nv-list( nv-rank)?">/, (m, r) => `<ol class="nv-list${r ?? ''}${cnt.totes > 8 ? ' is-short' : ''}">`) : '';
+
+const BULLETINS = [
+  { k: P.bulletins.cat, ...ALLAUS.cat },
+  { k: P.bulletins.aran, ...ALLAUS.aran },
+  { k: P.bulletins.and, ...ALLAUS.and, name: P.bulletins.andName },
+  { k: P.bulletins.fr, ...ALLAUS.fr },
+];
+---
+<NeuLayout
+  lang={lang}
+  title={P.title}
+  description={P.desc}
+  path={tx.home}
+  current="avui"
+  card={{ pins: NEU.map((r) => [r.lat, r.lng]) }}
+>
+  <div slot="hero" class="nv-hero__in" data-neu={JSON.stringify({ resorts: lite, today, built: !!groups, parte: parteJson })}>
+    {/* El títol de la pàgina (per a Google) és fix i petit; la frase del dia (el parte o l'automàtica) va a sota, gran */}
+    <h1 class="nv-kick">{P.h1}</h1>
+    <p class="nv-h1" data-nv-title>{topText}</p>
+    <p class="nv-sign" data-nv-sign hidden={!signat?.signa}>{signat?.signa}</p>
+    <p class="nv-lead" data-nv-sub hidden={!topSub}>{topSub}</p>
+    <p class="nv-pre" data-nv-pre hidden={!pre}><a href="#obertures">{pre}</a></p>
+    <div class="nv-ctl" data-nv-ctl>
+      <div class="nv-chips" role="group" aria-label={P.ariaDia} data-nv-days>
+        {days.map((d, k) => <button type="button" class="nv-chip" data-k={k} aria-pressed={k === 0 ? 'true' : 'false'}>{dayLabel(d, k)}</button>)}
+      </div>
+      <div class="nv-seg nv-seg--auto" role="group" aria-label={P.ariaTipus} data-nv-type hidden={!seasonAll}>
+        <button type="button" data-type="alpi" aria-pressed="true">{P.alpi}</button>
+        <button type="button" data-type="fons" aria-pressed="false">{P.fons}</button>
+      </div>
+    </div>
+    <div class="nv-t5" data-nv-top5>
+      <div data-nv-top5l set:html={topInit || `<p class="nv-t5__none">${P.loading}</p>`} />
+      <a class="nv-t5__all" href="#estacions" data-nv-top5all hidden={!listInit.startsWith('<ol')}>{P.veureTotes}</a>
+    </div>
+    <p class="nv-upd" data-nv-date>{fc?.updated ? P.updated(aLes(fc.updated)) : ''}</p>
+  </div>
+
+  <section class="nv-sec nv-anchor" id="obertures" data-nv-obsec hidden={!obInit}>
+    <div class="nv-in">
+      <p class="nv-eyebrow">{P.temporada(TEMPORADA)}</p>
+      <h2 class="nv-h2">{P.obTitle}</h2>
+      <div data-nv-ob set:html={obInit} />
+    </div>
+  </section>
+
+  <section class="nv-sec nv-anchor" id="mapa">
+    <div class="nv-in">
+      <p class="nv-eyebrow" data-nv-mapeb>{season ? P.mapEbSea : P.mapEb}</p>
+      <h2 class="nv-h2" data-nv-maptitle>{season ? P.onAnar(tx.avui) : P.onNevara}</h2>
+      <div class="nv-card nv-map__wrap">
+        <div class="nv-mapbar">
+          <div class="nv-seg nv-seg--auto nv-seg--sm" role="group" aria-label={P.ariaLayers} data-nv-layers>
+            <button type="button" data-layer="nota" aria-pressed={season ? 'true' : 'false'} hidden={!season}>{P.lNota}</button>
+            <button type="button" data-layer="previsio" aria-pressed={season ? 'false' : 'true'}>{P.lPrev}</button>
+            <button type="button" data-layer="gruix" aria-pressed="false">{P.lGruix}</button>
+          </div>
+          <div class="nv-seg nv-seg--auto nv-seg--sm" role="group" aria-label={P.ariaPer} data-nv-per hidden={season}>
+            <button type="button" data-per="1" aria-pressed="false">{tx.Avui}</button>
+            <button type="button" data-per="3" aria-pressed="true">{P.d3}</button>
+            <button type="button" data-per="7" aria-pressed="false">{P.d7}</button>
+          </div>
+        </div>
+        <div class="nv-map" id="nv-map" role="region" aria-label={P.ariaMap}></div>
+        <div data-nv-scale set:html={season ? '' : scaleHTML('snow')} />
+        <p class="nv-map__note" data-nv-mapnote>{season ? P.noteNotaAvui : P.notePrev}</p>
+        <p class="nv-map__more" data-arome-link data-arome-var="neu" hidden><a href="/mapa/previsio#neu">{P.arome}</a></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="nv-sec" id="targetes">
+    <div class="nv-in">
+      <div class="nv-cardsec">
+        <div class="nv-cards">
+          <div class="nv-cards__g" data-nv-fcards set:html={forecastCardsHTML(groups, { today, season: seasonAll, notes, type: TYPE })} />
+          <div class="nv-cards__g" data-nv-mcard set:html={measuredCardHTML(undefined)} />
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="nv-sec nv-anchor" id="allaus">
+    <div class="nv-in">
+      <p class="nv-eyebrow">{P.foraPistes}</p>
+      <h2 class="nv-h2">{P.allausT}</h2>
+      <p class="nv-intro">{P.allausIntro}</p>
+      <ul class="nv-card nv-links">
+        {BULLETINS.map((b) => (
+          <li>
+            <a href={b.url} rel="noopener">
+              <span class="nv-links__t"><span class="nv-links__k" set:html={icon('alert', 18)} /><span><b>{b.k}</b><small>{b.name}</small></span></span>
+              <Fragment set:html={icon('ext', 18)} />
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </section>
+  <section class="nv-sec nv-anchor" id="estacions">
+    <div class="nv-in">
+      <p class="nv-eyebrow">{P.estacions}</p>
+      <h2 class="nv-h2" data-nv-listtitle>{season ? P.rank(tx.avui, false) : P.neuCada}</h2>
+      <p class="nv-intro" data-nv-listintro>{season ? P.introRank : P.introNeu}</p>
+      <div class="nv-sel">
+        <label for="nv-zona">{P.zona}</label>
+        <select id="nv-zona" data-nv-zone>
+          <option value="totes">{P.optTotes(cnt.totes)}</option>
+          <option value="cat">{P.optCat(cnt.cat)}</option>
+          <option value="and">{P.optAnd(cnt.and)}</option>
+        </select>
+      </div>
+      <div data-nv-list set:html={listInit || `<p class="nv-load">${P.loading}</p>`} />
+      <p class="nv-legend-s" data-nv-listlg hidden={season || !listInit.startsWith('<ol')}>
+        <span><i style="background:#A3B1C2"></i>{P.legPast}</span>
+        <span><i style="background:#6FAEF5"></i>{P.legPrev}</span>
+      </p>
+      <button type="button" class="nv-more" data-nv-more hidden={!listInit.startsWith('<ol') || cnt.totes <= 8}><span data-nv-more-t>{P.veureN(cnt.totes)}</span><Fragment set:html={icon('next', 18)} /></button>
+      <details class="nv-card nv-how" data-nv-how hidden={!season}>
+        <summary>{P.howT}</summary>
+        <div class="nv-how__b" set:html={P.howHTML} />
+      </details>
+      <div class="nv-xtra">
+        <a class="nv-card nv-xcard" href={P.kidsHref}>
+          <span><b>{P.kidsT}</b><small>{P.kidsS}</small></span>
+          <Fragment set:html={icon('next', 18)} />
+        </a>
+        {!PATROCINI_NEU.actiu && (
+          <p class="nv-spnote">{P.spQ} <a href="/colabora#neu">{P.spLink}</a></p>
+        )}
+      </div>
+    </div>
+  </section>
+
+</NeuLayout>
+
+<script>
+  import { aromeLinks } from '../../scripts/arome-link.js';
+  import { neuFor } from '../../lib/neu/neu.js';
+  import { textos } from '../../lib/neu/textos.js';
+  import { isOpen } from '../../lib/neu/temporada.js';
+  import { inSeason } from '../../lib/ski.js';
+  import { todayMadrid } from '../../lib/format.js';
+
+  // L'idioma de la pàgina (<html lang>): els textos i les peces de Neu en català o en castellà
+  const tx = textos(document.documentElement.lang);
+  const P = tx.pg;
+  const dayName = tx.dayName;
+  const { groupsOf, parte, parteSignat, topHTML, forecastCardsHTML, measuredCardHTML, listHTML, allNotes, notaItems, resortFilter, mapItems, sensorItems, usefulSensors, pinHTML, scaleHTML, NOTA_LEGEND, todayIdx, dayLabel, dayWord, aLes, preText, openingsHTML } = neuFor(tx);
+
+  const root = document.querySelector<HTMLElement>('[data-neu]')!;
+  // built: la pàgina ja porta la previsió del build (si ara no arriba, es queda la del build)
+  const { resorts, built, parte: parteData } = JSON.parse(root.dataset.neu || '{}');
+  const q = new URLSearchParams(location.search);
+  let today = todayMadrid();
+  // ?temporada (per fer proves): com si fos temporada i totes les estacions fossin obertes
+  const forced = q.has('temporada');
+  if (forced) resorts.forEach((r: any) => { delete r.obre; delete r.obreDes; });
+  // season: la temporada ha començat o comença dins dels 7 dies; seaK: el dia triat hi ha alguna estació oberta
+  const dateK = (k: number) => new Date(new Date(`${today}T12:00:00Z`).getTime() + k * 864e5).toISOString().slice(0, 10);
+  const season = () => inSeason(today) || inSeason(dateK(6)) || forced;
+  const seaK = () => season() && resorts.some((r: any) => isOpen(r, dateK(S.k)));
+  const esc = (s: string) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const $ = <T extends HTMLElement = HTMLElement>(s: string) => document.querySelector<T>(s);
+  const hourNow = () => Number(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Madrid', hour: '2-digit', hourCycle: 'h23' }).format(new Date()));
+
+  // fc: previsió (/api/neu); st: sensors (undefined mentre es carrega, null si no arriben); tr: incidències de l'SCT
+  let fc: any = null;
+  let st: any[] | null | undefined = undefined;
+  let tr: any[] | null = null;
+  let fcFailed = false;
+  // Dia triat: avui o, a partir de les 3 de la tarda, demà (avui ja no s'hi arriba a temps)
+  const S = { k: hourNow() >= 15 ? 1 : 0, zone: 'totes', type: 'alpi', per: 3, layer: 'previsio', all: false };
+  if (seaK()) S.layer = 'nota';
+
+  const groups = () => groupsOf(resorts, fc);
+  let notes: any = null;
+  const type = () => (season() ? S.type : 'totes');
+  const days = () => { const g = groups(); return g ? g[0].top.days.slice(todayIdx(g[0].top.days, today)).slice(0, 7) : []; };
+  const wordK = (k: number) => { const d = days()[k]; return d ? dayWord(d.date, k) : k === 0 ? tx.avui : tx.dema; };
+
+  function paintHero() {
+    const g = groups();
+    if (st !== undefined) $('[data-nv-mcard]')!.innerHTML = measuredCardHTML(st);
+    // Frase de dalt: el parte signat (4 dies o menys) o l'automàtic
+    const sg = parteSignat(parteData, today);
+    if (sg) {
+      $('[data-nv-title]')!.textContent = sg.text;
+      $('[data-nv-sign]')!.textContent = sg.signa;
+      $('[data-nv-sign]')!.hidden = !sg.signa;
+      $('[data-nv-sub]')!.hidden = true;
+    } else {
+      $('[data-nv-sign]')!.hidden = true;
+      const pt = g ? parte(g, today) : null;
+      if (pt) {
+        $('[data-nv-title]')!.textContent = `${pt.title} ${pt.accent}`.trim();
+        $('[data-nv-sub]')!.textContent = pt.sub;
+        $('[data-nv-sub]')!.hidden = !pt.sub;
+      }
+    }
+    if (fc?.updated) $('[data-nv-date]')!.textContent = P.updated(aLes(fc.updated));
+    // Obertures: la frase de dalt i la targeta "Quan obren" (desapareixen soles quan ja han obert)
+    const pre = preText(resorts, today);
+    $('[data-nv-pre]')!.hidden = !pre;
+    if (pre) $('[data-nv-pre] a')!.textContent = pre;
+    const ob = openingsHTML(resorts, today);
+    $('[data-nv-obsec]')!.hidden = !ob;
+    $('[data-nv-ob]')!.innerHTML = ob;
+    if (g || fcFailed) $('[data-nv-fcards]')!.innerHTML = forecastCardsHTML(g, { today, season: season(), wait: !fcFailed, notes, type: S.type });
+    paintTop(g);
+  }
+
+  // Les cinc millors estacions del dia triat (primera pantalla)
+  function paintTop(g: any) {
+    const box = $('[data-nv-top5l]')!;
+    if (!g) {
+      if (!built) box.innerHTML = fcFailed ? `<p class="nv-t5__none">${P.fcFail}</p>` : `<p class="nv-t5__none">${P.loading}</p>`;
+      return;
+    }
+    box.innerHTML = topHTML(g, { today, k: S.k, season: seaK(), notes, stations: st ?? null, type: type() });
+    $('[data-nv-top5all]')!.hidden = !!box.querySelector('.nv-t5__none');
+  }
+
+  // Botons del dia i del tipus d'esquí (només en temporada)
+  function paintControls() {
+    const sea = season();
+    $('[data-nv-type]')!.hidden = !sea;
+    const ds = days();
+    if (S.k >= ds.length && ds.length) S.k = 0;
+    if (ds.length) $('[data-nv-days]')!.innerHTML = ds.map((d: any, k: number) => `<button type="button" class="nv-chip" data-k="${k}" aria-pressed="${k === S.k}">${dayLabel(d.date, k)}</button>`).join('');
+    else $('[data-nv-days]')!.querySelectorAll<HTMLButtonElement>('[data-k]').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.k) === S.k)));
+    $('[data-nv-type]')!.querySelectorAll<HTMLButtonElement>('[data-type]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.type === S.type)));
+    // Recompte de la zona segons el tipus
+    const of = resorts.filter((r: any) => type() === 'totes' || r.type === type());
+    const n = { totes: of.length, cat: of.filter((r: any) => r.country === 'cat').length, and: of.filter((r: any) => r.country === 'and').length };
+    const sel = $<HTMLSelectElement>('[data-nv-zone]')!;
+    sel.options[0].text = P.optTotes(n.totes);
+    sel.options[1].text = P.optCat(n.cat);
+    sel.options[2].text = P.optAnd(n.and);
+  }
+
+  function paintList() {
+    const g = groups();
+    const box = $('[data-nv-list]')!;
+    const more = $<HTMLButtonElement>('[data-nv-more]')!;
+    const sea = seaK();
+    const w = wordK(S.k);
+    $('[data-nv-listtitle]')!.textContent = sea ? P.rank(w, S.type === 'fons') : P.neuCada;
+    $('[data-nv-listintro]')!.textContent = sea ? P.introRank : P.introNeu;
+    $('[data-nv-how]')!.hidden = !sea;
+    if (!g) {
+      if (built) return;
+      if (fcFailed) box.innerHTML = `<p class="nv-load">${P.fcFail}</p>`;
+      more.hidden = true;
+      return;
+    }
+    box.innerHTML = listHTML(g, { today, k: sea ? S.k : 0, zone: S.zone, type: type(), stations: st ?? null, season: sea, notes });
+    $('[data-nv-listlg]')!.hidden = sea || !!box.querySelector('.nv-nosnow');
+    // Les 6 primeres; la resta, amb el botó (si n'hi ha més de 8)
+    const n = box.querySelectorAll('.nv-list > li').length;
+    const short = !S.all && n > 8;
+    box.querySelector('.nv-list')?.classList.toggle('is-short', short);
+    more.hidden = !short;
+    $('[data-nv-more-t]')!.textContent = P.veureN(n);
+  }
+
+  // ---------------------------------------------------------------- mapa (Leaflet, es carrega quan s'hi arriba)
+  const mapEl = $('#nv-map')!;
+  let L: any = null;
+  let map: any = null;
+  let pins: { m: any; it: any }[] = [];
+  const sortOf = (it: any) => it.nota ?? it.cm ?? -1;
+
+  // Etiquetes sense trepitjar-se: tots els punts es veuen; primer, la xifra al costat que hi càpiga (de més a menys)
+  // i després el nom allà on encara hi cap. A la capa de la nota, les millors estacions amb el nom (sense el nom, una
+  // xifra no diu on anar): xifra i nom de la millor a la pitjor mentre hi càpiguen, i després només la xifra.
+  function declutter() {
+    if (!map) return;
+    const W = mapEl.clientWidth, H = mapEl.clientHeight;
+    const hitAny = (b: number[], boxes: number[][]) => boxes.some((p) => !(b[2] < p[0] || b[0] > p[2] || b[3] < p[1] || b[1] > p[3]));
+    const inside = (b: number[]) => b[0] >= 2 && b[1] >= 2 && b[2] <= W - 2 && b[3] <= H - 2;
+    const ps = [...pins]
+      .sort((a, b) => sortOf(b.it) - sortOf(a.it))
+      .map(({ m, it }) => ({ m, it, el: m.getElement()?.querySelector('.nv-pin') as HTMLElement | null, p: map.latLngToContainerPoint([it.lat, it.lng]), box: null as number[] | null, l: 'r' }))
+      .filter((x) => x.el);
+    const dots = ps.map(({ p }) => [p.x - 8, p.y - 8, p.x + 8, p.y + 8]);
+    // Els punts de les altres estacions (el propi no tapa la seva etiqueta, que s'hi enganxa per sobre o per sota)
+    const others = (x: any) => dots.filter((_, j) => ps[j] !== x);
+    // Costats possibles de l'etiqueta: dreta, esquerra, a sobre i a sota del punt
+    const SIDES = ['r', 'l', 't', 'b'];
+    const boxOf = (x: any, lab: HTMLElement, sd: string) => {
+      const w = lab.offsetWidth, h = lab.offsetHeight, { x: px, y: py } = x.p;
+      if (sd === 'r') return [px + 9, py - h / 2 - 1, px + 11 + w, py + h / 2 + 1];
+      if (sd === 'l') return [px - 11 - w, py - h / 2 - 1, px - 9, py + h / 2 + 1];
+      if (sd === 't') return [px - w / 2 - 1, py - 10 - h, px + w / 2 + 1, py - 8];
+      return [px - w / 2 - 1, py + 8, px + w / 2 + 1, py + 10 + h];
+    };
+    const setSide = (x: any, sd: string) => SIDES.forEach((k) => x.el!.classList.toggle(`is-${k}`, k === sd && k !== 'r'));
+    const labels: number[][] = [];
+    const named = new Set<any>();
+    if (S.layer === 'nota') {
+      for (const x of ps) {
+        if (x.it.nota == null) continue;
+        x.el!.classList.remove('is-l', 'is-t', 'is-b', 'is-dot', 'is-short');
+        const lab = x.el!.querySelector<HTMLElement>('.nv-pin__lab')!;
+        for (const sd of SIDES) {
+          setSide(x, sd);
+          const b = boxOf(x, lab, sd);
+          if (inside(b) && !hitAny(b, labels) && !hitAny(b, others(x))) { x.box = b; x.l = sd; break; }
+        }
+        if (x.box) { labels.push(x.box); named.add(x); setSide(x, x.l); }
+      }
+    }
+    for (const x of ps) {
+      if (named.has(x)) continue;
+      x.el!.classList.remove('is-l', 'is-t', 'is-b', 'is-dot');
+      x.el!.classList.add('is-short');
+      const lab = x.el!.querySelector<HTMLElement>('.nv-pin__lab')!;
+      for (const sd of SIDES) {
+        setSide(x, sd);
+        const b = boxOf(x, lab, sd);
+        if (inside(b) && !hitAny(b, labels) && !hitAny(b, others(x))) { x.box = b; x.l = sd; break; }
+      }
+      if (x.box) { labels.push(x.box); setSide(x, x.l); }
+      else x.el!.classList.add('is-dot');
+    }
+    for (const x of ps) {
+      if (!x.box) { x.m.setZIndexOffset(0); continue; }
+      if (named.has(x)) { x.m.setZIndexOffset(1000); continue; }
+      const lab = x.el!.querySelector<HTMLElement>('.nv-pin__lab')!;
+      const rest = labels.filter((b) => b !== x.box);
+      x.el!.classList.remove('is-short');
+      let ok = false;
+      for (const sd of [x.l, ...SIDES.filter((k) => k !== x.l)]) {
+        setSide(x, sd);
+        const b = boxOf(x, lab, sd);
+        if (inside(b) && !hitAny(b, rest) && !hitAny(b, others(x))) { labels[labels.indexOf(x.box)] = b; x.box = b; x.l = sd; ok = true; break; }
+      }
+      if (!ok) { x.el!.classList.add('is-short'); setSide(x, x.l); }
+      x.m.setZIndexOffset(ok ? 1000 : 500);
+    }
+  }
+
+  function paintMap() {
+    const g = groups();
+    const sea = seaK();
+    if (!sea && S.layer === 'nota') S.layer = 'previsio';
+    const depth = S.layer === 'gruix';
+    const nota = S.layer === 'nota';
+    $('[data-nv-mapeb]')!.textContent = sea ? P.mapEbSea : P.mapEb;
+    $('[data-nv-maptitle]')!.textContent = nota ? P.onAnar(wordK(S.k)) : depth ? P.quanta : P.onNevara;
+    const layers = $('[data-nv-layers]')!;
+    layers.querySelector<HTMLElement>('[data-layer="nota"]')!.hidden = !sea;
+    layers.querySelectorAll<HTMLButtonElement>('[data-layer]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.layer === S.layer)));
+    const per = $('[data-nv-per]')!;
+    per.hidden = depth || nota;
+    per.querySelectorAll<HTMLButtonElement>('[data-per]').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.per) === S.per)));
+    $('[data-nv-scale]')!.innerHTML = nota ? NOTA_LEGEND : scaleHTML(depth ? 'depth' : 'snow');
+    let note = '';
+    if (nota) {
+      note = g ? P.noteNota(wordK(S.k), S.type === 'fons') : fcFailed ? P.fcFailShort : P.loading;
+    } else if (depth) {
+      note = st === undefined ? P.loadingSens
+        : st === null ? P.sensFail
+        : P.sensNote;
+    } else if (g) {
+      const d = g[0].top.days;
+      const end = d[todayIdx(d, today) + S.per - 1]?.date;
+      note = S.per === 1 ? P.notePrev1 : P.notePrevN(end ? dayName(end) : null);
+    } else note = fcFailed ? P.fcFailShort : P.loading;
+    $('[data-nv-mapnote]')!.textContent = note;
+    if (!map) return;
+    pins.forEach(({ m }) => m.remove());
+    pins = [];
+    const filt = resortFilter('totes', type());
+    const items = nota
+      ? (g ? notaItems(g, notes, S.k, filt) : resorts.filter(filt).map((r: any) => ({ slug: r.slug, name: r.short ?? r.name, lat: r.lat, lng: r.lng, nota: null })))
+      : depth ? sensorItems(st) : g ? mapItems(g, today, S.per) : resorts.map((r: any) => ({ slug: r.slug, name: r.short ?? r.name, lat: r.lat, lng: r.lng, cm: null }));
+    for (const it of items) {
+      const m = L.marker([it.lat, it.lng], { icon: L.divIcon({ className: 'nv-pin-w', html: pinHTML(it, { depth }), iconSize: null }), keyboard: false, riseOnHover: true });
+      m.addTo(map);
+      pins.push({ m, it });
+    }
+    declutter();
+    keepSeason();
+  }
+
+  async function initMap() {
+    const mod: any = await import('leaflet');
+    await import('leaflet/dist/leaflet.css');
+    L = mod.default ?? mod;
+    // Al mòbil, sense els botons de zoom (es pot ampliar amb els dits)
+    map = L.map(mapEl, { scrollWheelZoom: false, zoomSnap: 0.25, attributionControl: false, zoomControl: mapEl.clientWidth >= 600 });
+    L.control.attribution({ prefix: false }).addTo(map);
+    L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)',
+      subdomains: 'abc',
+      maxZoom: 14,
+    }).addTo(map);
+    const lats = resorts.map((r: any) => r.lat), lngs = resorts.map((r: any) => r.lng);
+    const small = mapEl.clientWidth < 600;
+    map.fitBounds([[Math.min(...lats), Math.min(...lngs)], [Math.max(...lats), Math.max(...lngs)]], { paddingTopLeft: small ? [30, 24] : [60, 40], paddingBottomRight: small ? [30, 34] : [60, 50] });
+    map.on('zoomend resize', declutter);
+    paintMap();
+  }
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver((es) => {
+      if (es.some((e) => e.isIntersecting)) { io.disconnect(); initMap().catch((e) => console.warn('[neu] mapa', e)); }
+    }, { rootMargin: '300px' });
+    io.observe(mapEl);
+  } else initMap();
+
+  // ---------------------------------------------------------------- controls
+  document.addEventListener('click', (e) => {
+    const t = e.target as HTMLElement;
+    const lay = t.closest<HTMLElement>('[data-layer]');
+    if (lay) {
+      S.layer = lay.dataset.layer!;
+      paintMap();
+      if (lay.tagName === 'A') { e.preventDefault(); $('#mapa')!.scrollIntoView({ behavior: 'smooth' }); history.replaceState(null, '', '#mapa'); }
+      return;
+    }
+    const per = t.closest<HTMLElement>('[data-per]');
+    if (per) { S.per = Number(per.dataset.per); paintMap(); return; }
+    const day = t.closest<HTMLElement>('[data-nv-days] [data-k]');
+    if (day) {
+      // En passar d'un dia sense cap estació oberta a un que en té, el mapa torna a la nota
+      const was = seaK();
+      S.k = Number(day.dataset.k);
+      if (!was && seaK()) S.layer = 'nota';
+      paintControls(); paintTop(groups()); paintList(); paintMap();
+      return;
+    }
+    const ty = t.closest<HTMLElement>('[data-nv-type] [data-type]');
+    if (ty) { S.type = ty.dataset.type!; S.all = false; paintControls(); paintHero(); paintList(); paintMap(); return; }
+    if (t.closest('[data-nv-more]')) { S.all = true; paintList(); }
+  });
+  $<HTMLSelectElement>('[data-nv-zone]')!.addEventListener('change', (e) => {
+    S.zone = (e.target as HTMLSelectElement).value;
+    paintList();
+  });
+
+  // Menú: la secció que es veu queda marcada (Avui a dalt de tot)
+  const navLinks = Array.from(document.querySelectorAll<HTMLAnchorElement>('.nv-tab a, .nv-top__nav a'));
+  const secs = ['mapa', 'estacions', 'allaus'].map((id) => document.getElementById(id)).filter(Boolean) as HTMLElement[];
+  let raf = 0;
+  addEventListener('scroll', () => {
+    if (raf) return;
+    raf = requestAnimationFrame(() => {
+      raf = 0;
+      let cur = 'avui';
+      for (const s of secs) if (s.getBoundingClientRect().top < innerHeight * 0.4) cur = s.id;
+      navLinks.forEach((a) => (a.hash.slice(1) || 'avui') === cur ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current'));
+    });
+  }, { passive: true });
+
+  // ---------------------------------------------------------------- dades
+  const getJson = (u: string) => fetch(u).then((r) => (r.ok ? r.json() : Promise.reject(new Error(`${u} ${r.status}`))));
+  // Per provar fora de temporada: ?temporada passa als enllaços de les fitxes
+  const keepSeason = () => {
+    if (!q.has('temporada')) return;
+    document.querySelectorAll<HTMLAnchorElement>(`a[href^="${tx.home}"]`).forEach((a) => {
+      const u = new URL(a.href, location.href);
+      if (!u.searchParams.has('temporada')) a.href = `${u.pathname}?temporada${u.hash}`;
+    });
+  };
+  function paint() {
+    today = todayMadrid();
+    const g = groups();
+    // La nota de cada estació i dia: amb els sensors i les incidències quan arriben
+    notes = g && season() ? allNotes(g, today, { stations: st ?? null, transit: tr }) : null;
+    paintControls();
+    paintHero();
+    paintList();
+    paintMap();
+    keepSeason();
+  }
+  function load() {
+    getJson('/api/neu')
+      .then((j) => { if (j?.resorts && Object.keys(j.resorts).length) { fc = j; fcFailed = false; } else fcFailed = !fc; })
+      .catch(() => { fcFailed = !fc; })
+      .finally(paint);
+    getJson('/api/neu/mesurada')
+      .then((j) => { st = j?.error ? (st ?? null) : (j?.stations ? usefulSensors(resorts, j.stations) : null); })
+      .catch(() => { st = st ?? null; })
+      .finally(paint);
+    if (season()) {
+      getJson('/api/transit?neu')
+        .then((j) => { if (!j?.error) { tr = j?.items ?? []; paint(); } })
+        .catch(() => {});
+    }
+  }
+  load();
+  setInterval(load, 30 * 60 * 1000);
+  aromeLinks();
+</script>

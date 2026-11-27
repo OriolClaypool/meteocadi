@@ -18,11 +18,11 @@
 // Com que es multiplica, quan una cosa falla molt (sense neu, vent molt fort, pluja) la nota baixa molt encara que la
 // resta vagi bé, i mai és més alta que la pitjor de les parts.
 import { rateDay } from '../ski.js';
-import { isOpen, obreText, obreCurt } from './temporada.js';
+import { isOpen, temporadaFor } from './temporada.js';
+import { CA } from './textos.js';
 
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
 const r1 = (v) => Math.round(v * 10) / 10;
-const list = (xs) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} i ${xs[xs.length - 1]}`);
 const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
 
 export function distKm(a, b, c, d) {
@@ -35,7 +35,6 @@ export function distKm(a, b, c, d) {
 
 // 4 molt bo (7,5 o més) · 3 bo (6 a 7,4) · 2 regular (4 a 5,9) · 1 dolent · 0 sense neu o tancada
 export const notaLevel = (v) => (v == null ? null : v >= 7.5 ? 4 : v >= 6 ? 3 : v >= 4 ? 2 : 1);
-export const NOTA_LABEL = { 4: 'Molt bo', 3: 'Bo', 2: 'Regular', 1: 'Dolent', 0: 'Sense neu' };
 // Fons i text (contrast suficient per a xifres petites)
 export const NOTA_FILL = { 4: '#0C8049', 3: '#7DBB3C', 2: '#F0B429', 1: '#CC3D27', 0: '#C9D3DF' };
 export const NOTA_INK = { 4: '#FFFFFF', 3: '#0E1C2F', 2: '#0E1C2F', 1: '#FFFFFF', 0: '#3E4F66' };
@@ -142,169 +141,180 @@ function sctAccess(items, now = Date.now()) {
   return best;
 }
 
-// ------------------------------------------------------------------ nota d'un dia
-
-// g: grup de neu.js ({ resort, top, base }); i: índex del dia; i0: índex d'avui
-// ctx: { depth (depthToday), direct (sensor del costat), transit (incidències a prop, només avui), pistes }
-// pistes (quan n'hi hagi): { oberta: bool, km, de } (km oberts de km totals)
-export function notaDay(g, i, i0, { depth = null, direct = null, transit = null, pistes = null } = {}) {
-  const T = g.top.days[i];
-  if (!T) return null;
-  const B = g.base?.days?.[i] ?? T;
-  const r = rateDay(g.top, g.base, i);
-  if (!r) return null;
-  const fons = g.resort.type === 'fons';
-  // Gruix del dia: el d'avui, més la neu que caurà abans (assentada, el 70 %) i menys la que es fondrà (1 cm per
-  // grau de màxima, entre el cim i la base). No el del model: el model fa créixer el gruix amb la seva neu, que als
-  // cims es queda curta (fonts.js, snowAt).
-  let cm = null;
-  if (depth) {
-    let delta = 0;
-    for (let j = i0; j < i; j++) {
-      const t = g.top.days[j], b = g.base?.days?.[j] ?? t;
-      if (!t) continue;
-      delta += 0.7 * Math.max(0, t.snow ?? 0) - Math.max(0, ((t.max ?? 0) + (b?.max ?? 0)) / 2);
-    }
-    cm = Math.max(0, depth.cm + delta);
-  }
-  const fresh = freshBefore(g, i, i0, direct);
-  // Qualitat: pluja a dalt els 2 dies abans o el mateix dia; neu dura (pluja o calor el dia abans i glaçada de nit)
-  let q = null;
-  if (rainOnSnow(g, i)) q = 'pluja';
-  else if (fresh < 5 && (T.min ?? 0) <= -3 && ((g.base?.days?.[i - 1]?.max ?? 0) >= 8 || rainTop(g.top.days[i - 1]))) q = 'dura';
-  else if (fresh >= 10 && (T.max ?? 0) <= -2) q = 'pols';
-  const neu = cm == null ? null : fNeu(cm, fresh, q, fons);
-  // Accés: neu a la carretera (la prevista a la base) i, avui, les incidències de l'SCT. A Núria s'hi puja amb el
-  // cremallera: la neu a la carretera no hi compta.
-  const road = g.resort.tren ? 0 : Math.max(0, B.snow ?? 0) + 0.5 * Math.max(0, g.base?.days?.[i - 1]?.snow ?? 0);
-  let acc = road >= 10 ? { f: 0.7, code: 'neu2' } : road >= 3 ? { f: 0.85, code: 'neu' } : { f: 1, code: null };
-  const sct = i === i0 ? sctAccess(transit) : null;
-  if (sct && sct.f <= acc.f) acc = sct; // l'observat mana sobre el previst
-  // Pistes obertes (només amb dades oficials)
-  const fp = pistes ? (pistes.oberta === false ? 0 : pistes.km != null && pistes.de ? clamp(Math.sqrt(pistes.km / pistes.de)) : 1) : null;
-  const temps = fTemps(r.weather);
-  const f = { neu, temps, acces: acc.f, pistes: fp };
-  const v = neu == null ? null : r1(10 * neu * temps * acc.f * (fp ?? 1));
-  const closed = fp === 0;
-  const bare = cm != null && cm < 3 && fresh < 3;
-  const level = v == null ? null : closed || bare ? 0 : notaLevel(v);
-  const n = { v, level, label: closed ? 'Tancada' : NOTA_LABEL[level] ?? '', f, cm, fresh, q, depth, rate: r, acc, pistes, date: T.date, fons };
-  n.why = whyText(n);
-  return n;
-}
-
-// Notes dels 7 dies d'una estació (a partir d'avui): [nota de k = 0 … 6]
-// ctx: { stations (sensors de /api/neu/mesurada), transit (incidències a prop de l'estació), pistes }
-export function notesOf(g, today, { stations = null, transit = null, pistes = null } = {}) {
-  const days = g?.top?.days ?? [];
-  let i0 = days.findIndex((d) => d.date >= today);
-  if (i0 < 0) return [];
-  const sens = sensorsFor(g.resort, stations);
-  const depth = depthToday(g, i0, sens);
-  const direct = depth?.sensor ?? null;
-  const out = [];
-  for (let k = 0; k < 7 && days[i0 + k]; k++) {
-    // Abans d'obrir (temporada.js) no hi ha nota: "Tancada" i quan obre
-    const date = days[i0 + k].date;
-    out.push(isOpen(g.resort, date) ? notaDay(g, i0 + k, i0, { depth, direct, transit, pistes }) : closedNote(g.resort, date));
-  }
-  return out;
-}
-
-// La "nota" d'un dia que l'estació encara és tancada: sense xifra (v null), amb quan obre
-export function closedNote(resort, date) {
-  return { v: null, level: null, closed: true, label: 'Tancada', why: obreText(resort, date), short: obreCurt(resort, date), date, f: {}, depth: null };
-}
-
-// ------------------------------------------------------------------ textos
-
+// ------------------------------------------------------------------ textos per idioma
+// La nota i les seves frases en cada idioma (textos.js): notaFor(CA) és el català, el que s'exporta a sota.
 // 85 cm · 1,2 m · 1 m (sense ",0")
 const cmTxt = (cm) => (cm >= 100 ? `${(Math.round(cm / 10) / 10).toFixed(1).replace('.', ',').replace(/,0$/, '')}\u00A0m` : `${Math.round(cm)}\u00A0cm`);
-// Gruix en paraules: el del sensor tal qual; l'estimat, arrodonit i amb "uns"
-export const depthTxt = (n) => (n.cm == null ? '' : n.depth?.src === 'sensor' ? cmTxt(n.cm) : `uns ${cmTxt(n.cm >= 100 ? n.cm : Math.round(n.cm / 5) * 5)}`);
-
-const WX = {
-  sun: 'sol', calm: 'poc vent',
-  wind3: 'vent molt fort a dalt', wind2: 'vent fort a dalt', wind1: 'una mica de vent a dalt',
-  storm: 'temporal de neu', snowing: 'nevada', rain: 'pluja a la base', rainTop: 'pluja fins a dalt', cloud: 'cel tapat', fog: 'boira',
-  cold2: 'molt fred a dalt', cold1: 'fred a dalt', hot: 'massa calor per a la neu', warm: 'neu humida a la tarda',
-};
-const ACC = { neu: 'neu a les carreteres', neu2: 'molta neu a les carreteres' };
-export const accTxt = (a) => (a.code === 'cadenes' ? `cadenes a la ${a.road}` : a.code === 'tallada' ? `${a.road} tallada per la neu` : ACC[a.code] ?? '');
 
 // Tota la neu que hi ha a terra és nova: n'ha caigut tanta o més que el gruix (la resta s'ha fos o assentat, o el
 // gruix del sensor és més baix que la neu del model). Llavors no es diuen les dues xifres ("30 cm de neu, 45 cm de
 // nova" es contradiu) sinó el gruix i que és nou: "uns 30 cm de neu nova".
 export const allNew = (n) => n.cm != null && n.cm >= 3 && Math.round(n.fresh) >= 5 && Math.round(n.fresh) >= n.cm - 2;
 
-// Frase del perquè: el bo i, després d'un "però", el dolent (com a molt 3 i 2 coses)
-export function whyText(n) {
-  if (n.label === 'Tancada') return 'Tancada.';
-  const fresh = Math.round(n.fresh);
-  // Sense base de neu, la resta no compta. Si n'ha caigut més de la que queda, es diu així (abans deia "només 19 cm
-  // de nova" amb 5 cm a terra); les frases no tenen temps verbal perquè també valen per als dies que vénen.
-  if (n.cm != null && n.cm < 10) {
-    if (fresh < 5) return n.cm < 3 ? 'Sense neu a terra.' : 'Gairebé sense neu.';
-    if (n.cm < 3) return `Gairebé sense neu: dels ${fresh}\u00A0cm de nova no en queda gairebé res.`;
-    if (fresh > n.cm + 2) return `Gairebé sense neu: dels ${fresh}\u00A0cm de nova en queden ${depthTxt(n)}.`;
-    return `Gairebé sense neu: només ${fresh}\u00A0cm de nova.`;
-  }
-  const good = [], bad = [];
-  const nova = n.q === 'pols' ? 'pols' : 'nova';
-  const tot = allNew(n);
-  if (n.cm != null) {
-    if (n.cm < 25) bad.push(`poca neu (${depthTxt(n)})`);
-    else good.push(tot ? `${depthTxt(n)} de neu ${nova}` : `${depthTxt(n)} de neu`);
-  }
-  // La neu nova: "20 cm de nova" després del gruix; sola, "20 cm de neu nova"; amb fred, "de pols"
-  // (amb poca neu a terra, la nova no és cap avantatge: es diu només que n'hi ha poca; si tota la neu és nova, ja
-  // s'ha dit amb el gruix)
-  const said = tot && n.cm >= 25;
-  if (!said && fresh >= 5 && (n.cm == null || n.cm >= 25)) good.push(good.length ? `${fresh}\u00A0cm de ${nova}` : `${fresh}\u00A0cm de neu ${nova}`);
-  else if (!said && n.q === 'pols') good.push('neu pols');
-  if (n.q === 'pluja') bad.push('pluja sobre la neu');
-  if (n.q === 'dura') bad.push('neu dura al matí');
-  const g = n.rate.good.filter((c) => WX[c]), b = n.rate.bad.filter((c) => WX[c]);
-  // El temps: si és bo, el bo; si no, el que el fa dolent
-  if (n.f.temps >= 0.85) good.push(...g.slice(0, 2).map((c) => WX[c]));
-  else bad.push(...b.slice(0, 2).map((c) => WX[c]));
-  if (n.acc.code) bad.push(accTxt(n.acc));
-  const G = good.slice(0, 3), Bd = bad.slice(0, 2);
-  if (!G.length && !Bd.length) return '';
-  if (!Bd.length) return `${cap(list(G))}.`;
-  if (!G.length) return `${cap(list(Bd))}.`;
-  return `${cap(list(G))}, però ${list(Bd)}.`;
-}
+const cache = new Map();
+export function notaFor(tx) {
+  if (cache.has(tx)) return cache.get(tx);
+  const NOTA_LABEL = tx.notaLabel;
+  const list = tx.list;
+  const { obreText, obreCurt } = temporadaFor(tx);
 
-// Text curt de cada part (per a les barres)
-export function partTxt(n, key) {
-  if (key === 'neu') {
-    if (n.cm == null) return '';
-    if (n.cm < 3) return 'Sense neu a terra';
-    if (n.cm < 10) return `Gairebé sense neu (${depthTxt(n)})`;
+  // ------------------------------------------------------------------ nota d'un dia
+
+  // g: grup de neu.js ({ resort, top, base }); i: índex del dia; i0: índex d'avui
+  // ctx: { depth (depthToday), direct (sensor del costat), transit (incidències a prop, només avui), pistes }
+  // pistes (quan n'hi hagi): { oberta: bool, km, de } (km oberts de km totals)
+  function notaDay(g, i, i0, { depth = null, direct = null, transit = null, pistes = null } = {}) {
+    const T = g.top.days[i];
+    if (!T) return null;
+    const B = g.base?.days?.[i] ?? T;
+    const r = rateDay(g.top, g.base, i);
+    if (!r) return null;
+    const fons = g.resort.type === 'fons';
+    // Gruix del dia: el d'avui, més la neu que caurà abans (assentada, el 70 %) i menys la que es fondrà (1 cm per
+    // grau de màxima, entre el cim i la base). No el del model: el model fa créixer el gruix amb la seva neu, que als
+    // cims es queda curta (fonts.js, snowAt).
+    let cm = null;
+    if (depth) {
+      let delta = 0;
+      for (let j = i0; j < i; j++) {
+        const t = g.top.days[j], b = g.base?.days?.[j] ?? t;
+        if (!t) continue;
+        delta += 0.7 * Math.max(0, t.snow ?? 0) - Math.max(0, ((t.max ?? 0) + (b?.max ?? 0)) / 2);
+      }
+      cm = Math.max(0, depth.cm + delta);
+    }
+    const fresh = freshBefore(g, i, i0, direct);
+    // Qualitat: pluja a dalt els 2 dies abans o el mateix dia; neu dura (pluja o calor el dia abans i glaçada de nit)
+    let q = null;
+    if (rainOnSnow(g, i)) q = 'pluja';
+    else if (fresh < 5 && (T.min ?? 0) <= -3 && ((g.base?.days?.[i - 1]?.max ?? 0) >= 8 || rainTop(g.top.days[i - 1]))) q = 'dura';
+    else if (fresh >= 10 && (T.max ?? 0) <= -2) q = 'pols';
+    const neu = cm == null ? null : fNeu(cm, fresh, q, fons);
+    // Accés: neu a la carretera (la prevista a la base) i, avui, les incidències de l'SCT. A Núria s'hi puja amb el
+    // cremallera: la neu a la carretera no hi compta.
+    const road = g.resort.tren ? 0 : Math.max(0, B.snow ?? 0) + 0.5 * Math.max(0, g.base?.days?.[i - 1]?.snow ?? 0);
+    let acc = road >= 10 ? { f: 0.7, code: 'neu2' } : road >= 3 ? { f: 0.85, code: 'neu' } : { f: 1, code: null };
+    const sct = i === i0 ? sctAccess(transit) : null;
+    if (sct && sct.f <= acc.f) acc = sct; // l'observat mana sobre el previst
+    // Pistes obertes (només amb dades oficials)
+    const fp = pistes ? (pistes.oberta === false ? 0 : pistes.km != null && pistes.de ? clamp(Math.sqrt(pistes.km / pistes.de)) : 1) : null;
+    const temps = fTemps(r.weather);
+    const f = { neu, temps, acces: acc.f, pistes: fp };
+    const v = neu == null ? null : r1(10 * neu * temps * acc.f * (fp ?? 1));
+    const closed = fp === 0;
+    const bare = cm != null && cm < 3 && fresh < 3;
+    const level = v == null ? null : closed || bare ? 0 : notaLevel(v);
+    const n = { v, level, label: closed ? tx.tancada : NOTA_LABEL[level] ?? '', f, cm, fresh, q, depth, rate: r, acc, pistes, date: T.date, fons };
+    n.why = whyText(n);
+    return n;
+  }
+
+  // Notes dels 7 dies d'una estació (a partir d'avui): [nota de k = 0 … 6]
+  // ctx: { stations (sensors de /api/neu/mesurada), transit (incidències a prop de l'estació), pistes }
+  function notesOf(g, today, { stations = null, transit = null, pistes = null } = {}) {
+    const days = g?.top?.days ?? [];
+    let i0 = days.findIndex((d) => d.date >= today);
+    if (i0 < 0) return [];
+    const sens = sensorsFor(g.resort, stations);
+    const depth = depthToday(g, i0, sens);
+    const direct = depth?.sensor ?? null;
+    const out = [];
+    for (let k = 0; k < 7 && days[i0 + k]; k++) {
+      // Abans d'obrir (temporada.js) no hi ha nota: "Tancada" i quan obre
+      const date = days[i0 + k].date;
+      out.push(isOpen(g.resort, date) ? notaDay(g, i0 + k, i0, { depth, direct, transit, pistes }) : closedNote(g.resort, date));
+    }
+    return out;
+  }
+
+  // La "nota" d'un dia que l'estació encara és tancada: sense xifra (v null), amb quan obre
+  function closedNote(resort, date) {
+    return { v: null, level: null, closed: true, label: tx.tancada, why: obreText(resort, date), short: obreCurt(resort, date), date, f: {}, depth: null };
+  }
+
+  // ------------------------------------------------------------------ textos
+
+  // Gruix en paraules: el del sensor tal qual; l'estimat, arrodonit i amb "uns"
+  const depthTxt = (n) => (n.cm == null ? '' : n.depth?.src === 'sensor' ? cmTxt(n.cm) : tx.uns(cmTxt(n.cm >= 100 ? n.cm : Math.round(n.cm / 5) * 5)));
+
+  const WX = tx.wx;
+  const ACC = tx.acc;
+  const accTxt = (a) => (a.code === 'cadenes' ? tx.accCadenes(a.road) : a.code === 'tallada' ? tx.accTallada(a.road) : ACC[a.code] ?? '');
+
+
+  // Frase del perquè: el bo i, després d'un "però", el dolent (com a molt 3 i 2 coses)
+  function whyText(n) {
+    if (n.label === tx.tancada) return tx.why.closed;
     const fresh = Math.round(n.fresh);
-    const q = n.q === 'pluja' ? ' · pluja a sobre' : n.q === 'dura' ? ' · dura al matí' : '';
-    // Tota nova: "Uns 30 cm de neu nova" (no "Uns 30 cm · 45 cm nous")
-    if (allNew(n)) return `${cap(depthTxt(n))} de neu ${n.q === 'pols' ? 'pols' : 'nova'}${q}`;
-    return `${cap(depthTxt(n))}${fresh >= 5 ? ` · ${fresh}\u00A0cm nous` : ''}${q}${n.q === 'pols' ? ' · pols' : ''}`;
-  }
-  if (key === 'temps') {
+    // Sense base de neu, la resta no compta. Si n'ha caigut més de la que queda, es diu així (abans deia "només 19 cm
+    // de nova" amb 5 cm a terra); les frases no tenen temps verbal perquè també valen per als dies que vénen.
+    if (n.cm != null && n.cm < 10) {
+      if (fresh < 5) return n.cm < 3 ? tx.why.noSnow : tx.why.almost;
+      if (n.cm < 3) return tx.why.almostGone(fresh);
+      if (fresh > n.cm + 2) return tx.why.almostLeft(fresh, depthTxt(n));
+      return tx.why.almostOnly(fresh);
+    }
+    const good = [], bad = [];
+    const nova = tx.why.nova(n.q === 'pols');
+    const tot = allNew(n);
+    if (n.cm != null) {
+      if (n.cm < 25) bad.push(tx.why.little(depthTxt(n)));
+      else good.push(tot ? tx.why.depthNew(depthTxt(n), nova) : tx.why.depth(depthTxt(n)));
+    }
+    // La neu nova: "20 cm de nova" després del gruix; sola, "20 cm de neu nova"; amb fred, "de pols"
+    // (amb poca neu a terra, la nova no és cap avantatge: es diu només que n'hi ha poca; si tota la neu és nova, ja
+    // s'ha dit amb el gruix)
+    const said = tot && n.cm >= 25;
+    if (!said && fresh >= 5 && (n.cm == null || n.cm >= 25)) good.push(good.length ? tx.why.freshAfter(fresh, nova) : tx.why.freshAlone(fresh, nova));
+    else if (!said && n.q === 'pols') good.push(tx.why.pols);
+    if (n.q === 'pluja') bad.push(tx.why.rainOn);
+    if (n.q === 'dura') bad.push(tx.why.hard);
     const g = n.rate.good.filter((c) => WX[c]), b = n.rate.bad.filter((c) => WX[c]);
-    const t = n.f.temps >= 0.85 ? g.slice(0, 2) : b.slice(0, 2);
-    return t.length ? cap(list(t.map((c) => WX[c]))) : n.f.temps >= 0.85 ? 'Bon temps' : 'Variable';
+    // El temps: si és bo, el bo; si no, el que el fa dolent
+    if (n.f.temps >= 0.85) good.push(...g.slice(0, 2).map((c) => WX[c]));
+    else bad.push(...b.slice(0, 2).map((c) => WX[c]));
+    if (n.acc.code) bad.push(accTxt(n.acc));
+    const G = good.slice(0, 3), Bd = bad.slice(0, 2);
+    if (!G.length && !Bd.length) return '';
+    if (!Bd.length) return `${cap(list(G))}.`;
+    if (!G.length) return `${cap(list(Bd))}.`;
+    return tx.why.but(cap(list(G)), list(Bd));
   }
-  if (key === 'acces') return n.acc.code ? cap(accTxt(n.acc)) : 'Sense problemes';
-  if (key === 'pistes') return !n.pistes ? '' : n.pistes.oberta === false ? 'Tancada' : n.pistes.km != null ? `${n.pistes.km} de ${n.pistes.de}\u00A0km oberts` : 'Oberta';
-  return '';
-}
 
-// D'on surt el gruix: sempre una estimació de Meteocadí, mai una dada oficial de l'estació (fitxa i llistes)
-export function depthSource(n) {
-  const d = n.depth;
-  if (!d) return '';
-  const km = (x) => `${Math.round(x)}\u00A0km`;
-  if (d.src === 'sensor') return `Estimació de Meteocadí amb el sensor del Meteocat de ${d.where[0]}${d.km != null ? ` (a ${km(d.km)})` : ''}`;
-  if (d.src === 'estimat') return `Estimació de Meteocadí amb ${d.where.length > 1 ? 'els sensors' : 'el sensor'} del Meteocat de ${list(d.where)}${d.km != null ? ` (el més proper, a ${km(d.km)})` : ''}${d.model ? ' i el model' : ''}`;
-  return 'Estimació de Meteocadí amb el model de previsió';
-}
+  // Text curt de cada part (per a les barres)
+  function partTxt(n, key) {
+    if (key === 'neu') {
+      if (n.cm == null) return '';
+      if (n.cm < 3) return tx.part.noSnow;
+      if (n.cm < 10) return tx.part.almost(depthTxt(n));
+      const fresh = Math.round(n.fresh);
+      const q = n.q === 'pluja' ? tx.part.rainOn : n.q === 'dura' ? tx.part.hard : '';
+      // Tota nova: "Uns 30 cm de neu nova" (no "Uns 30 cm · 45 cm nous")
+      if (allNew(n)) return `${tx.part.allNew(cap(depthTxt(n)), n.q === 'pols')}${q}`;
+      return `${cap(depthTxt(n))}${fresh >= 5 ? tx.part.fresh(fresh) : ''}${q}${n.q === 'pols' ? tx.part.pols : ''}`;
+    }
+    if (key === 'temps') {
+      const g = n.rate.good.filter((c) => WX[c]), b = n.rate.bad.filter((c) => WX[c]);
+      const t = n.f.temps >= 0.85 ? g.slice(0, 2) : b.slice(0, 2);
+      return t.length ? cap(list(t.map((c) => WX[c]))) : n.f.temps >= 0.85 ? tx.part.good : tx.part.variable;
+    }
+    if (key === 'acces') return n.acc.code ? cap(accTxt(n.acc)) : tx.part.accOk;
+    if (key === 'pistes') return !n.pistes ? '' : n.pistes.oberta === false ? tx.tancada : n.pistes.km != null ? tx.part.open(n.pistes.km, n.pistes.de) : tx.part.oberta;
+    return '';
+  }
 
+  // D'on surt el gruix: sempre una estimació de Meteocadí, mai una dada oficial de l'estació (fitxa i llistes)
+  function depthSource(n) {
+    const d = n.depth;
+    if (!d) return '';
+    const km = (x) => `${Math.round(x)}\u00A0km`;
+    if (d.src === 'sensor') return tx.src.sensor(d.where[0], d.km != null ? km(d.km) : null);
+    if (d.src === 'estimat') return tx.src.estimat(d.where.length > 1, list(d.where), d.km != null ? km(d.km) : null, d.model);
+    return tx.src.model;
+  }
+
+  const out = { NOTA_LABEL, notaDay, notesOf, closedNote, depthTxt, accTxt, whyText, partTxt, depthSource };
+  cache.set(tx, out);
+  return out;
+}
+export const { NOTA_LABEL, notaDay, notesOf, closedNote, depthTxt, accTxt, whyText, partTxt, depthSource } = notaFor(CA);

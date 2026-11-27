@@ -18,6 +18,8 @@
 // Baqueira Beret (obertura del 28 de novembre ajornada per falta de gruixos; pendent de nova data). Masella diu que
 // obrirà el primer dia que la neu ho permeti; Port del Comte i les estacions de nòrdic no han anunciat data; a
 // Tavascan, l'obertura de l'esquí alpí no està confirmada.
+import { CA } from './textos.js';
+
 export const TEMPORADA = '2026-27';
 export const REVISAT = '2026-11-27';
 // El dia que obre la majoria (pont de la Puríssima): les estacions sense data hi compten com a obertes
@@ -55,34 +57,35 @@ export function obertura(slug) {
 // És oberta el dia iso? Una estació sense aquests camps (dades antigues, o ?temporada per fer proves) compta com a oberta
 export const isOpen = (resort, iso) => resort?.obreDes === undefined || (resort.obreDes != null && iso >= resort.obreDes);
 
-const DIES = ['diumenge', 'dilluns', 'dimarts', 'dimecres', 'dijous', 'divendres', 'dissabte'];
-const MESOS = ['gener', 'febrer', 'març', 'abril', 'maig', 'juny', 'juliol', 'agost', 'setembre', 'octubre', 'novembre', 'desembre'];
 const dt = (iso) => new Date(`${iso}T12:00:00Z`);
-const deMes = (m) => (/^[aeiou]/.test(MESOS[m]) ? `d'${MESOS[m]}` : `de ${MESOS[m]}`);
-// "4 de desembre" · "divendres 4 de desembre" · "el 4 de desembre" / "l'1 de desembre"
-export const diaMes = (iso) => `${dt(iso).getUTCDate()} ${deMes(dt(iso).getUTCMonth())}`;
-export const diaLlarg = (iso) => `${DIES[dt(iso).getUTCDay()]} ${diaMes(iso)}`;
-export const elDia = (iso) => ([1, 11].includes(dt(iso).getUTCDate()) ? `l'${diaMes(iso)}` : `el ${diaMes(iso)}`);
 export const diesFins = (iso, today) => Math.round((dt(iso) - dt(today)) / 864e5);
-// "avui" · "demà" · "d'aquí a 13 dies"
-export const falten = (iso, today) => {
-  const n = diesFins(iso, today);
-  return n <= 0 ? 'avui' : n === 1 ? 'demà' : `d'aquí a ${n} dies`;
-};
 
-// Frase de quan obre una estació que encara és tancada el dia `iso` ('' si ja és oberta)
-export function obreText(resort, iso) {
-  if (isOpen(resort, iso)) return '';
-  if (resort.obre) return `Obre el ${diaLlarg(resort.obre)}, si la neu ho permet.`;
-  if (resort.obreDes == null) return resort.obreNota || "No se sap si obrirà aquesta temporada.";
-  return resort.obreNota || "Encara no ha anunciat quin dia obre.";
+// Les frases, en cada idioma (textos.js): temporadaFor(CA) és el català, el que s'exporta a sota
+const cache = new Map();
+export function temporadaFor(tx) {
+  if (cache.has(tx)) return cache.get(tx);
+  // "4 de desembre" · "divendres 4 de desembre" · "el 4 de desembre" / "l'1 de desembre"
+  const { diaMes, diaLlarg, elDia } = tx;
+  // "avui" · "demà" · "d'aquí a 13 dies"
+  const falten = (iso, today) => tx.falten(diesFins(iso, today));
+  // Frase de quan obre una estació que encara és tancada el dia `iso` ('' si ja és oberta)
+  function obreText(resort, iso) {
+    if (isOpen(resort, iso)) return '';
+    if (resort.obre) return tx.obreEl(diaLlarg(resort.obre));
+    if (resort.obreDes == null) return tx.obreNota(resort) || tx.noSeSap;
+    return tx.obreNota(resort) || tx.noAnunciat;
+  }
+  // Curt, per a les llistes: "Obre el 4 de desembre" · "Sense data d'obertura"
+  function obreCurt(resort, iso) {
+    if (isOpen(resort, iso)) return '';
+    if (resort.obre) return tx.obreCurt(elDia(resort.obre));
+    return resort.obreDes == null ? tx.noConfirmada : tx.senseData;
+  }
+  const out = { diaMes, diaLlarg, elDia, falten, obreText, obreCurt };
+  cache.set(tx, out);
+  return out;
 }
-// Curt, per a les llistes: "Obre el 4 de desembre" · "Sense data d'obertura"
-export function obreCurt(resort, iso) {
-  if (isOpen(resort, iso)) return '';
-  if (resort.obre) return `Obre ${elDia(resort.obre)}`;
-  return resort.obreDes == null ? 'Obertura no confirmada' : "Sense data d'obertura";
-}
+export const { diaMes, diaLlarg, elDia, falten, obreText, obreCurt } = temporadaFor(CA);
 
 // Les obertures que encara han de venir, agrupades per dia: [{ date, items: [estació] }] i, a part, les que no tenen
 // data ({ date: null }). Buit quan ja no en queda cap amb data per obrir.

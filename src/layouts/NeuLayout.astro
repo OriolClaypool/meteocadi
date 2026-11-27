@@ -4,6 +4,7 @@
 // mòbil, el menú a baix. Publicada el 20/10/2026 (fins aleshores, noindex, robots i fora del mapa del web).
 import Base from './Base.astro';
 import { PATROCINI_NEU, CANAL_AVISOS } from '../lib/comercial.js';
+import { textos } from '../lib/neu/textos.js';
 import '../styles/neu.css';
 
 interface Props {
@@ -15,14 +16,18 @@ interface Props {
   share?: boolean; // botó de compartir la pàgina
   card?: { kicker?: string; title?: string; sub?: string; lat?: number; lng?: number; label?: string; pins?: [number, number][] };
   credits?: string; // fonts de la pàgina, al peu
+  lang?: 'ca' | 'es'; // els textos de la plantilla (textos.js, lay)
 }
-const { title, description, path, current = 'avui', back, share = false, card, credits } = Astro.props;
+const { title, description, path, current = 'avui', back, share = false, card, credits, lang = 'ca' } = Astro.props;
+const tx = textos(lang);
+const T = tx.lay;
+const H = tx.home;
 
 const NAV = [
-  { k: 'avui', href: '/neu', label: 'Avui', d: '<path d="m8 3 4 8 5-5 5 15H2L8 3z"/><path d="M4.14 15.08c2.62-1.57 5.24-1.43 7.86.42 2.74 1.94 5.49 2 8.23.19"/>' },
-  { k: 'estacions', href: '/neu#estacions', label: 'Estacions', d: '<path d="M3 12h.01M3 18h.01M3 6h.01M8 12h13M8 18h13M8 6h13"/>' },
-  { k: 'mapa', href: '/neu#mapa', label: 'Mapa', d: '<path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15M9 3.236v15"/>' },
-  { k: 'allaus', href: '/neu#allaus', label: 'Allaus', d: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>' },
+  { k: 'avui', href: H, label: T.nav.avui, d: '<path d="m8 3 4 8 5-5 5 15H2L8 3z"/><path d="M4.14 15.08c2.62-1.57 5.24-1.43 7.86.42 2.74 1.94 5.49 2 8.23.19"/>' },
+  { k: 'estacions', href: `${H}#estacions`, label: T.nav.estacions, d: '<path d="M3 12h.01M3 18h.01M3 6h.01M8 12h13M8 18h13M8 6h13"/>' },
+  { k: 'mapa', href: `${H}#mapa`, label: T.nav.mapa, d: '<path d="M14.106 5.553a2 2 0 0 0 1.788 0l3.659-1.83A1 1 0 0 1 21 4.619v12.764a1 1 0 0 1-.553.894l-4.553 2.277a2 2 0 0 1-1.788 0l-4.212-2.106a2 2 0 0 0-1.788 0l-3.659 1.83A1 1 0 0 1 3 19.381V6.618a1 1 0 0 1 .553-.894l4.553-2.277a2 2 0 0 1 1.788 0z"/><path d="M15 5.764v15M9 3.236v15"/>' },
+  { k: 'allaus', href: `${H}#allaus`, label: T.nav.allaus, d: '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>' },
 ];
 
 // Carena de muntanyes entre la capçalera i la pàgina: el tros de la maqueta (390 px) i el mateix girat, repetits,
@@ -34,7 +39,7 @@ const seg = (off: number, mirror: boolean) => (mirror ? [...pts].reverse().map((
 const ridge = [0, 1, 2, 3, 4, 5].flatMap((k) => seg(k * 390, k % 2 === 1).slice(k ? 1 : 0));
 const ridgeD = `M0 46V${ridge[0][1]}${ridge.map(([x, y]) => `L${x} ${y}`).join('')}V46Z`;
 ---
-<Base title={title} description={description} path={path} bare card={{ kicker: 'Meteocadí Neu', tone: 'neu', ...card }}>
+<Base title={title} description={description} path={path} lang={lang} bare card={{ kicker: 'Meteocadí Neu', tone: 'neu', ...card }}>
   <div class="nv">
     <header class="nv-hero">
       <div class="nv-in">
@@ -44,7 +49,7 @@ const ridgeD = `M0 46V${ridge[0][1]}${ridge.map(([x, y]) => `L${x} ${y}`).join('
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6" /></svg>{back.label}
             </a>
           )}
-          <a class="nv-brand" href="/neu" aria-label="Meteocadí Neu, inici">
+          <a class="nv-brand" href={H} aria-label={T.brandAria}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12h20M12 2v20M20 16l-4-4 4-4M4 8l4 4-4 4M16 4l-4 4-4-4M8 20l4-4 4 4" /></svg>
             <b>Meteocadí <span>Neu</span></b>
           </a>
@@ -53,9 +58,9 @@ const ridgeD = `M0 46V${ridge[0][1]}${ridge.map(([x, y]) => `L${x} ${y}`).join('
               {NAV.map((n) => <a class="nv-top__l" href={n.href} aria-current={n.k === current ? 'page' : undefined}>{n.label}</a>)}
             </nav>
             {share && (
-              <button type="button" class="nv-top__l nv-share" data-share aria-label="Comparteix aquesta pàgina">
+              <button type="button" class="nv-top__l nv-share" data-share aria-label={T.share}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="m8.59 13.51 6.83 3.98M15.41 6.51l-6.82 3.98" /></svg>
-                <span class="nv-share__ok" hidden>Enllaç copiat</span>
+                <span class="nv-share__ok" hidden>{T.copied}</span>
               </button>
             )}
           </div>
@@ -63,7 +68,7 @@ const ridgeD = `M0 46V${ridge[0][1]}${ridge.map(([x, y]) => `L${x} ${y}`).join('
         <slot name="hero" />
         {PATROCINI_NEU.actiu && PATROCINI_NEU.nom && (
           <a class="nv-spon" href={PATROCINI_NEU.url || '/colabora'} rel="sponsored noopener" target={PATROCINI_NEU.url ? '_blank' : undefined}>
-            <span>{PATROCINI_NEU.etiqueta || 'Amb el suport de'}</span>
+            <span>{PATROCINI_NEU.etiqueta || T.suport}</span>
             <b>{PATROCINI_NEU.nom}</b>
             {PATROCINI_NEU.frase && <em>· {PATROCINI_NEU.frase}</em>}
           </a>
@@ -77,12 +82,9 @@ const ridgeD = `M0 46V${ridge[0][1]}${ridge.map(([x, y]) => `L${x} ${y}`).join('
     <footer class="nv-foot">
       <div class="nv-in">
         <p class="nv-foot__b">Meteocadí <span>Neu</span></p>
-        <p>La previsió de neu i esquí de Meteocadí per a les estacions del Pirineu de Catalunya i Andorra.</p>
-        <p>
-          Previsió: <a href="https://open-meteo.com/" rel="noopener">Open-Meteo</a>. Neu mesurada: Servei Meteorològic de
-          Catalunya (XEMA), dades obertes de la Generalitat de Catalunya. Estat de pistes: la web de cada estació.{credits ? ` ${credits}` : ''}
-        </p>
-        <p>Les previsions són orientatives. A la muntanya, cadascú n'assumeix el risc.</p>
+        <p>{T.foot1}</p>
+        <p set:html={T.foot2 + (credits ? ` ${credits}` : '')} />
+        <p>{T.foot3}</p>
         <div class="nv-foot__soc">
           {CANAL_AVISOS.url && (
             <a href={CANAL_AVISOS.url} rel="noopener" target="_blank">{CANAL_AVISOS.nom}</a>
@@ -91,13 +93,13 @@ const ridgeD = `M0 46V${ridge[0][1]}${ridge.map(([x, y]) => `L${x} ${y}`).join('
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5" /><circle cx="12" cy="12" r="4" /><path d="M17.5 6.5h.01" /></svg>
             Instagram @meteocadi
           </a>
-          <button type="button" data-share aria-label="Comparteix aquesta pàgina">
+          <button type="button" data-share aria-label={T.share}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="m8.59 13.51 6.83 3.98M15.41 6.51l-6.82 3.98" /></svg>
-            Comparteix
-            <span class="nv-share__ok" hidden>Enllaç copiat</span>
+            {T.comparteix}
+            <span class="nv-share__ok" hidden>{T.copied}</span>
           </button>
         </div>
-        <p class="nv-foot__l"><a href="/">meteocadi.cat</a><a href="/neu-amb-nens">Neu amb nens</a><a href="/colabora">Patrocina</a><a href="/avis-legal">Avís legal</a><a href="/contacte">Contacte</a></p>
+        <p class="nv-foot__l">{T.links.map(([href, label]) => <a href={href}>{label}</a>)}</p>
       </div>
     </footer>
 
